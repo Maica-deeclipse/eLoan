@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eLoan | Employee Registration</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    /* Dark Mode */
+    body.dark-mode {
+      background-color: #0b0b0f;
+      color: #eaeaea;
+    }
+
+    /* Light Mode */
+    body.light-mode {
+      background-color: #f8f9fa;
+      color: #000;
+    }
+
+    .card {
+      padding: 40px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+      transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+    }
+
+    body.dark-mode .card {
+      background-color: #161020;
+      border: 1px solid #2a1b3d;
+      color: #eaeaea;
+    }
+
+    body.light-mode .card {
+      background-color: #fff;
+      border: 1px solid #ccc;
+      color: #000;
+    }
+
+    h2 {
+      color: #c77dff;
+      margin-bottom: 20px;
+    }
+
+    .form-control {
+      margin-bottom: 15px;
+      transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+    }
+
+    body.dark-mode .form-control {
+      background-color: #0f0f14;
+      border: 1px solid #2a1b3d;
+      color: #fff;
+    }
+
+    body.light-mode .form-control {
+      background-color: #fff;
+      border: 1px solid #ccc;
+      color: #000;
+    }
+
+    .form-control:focus {
+      border-color: #6f42c1;
+      box-shadow: none;
+    }
+
+    body.dark-mode .form-control:focus {
+      background-color: #0f0f14;
+      color: #fff;
+    }
+
+    body.light-mode .form-control:focus {
+      background-color: #fff;
+      color: #000;
+    }
+
+    .btn-register {
+      width: 100%;
+      background-color: #6f42c1;
+      border: none;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .btn-register:hover {
+      background-color: #845ef7;
+    }
+
+    a {
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+
+    body.dark-mode a {
+      color: #ccc;
+    }
+
+    body.dark-mode a:hover {
+      color: #fff;
+    }
+
+    body.light-mode a {
+      color: #6f42c1;
+    }
+
+    body.light-mode a:hover {
+      color: #845ef7;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Employee Registration</h2>
+    <p>Create a new account to access the eLoan portal</p>
+
+    <input type="text" class="form-control" placeholder="Full Name" required>
+    <input type="email" class="form-control" placeholder="Email Address" required>
+    <input type="password" class="form-control" placeholder="Password" required>
+    <input type="password" class="form-control" placeholder="Confirm Password" required>
+
+    <button class="btn btn-register mt-3" onclick="register()">Create Account</button>
+
+    <p class="mt-3">Already have an account? <a href="employee-login.html">Login here</a></p>
+  </div>
+
+  <script>
+    function register() {
+      // Placeholder for actual registration logic
+      alert("Account created successfully! Redirecting to login...");
+      window.location.href = "employee-login.html";
+    }
+  </script>
+
+<script src="theme.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eLoan | Apply New Loan</title>
+
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Theme Styles -->
+  <link rel="stylesheet" href="theme.css">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+    }
+
+    /* Sidebar & Content - handled by theme.css */
+    .sidebar {
+      width: 260px;
+      min-height: 100vh;
+      position: fixed;
+      padding: 25px;
+    }
+
+    .sidebar h4 { 
+      margin-bottom: 30px; 
+    }
+
+    .sidebar a {
+      display: block;
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      text-decoration: none;
+    }
+
+    .sidebar a:hover,
+    .sidebar a.active { 
+      background-color: #6f42c1; 
+      color: #fff; 
+    }
+
+    /* Content */
+    .content { 
+      margin-left: 280px; 
+      padding: 30px; 
+    }
+
+    /* Card & Form - handled by theme.css */
+    .card {
+      border-radius: 14px;
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+
+    .step-title { 
+      font-weight: 700; 
+    }
+
+    .btn-primary, .btn-success { 
+      border: none; 
+      font-weight: 600; 
+    }
+  </style>
+  <style>
+  /* Dark / Light Mode Classes */
+  body.dark-mode { background-color: #0b0b0f; color: #eaeaea; }
+  body.light-mode { background-color: #f8f9fa; color: #000; }
+
+  .sidebar.dark-mode { background-color: #120018; color: #eaeaea; }
+  .sidebar.light-mode { background-color: #fff; color: #000; }
+
+  .card.dark-mode { background-color: #161020; border: 1px solid #2a1b3d; color: #eaeaea; }
+  .card.light-mode { background-color: #fff; border: 1px solid #ccc; color: #000; }
+
+  .form-control.dark-mode, .form-select.dark-mode {
+    background-color: #0f0f14; color: #fff; border: 1px solid #2a1b3d;
+  }
+  .form-control.light-mode, .form-select.light-mode {
+    background-color: #fff; color: #000; border: 1px solid #ccc;
+  }
+
+  .btn-primary.dark-mode { background-color: #6f42c1; color: #fff; }
+  .btn-primary.light-mode { background-color: #845ef7; color: #fff; }
+
+  .btn-success.dark-mode { background-color: #51cf66; color: #fff; }
+  .btn-success.light-mode { background-color: #40c057; color: #fff; }
+
+  .btn-back.dark-mode { background-color: #444; color: #fff; }
+  .btn-back.light-mode { background-color: #ccc; color: #000; }
+    .hidden { display: none !important; }</style>
+
+</head>
+<body class="light-mode">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <h4>eLoan</h4>
+  <a href="employee-dashboard.html">Dashboard</a>
+  <a href="employee-recent-applications.html">Recent Applications</a>
+  <a href="employee-add-loan.html" class="active">Add New Loan</a>
+  <a href="employee-track-status.html">Track Status</a>
+  <a href="employee-profile.html">Profile</a>
+  <a href="employee-settings.html">Settings</a>
+  <a href="employee-logout.html">Logout</a>
+</div>
+
+<!-- Content -->
+<div class="content">
+  <div class="card">
+
+    <!-- STEP 0: Select Loan Type -->
+    <div id="step0">
+      <h4 class="step-title mb-3">Select Loan Type</h4>
+      <p>Please choose the type of loan you want to apply for:</p>
+      <div class="row g-3">
+        <div class="col-md-4"><button class="btn btn-primary w-100" onclick="selectLoanType('Gadgets & Appliances')">Gadgets & Appliances</button></div>
+        <div class="col-md-4"><button class="btn btn-primary w-100" onclick="selectLoanType('Regular')">Regular Loan</button></div>
+        <div class="col-md-4"><button class="btn btn-primary w-100" onclick="selectLoanType('Grocery')">Grocery Loan</button></div>
+        <div class="col-md-4"><button class="btn btn-primary w-100" onclick="selectLoanType('Emergency')">Emergency Loan</button></div>
+        <div class="col-md-4"><button class="btn btn-primary w-100" onclick="selectLoanType('Financing')">Financing Loan</button></div>
+        <div class="col-md-4"><button class="btn btn-primary w-100" onclick="selectLoanType('Others')">More...</button></div>
+      </div>
+    </div>
+
+    <!-- STEP 1: Applicant Info -->
+    <div id="step1" class="hidden">
+      <h4 class="step-title mb-3">Step 1: Applicant Information</h4>
+      <p id="selectedLoanType" class="text-info mb-3"></p>
+      <div class="row g-3">
+        <div class="col-md-6"><input class="form-control" placeholder="Full Name"></div>
+        <div class="col-md-6"><input class="form-control" placeholder="Email Address"></div>
+        <div class="col-md-4"><input type="date" class="form-control"></div>
+        <div class="col-md-2"><input class="form-control" placeholder="Age"></div>
+        <div class="col-md-3">
+          <select class="form-select">
+            <option>Civil Status</option>
+            <option>Single</option>
+            <option>Married</option>
+            <option>Widowed</option>
+          </select>
+        </div>
+        <div class="col-md-3"><input class="form-control" placeholder="Contact Number"></div>
+        <div class="col-md-12"><input class="form-control" placeholder="Complete Address"></div>
+        <div class="col-md-6"><input class="form-control" placeholder="TIN"></div>
+      </div>
+
+      <hr>
+      <h6 class="text-muted">Employment Information</h6>
+      <div class="row g-3">
+        <div class="col-md-4"><input class="form-control" placeholder="Office / Department"></div>
+        <div class="col-md-4"><input class="form-control" placeholder="Position"></div>
+        <div class="col-md-4"><input class="form-control" placeholder="Employment Status"></div>
+        <div class="col-md-4"><input class="form-control" placeholder="Net Take-Home Pay (Php)"></div>
+      </div>
+
+      <div class="d-flex justify-content-between mt-4">
+        <button class="btn btn-back" onclick="prevStep(1)">Back</button>
+        <button class="btn btn-primary" onclick="nextStep(1)">Next</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Co-Maker Info -->
+    <div id="step2" class="hidden">
+      <h4 class="step-title mb-3">Step 2: Co-Maker Information</h4>
+      <div class="row g-3">
+        <div class="col-md-6"><input class="form-control" placeholder="Full Name"></div>
+        <div class="col-md-2"><input class="form-control" placeholder="Age"></div>
+        <div class="col-md-4"><input class="form-control" placeholder="Contact Number"></div>
+        <div class="col-md-6"><input class="form-control" placeholder="Spouse Name (if applicable)"></div>
+        <div class="col-md-6"><input class="form-control" placeholder="Complete Address"></div>
+        <div class="col-md-4"><input class="form-control" placeholder="Years of Residency"></div>
+        <div class="col-md-4"><input class="form-control" placeholder="No. of Dependents"></div>
+      </div>
+
+      <hr>
+      <h6 class="text-muted">Employment & Income Details</h6>
+      <div class="row g-3">
+        <div class="col-md-4"><input class="form-control" placeholder="Monthly Income"></div>
+        <div class="col-md-4"><input class="form-control" placeholder="Other Income"></div>
+        <div class="col-md-4"><input class="form-control" placeholder="Source of Other Income"></div>
+      </div>
+
+      <div class="d-flex justify-content-between mt-4">
+        <button class="btn btn-back" onclick="prevStep(2)">Back</button>
+        <button class="btn btn-primary" onclick="nextStep(2)">Next</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Loan Details -->
+    <div id="step3" class="hidden">
+      <h4 class="step-title mb-3">Step 3: Loan Details</h4>
+      <p id="loanTypeReview" class="text-info mb-3"></p>
+      <div class="row g-3">
+        <div class="col-md-4"><input class="form-control" placeholder="Loan Amount (Php)"></div>
+        <div class="col-md-4">
+          <select class="form-select">
+            <option>Loan Term (Months)</option>
+            <option>6</option>
+            <option>12</option>
+            <option>24</option>
+          </select>
+        </div>
+        <div class="col-md-4"><input class="form-control" placeholder="Purpose of Loan"></div>
+      </div>
+      <div class="alert alert-dark mt-3">
+        <strong>Loan Computation Preview</strong><br>
+        Monthly Amortization and interest will be shown here.
+      </div>
+      <div class="d-flex justify-content-between mt-3">
+        <button class="btn btn-back" onclick="prevStep(3)">Back</button>
+        <button class="btn btn-primary" onclick="nextStep(3)">Next</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: Upload Documents -->
+    <div id="step4" class="hidden">
+      <h4 class="step-title mb-3">Step 4: Upload Documents</h4>
+      <div class="mb-3"><label>Latest Payslip</label><input type="file" class="form-control"></div>
+      <div class="mb-3"><label>ID Photo</label><input type="file" class="form-control"></div>
+      <div class="d-flex justify-content-between mt-3">
+        <button class="btn btn-back" onclick="prevStep(4)">Back</button>
+        <button class="btn btn-primary" onclick="nextStep(4)">Next</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: Face Recognition Test -->
+    <div id="step5" class="hidden">
+      <h4 class="step-title mb-3">Step 5: Face Recognition Test</h4>
+      <p class="text-muted mb-3">Please follow the instructions below to complete the face recognition test. Your camera will be accessed temporarily for verification purposes.</p>
+      
+      <div id="faceTestContainer" class="mb-4">
+        <div id="testInstructions" class="alert alert-info">
+          <strong>Instructions:</strong>
+          <ol>
+            <li>Click "Start Camera" to activate your camera</li>
+            <li>Position your face in the center of the frame</li>
+            <li>Follow the on-screen instructions for each test</li>
+            <li>Complete all three tests: Blink, Smile, and Head Movement</li>
+          </ol>
+        </div>
+
+        <button class="btn btn-primary mb-3" onclick="startFaceRecognitionTest()">Start Camera</button>
+        
+        <div id="cameraSection" class="hidden">
+          <div style="position: relative; display: inline-block; width: 100%; max-width: 400px;">
+            <video id="faceVideo" autoplay playsinline style="width: 100%; border: 2px solid #6f42c1; border-radius: 8px;"></video>
+            <div id="testStatus" class="alert alert-warning mt-3">Initializing camera...</div>
+          </div>
+
+          <div class="mt-4">
+            <h6 class="mb-3">Test Progress:</h6>
+            <div class="mb-3">
+              <div class="d-flex align-items-center mb-2">
+                <span id="blinkTest" class="badge bg-secondary me-2">Pending</span>
+                <label>Blink Detection - Blink your eyes 3 times</label>
+              </div>
+              <div class="progress" style="height: 6px;">
+                <div id="blinkProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="d-flex align-items-center mb-2">
+                <span id="smileTest" class="badge bg-secondary me-2">Pending</span>
+                <label>Smile Detection - Smile for 2 seconds</label>
+              </div>
+              <div class="progress" style="height: 6px;">
+                <div id="smileProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="d-flex align-items-center mb-2">
+                <span id="headTest" class="badge bg-secondary me-2">Pending</span>
+                <label>Head Movement - Turn your head left and right</label>
+              </div>
+              <div class="progress" style="height: 6px;">
+                <div id="headProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4" id="testResults" class="hidden">
+            <div class="alert alert-success">
+              <h5>✓ Face Recognition Test Completed Successfully</h5>
+              <p class="mb-0">All verification tests have been passed. You may proceed to the next step.</p>
+            </div>
+          </div>
+
+          <button class="btn btn-danger mt-3" onclick="stopFaceRecognitionTest()">Stop Camera</button>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between mt-4">
+        <button class="btn btn-back" onclick="prevStep(5)">Back</button>
+        <button class="btn btn-primary" id="step5NextBtn" onclick="nextStep(5)" disabled>Next</button>
+      </div>
+    </div>
+
+    <!-- STEP 6: Review & Submit -->
+    <div id="step6" class="hidden">
+      <h4 class="step-title mb-3">Step 6: Review & Submit</h4>
+      <p>Review all your application details before submission.</p>
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="agree">
+        <label class="form-check-label" for="agree">I agree to the Terms and Conditions</label>
+      </div>
+      <div class="d-flex justify-content-between mt-3">
+        <button class="btn btn-back" onclick="prevStep(6)">Back</button>
+        <button class="btn btn-success" disabled id="submitBtn" onclick="submitApplication()">Submit Application </button>
+      </div>
+    </div>
+
+    <!-- STEP 7: Confirmation -->
+    <div id="step7" class="hidden">
+      <div class="text-center">
+        <h4 class="step-title mb-3">✓ Application Submitted</h4>
+        <div class="alert alert-success mb-4">
+          <strong>Success!</strong> Your loan application has been successfully submitted.
+        </div>
+        <p class="mb-2"><strong>Application Status:</strong></p>
+        <p class="text-info mb-4"><strong>Under Verification</strong></p>
+        <p class="text-muted mb-4">
+          Your application is now being reviewed by our credit committee. 
+          You will receive updates via email and SMS as your application progresses.
+        </p>
+        <hr>
+        <p class="mb-3"><strong>Loan Type:</strong> <span id="confirmLoanType" class="text-info"></span></p>
+        <p class="mb-4"><strong>Reference Number:</strong> <span id="refNumber" class="badge bg-info text-dark">REF-2026-000001</span></p>
+        <hr>
+        <p class="text-muted small">You can track your application status in the "Track Status" section of your dashboard.</p>
+        <button class="btn btn-primary mt-4" onclick="goToDashboard()">Go to Dashboard</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let selectedLoan = '';
+  let faceDetectionActive = false;
+  let blinkCount = 0;
+  let smileDetected = false;
+  let headMovementDetected = false;
+
+  function selectLoanType(type) {
+    selectedLoan = type;
+    document.getElementById('selectedLoanType').innerText = `Selected Loan Type: ${type}`;
+    document.getElementById('loanTypeReview').innerText = `Selected Loan Type: ${type}`;
+    nextStep(0);
+  }
+
+  function nextStep(step) {
+    document.getElementById('step' + step).classList.add('hidden');
+    document.getElementById('step' + (step + 1)).classList.remove('hidden');
+  }
+
+  function prevStep(step) {
+    document.getElementById('step' + step).classList.add('hidden');
+    document.getElementById('step' + (step - 1)).classList.remove('hidden');
+  }
+
+  document.getElementById('agree')?.addEventListener('change', function () {
+    document.getElementById('submitBtn').disabled = !this.checked;
+  });
+
+  function submitApplication() {
+    document.getElementById('confirmLoanType').innerText = selectedLoan;
+    nextStep(6);
+  }
+
+  function goToDashboard() {
+    window.location.href = "employee-dashboard.html";
+  }
+
+  // ==================== FACE RECOGNITION TEST ==================== //
+  let videoStream = null;
+  
+  async function startFaceRecognitionTest() {
+    try {
+      // Request camera access
+      videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      const videoElement = document.getElementById('faceVideo');
+      videoElement.srcObject = videoStream;
+      
+      // Show camera section and hide instructions
+      document.getElementById('cameraSection').classList.remove('hidden');
+      document.getElementById('testInstructions').classList.add('hidden');
+      document.querySelector('button[onclick="startFaceRecognitionTest()"]').disabled = true;
+      
+      faceDetectionActive = true;
+      document.getElementById('testStatus').innerText = 'Camera started. Please position your face in the center.';
+      
+      // Simulate face detection tests
+      simulateFaceDetectionTests();
+    } catch (error) {
+      alert('Unable to access camera. Please check permissions and try again.');
+      console.error('Camera access error:', error);
+    }
+  }
+
+  function stopFaceRecognitionTest() {
+    faceDetectionActive = false;
+    
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      videoStream = null;
+    }
+    
+    document.getElementById('cameraSection').classList.add('hidden');
+    document.getElementById('testInstructions').classList.remove('hidden');
+    document.querySelector('button[onclick="startFaceRecognitionTest()"]').disabled = false;
+    
+    // Reset test counters
+    blinkCount = 0;
+    smileDetected = false;
+    headMovementDetected = false;
+    resetTestUI();
+  }
+
+  function simulateFaceDetectionTests() {
+    // Simulate blink detection (3 blinks required)
+    setTimeout(() => {
+      if (faceDetectionActive) {
+        document.getElementById('testStatus').innerText = 'Blink Test: Please blink your eyes 3 times...';
+        
+        let blinkSimulation = 0;
+        let blinkInterval = setInterval(() => {
+          if (!faceDetectionActive) {
+            clearInterval(blinkInterval);
+            return;
+          }
+          blinkSimulation++;
+          const progress = Math.min((blinkSimulation / 3) * 100, 100);
+          document.getElementById('blinkProgress').style.width = progress + '%';
+          
+          if (blinkSimulation >= 3) {
+            clearInterval(blinkInterval);
+            blinkCount = 3;
+            document.getElementById('blinkTest').className = 'badge bg-success me-2';
+            document.getElementById('blinkTest').innerText = '✓ Passed';
+            document.getElementById('blinkProgress').style.width = '100%';
+            
+            // Start smile detection
+            setTimeout(startSmileDetection, 500);
+          }
+        }, 1500);
+      }
+    }, 1000);
+  }
+
+  function startSmileDetection() {
+    if (!faceDetectionActive) return;
+    
+    document.getElementById('testStatus').innerText = 'Smile Test: Please smile for 2 seconds...';
+    
+    let smileSimulation = 0;
+    let smileInterval = setInterval(() => {
+      if (!faceDetectionActive) {
+        clearInterval(smileInterval);
+        return;
+      }
+      smileSimulation++;
+      const progress = Math.min((smileSimulation / 4) * 100, 100);
+      document.getElementById('smileProgress').style.width = progress + '%';
+      
+      if (smileSimulation >= 4) {
+        clearInterval(smileInterval);
+        smileDetected = true;
+        document.getElementById('smileTest').className = 'badge bg-success me-2';
+        document.getElementById('smileTest').innerText = '✓ Passed';
+        document.getElementById('smileProgress').style.width = '100%';
+        
+        // Start head movement detection
+        setTimeout(startHeadMovementDetection, 500);
+      }
+    }, 500);
+  }
+
+  function startHeadMovementDetection() {
+    if (!faceDetectionActive) return;
+    
+    document.getElementById('testStatus').innerText = 'Head Movement Test: Please turn your head left and right...';
+    
+    let headSimulation = 0;
+    let headInterval = setInterval(() => {
+      if (!faceDetectionActive) {
+        clearInterval(headInterval);
+        return;
+      }
+      headSimulation++;
+      const progress = Math.min((headSimulation / 6) * 100, 100);
+      document.getElementById('headProgress').style.width = progress + '%';
+      
+      if (headSimulation >= 6) {
+        clearInterval(headInterval);
+        headMovementDetected = true;
+        document.getElementById('headTest').className = 'badge bg-success me-2';
+        document.getElementById('headTest').innerText = '✓ Passed';
+        document.getElementById('headProgress').style.width = '100%';
+        
+        // All tests completed
+        completeAllTests();
+      }
+    }, 800);
+  }
+
+  function completeAllTests() {
+    if (!faceDetectionActive) return;
+    
+    faceDetectionActive = false;
+    document.getElementById('testStatus').innerText = 'All tests completed successfully!';
+    document.getElementById('testResults').classList.remove('hidden');
+    document.getElementById('step5NextBtn').disabled = false;
+    
+    // Stop camera
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+    }
+    
+    document.getElementById('cameraSection').classList.add('hidden');
+  }
+
+  function resetTestUI() {
+    document.getElementById('blinkTest').className = 'badge bg-secondary me-2';
+    document.getElementById('blinkTest').innerText = 'Pending';
+    document.getElementById('blinkProgress').style.width = '0%';
+    
+    document.getElementById('smileTest').className = 'badge bg-secondary me-2';
+    document.getElementById('smileTest').innerText = 'Pending';
+    document.getElementById('smileProgress').style.width = '0%';
+    
+    document.getElementById('headTest').className = 'badge bg-secondary me-2';
+    document.getElementById('headTest').innerText = 'Pending';
+    document.getElementById('headProgress').style.width = '0%';
+    
+    document.getElementById('testResults').classList.add('hidden');
+    document.getElementById('step5NextBtn').disabled = true;
+  }
+</script>
+
+<script src="theme.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

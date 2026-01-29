@@ -1,0 +1,396 @@
+/* Theme Styles - Dark & Light Mode */
+
+/* ==================== BODY & BASE STYLES ==================== */
+body {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode {
+  background-color: #0b0b0f;
+  color: #eaeaea;
+}
+
+body.light-mode {
+  background-color: #f8f9fa;
+  color: #111;
+}
+
+/* Smooth transitions for layout and interactions */
+.sidebar {
+  transition: background-color 0.25s ease, color 0.25s ease, transform 0.3s ease;
+}
+
+.sidebar a {
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.12s ease;
+}
+
+.content {
+  transition: margin-left 0.3s ease, color 0.25s ease, background-color 0.25s ease;
+}
+
+.card {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.12s ease;
+}
+
+/* Small animation for hover focus on sidebar links */
+.sidebar a:hover { transform: translateX(4px); }
+
+
+/* ==================== SIDEBAR ==================== */
+.sidebar {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode .sidebar {
+  background-color: #120018;
+  color: #ccc;
+}
+
+body.light-mode .sidebar {
+  background-color: #fff;
+  color: #111;
+}
+
+body.dark-mode .sidebar h4 {
+  color: #c77dff;
+}
+
+body.light-mode .sidebar h4 {
+  color: #6f42c1;
+}
+
+.sidebar a {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode .sidebar a {
+  color: #ccc;
+}
+
+body.light-mode .sidebar a {
+  color: #111;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+  background-color: #6f42c1;
+  color: #fff;
+}
+
+/* ==================== CONTENT AREA ==================== */
+.content {
+  transition: color 0.3s;
+}
+
+/* ==================== CARDS ==================== */
+.card {
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+  border-radius: 14px;
+}
+
+body.dark-mode .card {
+  background-color: #161020;
+  border: 1px solid #2a1b3d;
+  color: #eaeaea;
+}
+
+body.light-mode .card {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  color: #111;
+}
+
+/* ==================== CARD TITLES & TEXT ==================== */
+.card-title,
+h5 {
+  transition: color 0.3s;
+}
+
+body.dark-mode .card-title,
+body.dark-mode h5 {
+  color: #c77dff;
+}
+
+body.light-mode .card-title,
+body.light-mode h5 {
+  color: #6f42c1;
+}
+
+/* ==================== FORM CONTROLS ==================== */
+.form-control,
+.form-select,
+textarea {
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+
+body.dark-mode .form-control,
+body.dark-mode .form-select,
+body.dark-mode textarea {
+  background-color: #0f0f14;
+  border: 1px solid #2a1b3d;
+  color: #fff;
+}
+
+body.light-mode .form-control,
+body.light-mode .form-select,
+body.light-mode textarea {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  color: #111;
+}
+
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus,
+body.dark-mode textarea:focus {
+  border-color: #6f42c1;
+  box-shadow: none;
+  background-color: #0f0f14;
+  color: #fff;
+}
+
+body.light-mode .form-control:focus,
+body.light-mode .form-select:focus,
+body.light-mode textarea:focus {
+  border-color: #6f42c1;
+  box-shadow: none;
+  background-color: #fff;
+  color: #111;
+}
+
+/* ==================== PLACEHOLDERS ==================== */
+body.dark-mode .form-control::placeholder,
+body.dark-mode .form-select::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #666;
+}
+
+body.light-mode .form-control::placeholder,
+body.light-mode .form-select::placeholder,
+body.light-mode textarea::placeholder {
+  color: #999;
+}
+
+/* ==================== TABLES ==================== */
+.table {
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+
+body.dark-mode .table-dark {
+  background-color: #161020;
+  color: #eaeaea;
+}
+
+body.dark-mode .table-dark th,
+body.dark-mode .table-dark td {
+  border-color: #2a1b3d;
+}
+
+body.light-mode .table-dark {
+  background-color: #fff;
+  color: #111;
+}
+
+body.light-mode .table-dark th,
+body.light-mode .table-dark td {
+  border-color: #ccc;
+}
+
+/* ==================== BUTTONS ==================== */
+.btn-primary {
+  transition: background-color 0.3s;
+  background-color: #6f42c1;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #845ef7;
+}
+
+.btn-verify {
+  background-color: #51cf66;
+  border: none;
+  color: #fff;
+}
+
+.btn-verify:hover {
+  background-color: #40c057;
+}
+
+.btn-flag {
+  background-color: #ff6b6b;
+  border: none;
+  color: #fff;
+}
+
+.btn-flag:hover {
+  background-color: #fa5252;
+}
+
+.btn-outline-accent {
+  border: 1px solid #ff8fab;
+  color: #ff8fab;
+}
+
+.btn-outline-accent:hover {
+  background-color: #ff8fab;
+  color: #000;
+}
+
+/* ==================== TEXT UTILITIES ==================== */
+.text-muted {
+  transition: color 0.3s;
+}
+
+body.dark-mode .text-muted {
+  color: #aaa !important;
+}
+
+body.light-mode .text-muted {
+  color: #666 !important;
+}
+
+/* ==================== LINKS ==================== */
+a {
+  transition: color 0.3s;
+}
+
+body.dark-mode a {
+  color: #c77dff;
+}
+
+body.light-mode a {
+  color: #6f42c1;
+}
+
+.link-accent {
+  color: #ff8fab;
+  text-decoration: none;
+}
+
+.link-accent:hover {
+  text-decoration: underline;
+}
+
+/* ==================== BADGES ==================== */
+.badge {
+  transition: background-color 0.3s;
+}
+
+/* ==================== MODAL & DROPDOWN ==================== */
+.modal-content {
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+
+body.dark-mode .modal-content {
+  background-color: #161020;
+  border-color: #2a1b3d;
+  color: #eaeaea;
+}
+
+body.light-mode .modal-content {
+  background-color: #fff;
+  border-color: #ccc;
+  color: #111;
+}
+
+.dropdown-menu {
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+body.dark-mode .dropdown-menu {
+  background-color: #161020;
+  border-color: #2a1b3d;
+}
+
+body.light-mode .dropdown-menu {
+  background-color: #fff;
+  border-color: #ccc;
+}
+
+body.dark-mode .dropdown-item {
+  color: #ccc;
+}
+
+body.light-mode .dropdown-item {
+  color: #111;
+}
+
+body.dark-mode .dropdown-item:hover,
+body.dark-mode .dropdown-item:focus {
+  background-color: #6f42c1;
+  color: #fff;
+}
+
+body.light-mode .dropdown-item:hover,
+body.light-mode .dropdown-item:focus {
+  background-color: #6f42c1;
+  color: #fff;
+}
+
+/* ==================== NAVBAR ==================== */
+.navbar {
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+body.dark-mode .navbar {
+  background-color: #120018;
+}
+
+body.light-mode .navbar {
+  background-color: #fff;
+  border-bottom: 1px solid #ccc;
+}
+
+body.dark-mode .navbar-brand {
+  color: #c77dff !important;
+}
+
+body.light-mode .navbar-brand {
+  color: #6f42c1 !important;
+}
+
+/* ==================== TOAST & ALERTS ==================== */
+.alert {
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+
+body.dark-mode .alert {
+  background-color: #161020;
+  border-color: #2a1b3d;
+  color: #eaeaea;
+}
+
+body.light-mode .alert {
+  background-color: #fff;
+  border-color: #ccc;
+  color: #111;
+}
+
+/* Strong overrides to ensure admin pages respect theme preference
+   even if page-specific CSS appears after theme.css. These use
+   !important to avoid accidental overrides while preserving layout. */
+body.light-mode .sidebar {
+  background-color: #fff !important;
+  color: #111 !important;
+}
+
+body.dark-mode .sidebar {
+  background-color: #120018 !important;
+  color: #ccc !important;
+}
+
+body.light-mode .sidebar h4 { color: #6f42c1 !important; }
+body.dark-mode .sidebar h4 { color: #c77dff !important; }
+
+body.light-mode .sidebar a { color: #111 !important; }
+body.dark-mode .sidebar a { color: #ccc !important; }
+
+body.light-mode .card { background-color: #fff !important; border: 1px solid #ccc !important; color: #111 !important; }
+body.dark-mode .card { background-color: #161020 !important; border: 1px solid #2a1b3d !important; color: #eaeaea !important; }
+
+body.light-mode .form-control, body.light-mode .form-select, body.light-mode textarea { background-color: #fff !important; color: #111 !important; border: 1px solid #ccc !important; }
+body.dark-mode .form-control, body.dark-mode .form-select, body.dark-mode textarea { background-color: #0f0f14 !important; color: #fff !important; border: 1px solid #2a1b3d !important; }
+
+body.light-mode .navbar { background-color: #fff !important; }
+body.dark-mode .navbar { background-color: #120018 !important; }
+
