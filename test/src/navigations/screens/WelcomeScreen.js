@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    width: width * 1.1,   // 110% of screen width
-    height: width * 0.65, // proportional height
+    width: width * 0.9,
+    height: width * 0.45,
     marginBottom: 20,
   },
   subtitle: {

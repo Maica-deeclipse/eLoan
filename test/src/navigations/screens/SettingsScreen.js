@@ -85,8 +85,8 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   logo: {
-    width: width * 1.1,
-    height: width * 0.65,
+    width: width * 0.9,
+    height: width * 0.45,
     alignSelf: 'center',
     marginBottom: 0,
   },

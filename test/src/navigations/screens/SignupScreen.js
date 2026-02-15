@@ -6,6 +6,11 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { useState } from 'react';
 
@@ -33,59 +38,68 @@ export default function SignupScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
-      {/* eLoan Logo */}
-      <Image
-        source={require('../../../assets/EloanLogo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+          {/* eLoan Logo */}
+          <Image
+            source={require('../../../assets/EloanLogo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-      <Text style={styles.title}>Sign Up</Text>
+          <Text style={styles.title}>Sign Up</Text>
 
-      <TextInput
-        placeholder="Full Name"
-        placeholderTextColor="#CBD5E1"
-        style={styles.input}
-        onChangeText={setName}
-      />
+          <TextInput
+            placeholder="Full Name"
+            placeholderTextColor="#CBD5E1"
+            style={styles.input}
+            onChangeText={setName}
+          />
 
-      <TextInput
-        placeholder="Employee / Student ID"
-        placeholderTextColor="#CBD5E1"
-        style={styles.input}
-        onChangeText={setId}
-      />
+          <TextInput
+            placeholder="Employee / Student ID"
+            placeholderTextColor="#CBD5E1"
+            style={styles.input}
+            keyboardType="numeric"
+            value={id}
+            onChangeText={(text) => setId(text.replace(/[^0-9]/g, ''))}
+          />
 
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#CBD5E1"
-        secureTextEntry
-        style={styles.input}
-        onChangeText={setPassword}
-      />
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#CBD5E1"
+            secureTextEntry
+            style={styles.input}
+            onChangeText={setPassword}
+          />
 
-      <TextInput
-        placeholder="Confirm Password"
-        placeholderTextColor="#CBD5E1"
-        secureTextEntry
-        style={styles.input}
-        onChangeText={setConfirm}
-      />
+          <TextInput
+            placeholder="Confirm Password"
+            placeholderTextColor="#CBD5E1"
+            secureTextEntry
+            style={styles.input}
+            onChangeText={setConfirm}
+          />
 
-      <TouchableOpacity style={styles.button} onPress={handleSignup}>
-        <Text style={styles.buttonText}>Create Account</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={handleSignup}>
+            <Text style={styles.buttonText}>Create Account</Text>
+          </TouchableOpacity>
 
-      <Text
-        style={styles.link}
-        onPress={() => navigation.navigate('Login')}
-      >
-        Already have an account? Login
-      </Text>
+          <Text
+            style={styles.link}
+            onPress={() => navigation.navigate('Login')}
+          >
+            Already have an account? Login
+          </Text>
 
-    </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -101,6 +115,11 @@ const styles = StyleSheet.create({
     height: 90,
     alignSelf: 'center',
     marginBottom: 20,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
   },
   title: {
     fontSize: 28,
