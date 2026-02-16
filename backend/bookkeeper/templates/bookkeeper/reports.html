@@ -1,0 +1,310 @@
+{% extends 'bookkeeper/base.html' %}
+
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+
+{% block content %}
+<!-- Verification Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-card-label">Total Processed (30 days)</div>
+                    <div class="stat-card-value">{{ verification_stats.total }}</div>
+                </div>
+                <div class="stat-card-icon primary">
+                    <i class="bi bi-clipboard-check"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-card-label">Verified</div>
+                    <div class="stat-card-value text-success">{{ verification_stats.verified }}</div>
+                </div>
+                <div class="stat-card-icon success">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-card-label">Rejected</div>
+                    <div class="stat-card-value text-danger">{{ verification_stats.rejected }}</div>
+                </div>
+                <div class="stat-card-icon danger">
+                    <i class="bi bi-x-circle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-card-label">Approval Rate</div>
+                    <div class="stat-card-value">{{ verification_stats.approval_rate|floatformat:1 }}%</div>
+                </div>
+                <div class="stat-card-icon warning">
+                    <i class="bi bi-percent"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Tabs -->
+<ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="status-tab" data-bs-toggle="tab" data-bs-target="#status"
+                type="button" role="tab">
+            <i class="bi bi-pie-chart me-2"></i>By Status
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="loantype-tab" data-bs-toggle="tab" data-bs-target="#loantype"
+                type="button" role="tab">
+            <i class="bi bi-tags me-2"></i>By Loan Type
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="monthly-tab" data-bs-toggle="tab" data-bs-target="#monthly"
+                type="button" role="tab">
+            <i class="bi bi-calendar3 me-2"></i>Monthly Trend
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily"
+                type="button" role="tab">
+            <i class="bi bi-graph-up me-2"></i>Daily Activity
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="reportTabsContent">
+    <!-- By Status -->
+    <div class="tab-pane fade show active" id="status" role="tabpanel">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-pie-chart me-2"></i>
+                    Applications by Status
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Status</th>
+                            <th>Count</th>
+                            <th>Percentage</th>
+                            <th>Visual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% with total=status_report|length %}
+                        {% for item in status_report %}
+                        <tr>
+                            <td>
+                                <span class="status-badge {% if 'Submitted' in item.current_status__status_name %}submitted{% elif 'Verified' in item.current_status__status_name %}verified{% elif 'Rejected' in item.current_status__status_name %}rejected{% else %}pending{% endif %}">
+                                    {{ item.current_status__status_name|default:"Unknown" }}
+                                </span>
+                            </td>
+                            <td class="fw-semibold">{{ item.count }}</td>
+                            <td>
+                                {% widthratio item.count total 100 as percentage %}
+                                {{ percentage }}%
+                            </td>
+                            <td style="width: 40%;">
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-primary" style="width: {{ percentage }}%;"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">
+                                No data available
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endwith %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- By Loan Type -->
+    <div class="tab-pane fade" id="loantype" role="tabpanel">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-tags me-2"></i>
+                    Applications by Loan Type
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Loan Type</th>
+                            <th>Total Applications</th>
+                            <th>Distribution</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% with total=loan_type_report|length %}
+                        {% for item in loan_type_report %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-primary">{{ item.loan_type__loan_name }}</span>
+                            </td>
+                            <td class="fw-semibold">{{ item.count }}</td>
+                            <td style="width: 50%;">
+                                {% widthratio item.count total 100 as percentage %}
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar bg-success" style="width: {{ percentage }}%;"></div>
+                                    </div>
+                                    <span class="small text-muted">{{ percentage }}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center py-4 text-muted">
+                                No data available
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endwith %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Trend -->
+    <div class="tab-pane fade" id="monthly" role="tabpanel">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-calendar3 me-2"></i>
+                    Monthly Application Trend (Last 6 Months)
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Month</th>
+                            <th>Applications</th>
+                            <th>Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in monthly_report %}
+                        <tr>
+                            <td>
+                                <i class="bi bi-calendar-event me-2 text-muted"></i>
+                                {{ item.month|date:"F Y" }}
+                            </td>
+                            <td class="fw-semibold">{{ item.count }}</td>
+                            <td style="width: 50%;">
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-info" style="width: {% widthratio item.count 100 100 %}%;">
+                                        {{ item.count }}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center py-4 text-muted">
+                                No data available
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Activity -->
+    <div class="tab-pane fade" id="daily" role="tabpanel">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Daily Verification Activity (Last 14 Days)
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Action</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in daily_trend %}
+                        <tr>
+                            <td>
+                                <i class="bi bi-calendar-day me-2 text-muted"></i>
+                                {{ item.date|date:"D, M d, Y" }}
+                            </td>
+                            <td>
+                                {% if item.action == 'verified' %}
+                                <span class="badge bg-success">Verified</span>
+                                {% else %}
+                                <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-semibold">{{ item.count }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center py-4 text-muted">
+                                No verification activity in the last 14 days
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Card -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Report Summary
+                </h5>
+                <span class="badge bg-secondary">Last 30 Days</span>
+            </div>
+            <p class="text-muted mb-0">
+                In the last 30 days, the bookkeeper team has processed <strong>{{ verification_stats.total }}</strong> applications
+                with an approval rate of <strong>{{ verification_stats.approval_rate|floatformat:1 }}%</strong>.
+                <strong>{{ verification_stats.verified }}</strong> applications were verified and forwarded to the Treasurer,
+                while <strong>{{ verification_stats.rejected }}</strong> were rejected.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

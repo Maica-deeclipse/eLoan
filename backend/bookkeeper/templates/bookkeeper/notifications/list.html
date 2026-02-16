@@ -1,0 +1,156 @@
+{% extends 'bookkeeper/base.html' %}
+
+{% block title %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="table-card">
+    <div class="table-card-header">
+        <h5 class="table-card-title">
+            <i class="bi bi-bell me-2"></i>
+            All Notifications
+            {% if unread_notifications_count %}
+            <span class="badge bg-danger ms-2">{{ unread_notifications_count }} unread</span>
+            {% endif %}
+        </h5>
+        {% if notifications %}
+        <form method="post" action="{% url 'bookkeeper:mark_all_notifications_read' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-check-all me-1"></i> Mark All as Read
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="notification-list">
+        {% for notification in notifications %}
+        <div class="notification-item {% if not notification.is_read %}unread{% endif %}">
+            <div class="notification-icon {{ notification.notification_type }}">
+                {% if notification.notification_type == 'new_application' %}
+                <i class="bi bi-file-plus"></i>
+                {% elif notification.notification_type == 'status_change' %}
+                <i class="bi bi-arrow-repeat"></i>
+                {% elif notification.notification_type == 'action_required' %}
+                <i class="bi bi-exclamation-circle"></i>
+                {% elif notification.notification_type == 'approval' %}
+                <i class="bi bi-check-circle"></i>
+                {% elif notification.notification_type == 'rejection' %}
+                <i class="bi bi-x-circle"></i>
+                {% else %}
+                <i class="bi bi-info-circle"></i>
+                {% endif %}
+            </div>
+            <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1 {% if not notification.is_read %}fw-bold{% endif %}">
+                            {{ notification.title }}
+                        </h6>
+                        <p class="mb-1 text-muted">{{ notification.message }}</p>
+                        <small class="text-muted">
+                            <i class="bi bi-clock me-1"></i>
+                            {{ notification.created_at|timesince }} ago
+                            {% if notification.is_read %}
+                            &bull; Read {{ notification.read_at|timesince }} ago
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% if notification.related_application %}
+                        <a href="{% url 'bookkeeper:application_detail' notification.related_application.id %}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i> View
+                        </a>
+                        {% endif %}
+                        {% if not notification.is_read %}
+                        <form method="post" action="{% url 'bookkeeper:mark_notification_read' notification.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Mark as read">
+                                <i class="bi bi-check"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <i class="bi bi-bell-slash"></i>
+            <h5>No Notifications</h5>
+            <p class="text-muted">You're all caught up! No new notifications.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if is_paginated %}
+    <div class="card-footer bg-white">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Notification Types Legend -->
+<div class="mt-4">
+    <div class="stat-card">
+        <h6 class="mb-3"><i class="bi bi-info-circle me-2"></i>Notification Types</h6>
+        <div class="d-flex flex-wrap gap-4">
+            <div class="d-flex align-items-center gap-2">
+                <div class="notification-icon new_application" style="width: 32px; height: 32px;">
+                    <i class="bi bi-file-plus" style="font-size: 0.875rem;"></i>
+                </div>
+                <span class="small">New Application</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="notification-icon status_change" style="width: 32px; height: 32px;">
+                    <i class="bi bi-arrow-repeat" style="font-size: 0.875rem;"></i>
+                </div>
+                <span class="small">Status Change</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="notification-icon action_required" style="width: 32px; height: 32px;">
+                    <i class="bi bi-exclamation-circle" style="font-size: 0.875rem;"></i>
+                </div>
+                <span class="small">Action Required</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="notification-icon approval" style="width: 32px; height: 32px;">
+                    <i class="bi bi-check-circle" style="font-size: 0.875rem;"></i>
+                </div>
+                <span class="small">Approval</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="notification-icon rejection" style="width: 32px; height: 32px;">
+                    <i class="bi bi-x-circle" style="font-size: 0.875rem;"></i>
+                </div>
+                <span class="small">Rejection</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

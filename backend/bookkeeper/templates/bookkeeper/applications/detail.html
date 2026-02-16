@@ -1,0 +1,378 @@
+{% extends 'bookkeeper/base.html' %}
+{% load humanize %}
+
+{% block title %}Application #{{ application.id }}{% endblock %}
+{% block page_title %}Application Details{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'bookkeeper:applications' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i> Back to Applications
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- Main Application Details -->
+    <div class="col-lg-8">
+        <!-- Application Info Card -->
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    Application #{{ application.id }}
+                </h5>
+                <span class="status-badge {% if application.current_status.status_name == 'Submitted' %}submitted{% elif 'Verified' in application.current_status.status_name %}verified{% elif 'Rejected' in application.current_status.status_name %}rejected{% else %}pending{% endif %}">
+                    {{ application.current_status.status_name }}
+                </span>
+            </div>
+            <div class="p-4">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Loan Information</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td class="text-muted" style="width: 40%;">Loan Type:</td>
+                                <td class="fw-semibold">{{ application.loan_type.loan_name }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Amount Requested:</td>
+                                <td class="fw-semibold text-primary fs-5">&#8369;{{ application.amount_requested|floatformat:2|intcomma }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Term:</td>
+                                <td>{{ application.term_months }} months</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Monthly Amortization:</td>
+                                <td class="fw-semibold">&#8369;{{ application.monthly_amortization|floatformat:2|intcomma }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Total Payable:</td>
+                                <td class="fw-semibold">&#8369;{{ application.total_payable|floatformat:2|intcomma }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Interest Rate:</td>
+                                <td>{{ application.loan_type.interest_rate }}%</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Application Details</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td class="text-muted" style="width: 40%;">Application Date:</td>
+                                <td>{{ application.application_date|date:"M d, Y h:i A" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Purpose:</td>
+                                <td>{{ application.purpose|default:"Not specified" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applicant Info Card -->
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-person me-2"></i>
+                    Applicant Information
+                </h5>
+            </div>
+            <div class="p-4">
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <div class="user-avatar" style="width: 60px; height: 60px; font-size: 1.5rem;">
+                        {{ application.user.firstname|slice:":1" }}{{ application.user.lastname|slice:":1" }}
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ application.user.firstname }} {{ application.user.lastname }}</h5>
+                        <div class="text-muted">{{ application.user.email }}</div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr>
+                                <td class="text-muted">Account Status:</td>
+                                <td>
+                                    <span class="badge {% if application.user.status == 'active' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ application.user.status|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Member Since:</td>
+                                <td>{{ application.user.date_joined|date:"M d, Y" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Documents Card -->
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-folder me-2"></i>
+                    Uploaded Documents
+                </h5>
+                <span class="badge bg-secondary">{{ application.documents.count }} files</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Document Type</th>
+                            <th>Uploaded</th>
+                            <th>Verified</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in application.documents.all %}
+                        <tr>
+                            <td>
+                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                                {{ doc.document_type }}
+                            </td>
+                            <td>{{ doc.uploaded_at|date:"M d, Y h:i A" }}</td>
+                            <td>
+                                {% if doc.verified %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i> Verified
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-clock me-1"></i> Pending
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ doc.file_path }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                    <i class="bi bi-eye me-1"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">
+                                <i class="bi bi-folder2-open fs-1 d-block mb-2"></i>
+                                No documents uploaded
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Co-makers Card -->
+        {% if application.comakers.exists %}
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-people me-2"></i>
+                    Co-makers
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Agreed At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for comaker in application.comakers.all %}
+                        <tr>
+                            <td>{{ comaker.user.firstname }} {{ comaker.user.lastname }}</td>
+                            <td>{{ comaker.user.email }}</td>
+                            <td>{{ comaker.agreed_at|date:"M d, Y h:i A" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Verification History -->
+        {% if verification_history %}
+        <div class="table-card">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Verification History
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Action</th>
+                            <th>Verified By</th>
+                            <th>Date</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for verification in verification_history %}
+                        <tr>
+                            <td>
+                                {% if verification.action == 'verified' %}
+                                <span class="badge bg-success">Verified</span>
+                                {% else %}
+                                <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ verification.verified_by.firstname }} {{ verification.verified_by.lastname }}</td>
+                            <td>{{ verification.verified_at|date:"M d, Y h:i A" }}</td>
+                            <td>
+                                {% if verification.rejection_reason %}
+                                <strong>Reason:</strong> {{ verification.rejection_reason }}
+                                {% elif verification.notes %}
+                                {{ verification.notes }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Action Sidebar -->
+    <div class="col-lg-4">
+        {% if can_review %}
+        <!-- Verify Card -->
+        <div class="table-card mb-4">
+            <div class="table-card-header bg-success text-white">
+                <h5 class="table-card-title mb-0">
+                    <i class="bi bi-check-circle me-2"></i>
+                    Verify Application
+                </h5>
+            </div>
+            <div class="p-4">
+                <p class="text-muted small">
+                    Verifying this application will forward it to the Treasurer for further review.
+                </p>
+                <form method="post" action="{% url 'bookkeeper:verify_application' application.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Notes (Optional)</label>
+                        <textarea name="notes" class="form-control" rows="2"
+                                  placeholder="Add any notes for the Treasurer..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100"
+                            onclick="return confirm('Are you sure you want to verify this application?')">
+                        <i class="bi bi-check-circle me-2"></i>
+                        Verify & Forward to Treasurer
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Reject Card -->
+        <div class="table-card">
+            <div class="table-card-header bg-danger text-white">
+                <h5 class="table-card-title mb-0">
+                    <i class="bi bi-x-circle me-2"></i>
+                    Reject Application
+                </h5>
+            </div>
+            <div class="p-4">
+                <p class="text-muted small">
+                    Rejecting will notify the applicant with your rejection reason.
+                </p>
+                <form method="post" action="{% url 'bookkeeper:reject_application' application.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                        <textarea name="rejection_reason" class="form-control" rows="3"
+                                  placeholder="Provide a clear reason for rejection..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Additional Notes (Optional)</label>
+                        <textarea name="notes" class="form-control" rows="2"
+                                  placeholder="Internal notes..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100"
+                            onclick="return confirm('Are you sure you want to reject this application? The applicant will be notified.')">
+                        <i class="bi bi-x-circle me-2"></i>
+                        Reject Application
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <!-- Already Processed -->
+        <div class="table-card">
+            <div class="table-card-header">
+                <h5 class="table-card-title mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Application Status
+                </h5>
+            </div>
+            <div class="p-4 text-center">
+                <div class="mb-3">
+                    {% if 'Verified' in application.current_status.status_name %}
+                    <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                    <h5 class="mt-2 text-success">Verified</h5>
+                    <p class="text-muted">This application has been verified and forwarded to the Treasurer.</p>
+                    {% elif 'Rejected' in application.current_status.status_name %}
+                    <i class="bi bi-x-circle text-danger" style="font-size: 3rem;"></i>
+                    <h5 class="mt-2 text-danger">Rejected</h5>
+                    <p class="text-muted">This application has been rejected.</p>
+                    {% else %}
+                    <i class="bi bi-hourglass-split text-warning" style="font-size: 3rem;"></i>
+                    <h5 class="mt-2">{{ application.current_status.status_name }}</h5>
+                    <p class="text-muted">This application is currently being processed.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Info Card -->
+        <div class="table-card mt-4">
+            <div class="table-card-header">
+                <h5 class="table-card-title mb-0">
+                    <i class="bi bi-lightning me-2"></i>
+                    Quick Info
+                </h5>
+            </div>
+            <div class="p-4">
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">Loan Type</span>
+                    <span class="fw-semibold">{{ application.loan_type.loan_name }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">Amount</span>
+                    <span class="fw-semibold">&#8369;{{ application.amount_requested|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">Term</span>
+                    <span>{{ application.term_months }} months</span>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">Documents</span>
+                    <span>{{ application.documents.count }} files</span>
+                </div>
+                <div class="d-flex justify-content-between py-2">
+                    <span class="text-muted">Submitted</span>
+                    <span>{{ application.application_date|timesince }} ago</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

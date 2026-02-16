@@ -1,0 +1,32 @@
+{
+  "name": "eloan",
+  "version": "1.0.0",
+  "description": "��C\u0000a\u0000p\u0000s\u0000t\u0000o\u0000n\u0000e\u0000 \u0000P\u0000r\u0000o\u0000j\u0000e\u0000c\u0000t\u0000 \u0000A\u0000R\u0000G\u0000H\u0000H\u0000\r\u0000 \u0000#\u0000 \u0000C\u0000a\u0000p\u0000s\u0000t\u0000o\u0000n\u0000e\u0000 \u0000P\u0000r\u0000o\u0000j\u0000e\u0000c\u0000t\u0000 \u0000A\u0000R\u0000G\u0000H\u0000H\u0000\r\u0000 \u0000#\u0000 \u0000C\u0000a\u0000p\u0000s\u0000t\u0000o\u0000n\u0000e\u0000\r\u0000 \u0000",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maica-myosotis/eLoan.git"
+  },
+  "author": "Jemaica Silvano",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/maica-myosotis/eLoan/issues"
+  },
+  "homepage": "https://github.com/maica-myosotis/eLoan#readme",
+  "dependencies": {
+    "axios": "^1.13.5",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.4",
+    "vite": "^7.3.1"
+  }
+}

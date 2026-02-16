@@ -1,0 +1,236 @@
+{% extends 'bookkeeper/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Statistics Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-card-label">Pending Review</div>
+                    <div class="stat-card-value">{{ stats.total_submitted }}</div>
+                </div>
+                <div class="stat-card-icon primary">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+            </div>
+            <div class="mt-2">
+                <a href="{% url 'bookkeeper:applications' %}" class="text-decoration-none small">
+                    View applications <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-card-label">Verified Today</div>
+                    <div class="stat-card-value">{{ stats.verified_today }}</div>
+                </div>
+                <div class="stat-card-icon success">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+            </div>
+            <div class="mt-2">
+                <span class="text-success small">
+                    <i class="bi bi-arrow-up"></i> Approved for Treasurer
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-card-label">Rejected Today</div>
+                    <div class="stat-card-value">{{ stats.rejected_today }}</div>
+                </div>
+                <div class="stat-card-icon danger">
+                    <i class="bi bi-x-circle"></i>
+                </div>
+            </div>
+            <div class="mt-2">
+                <span class="text-muted small">
+                    <i class="bi bi-info-circle"></i> With rejection reasons
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-card-label">Waiting Treasurer</div>
+                    <div class="stat-card-value">{{ stats.waiting_treasurer }}</div>
+                </div>
+                <div class="stat-card-icon warning">
+                    <i class="bi bi-hourglass-split"></i>
+                </div>
+            </div>
+            <div class="mt-2">
+                <span class="text-muted small">
+                    <i class="bi bi-arrow-right-circle"></i> Forwarded for review
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Recent Applications -->
+    <div class="col-lg-8">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Recent Applications
+                </h5>
+                <a href="{% url 'bookkeeper:applications' %}" class="btn btn-sm btn-outline-primary">
+                    View All
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Applicant</th>
+                            <th>Loan Type</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in recent_applications %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ app.user.firstname }} {{ app.user.lastname }}</div>
+                                <div class="text-muted small">{{ app.user.email }}</div>
+                            </td>
+                            <td>{{ app.loan_type.loan_name }}</td>
+                            <td class="fw-semibold">&#8369;{{ app.amount_requested|floatformat:2|intcomma }}</td>
+                            <td>
+                                <div>{{ app.application_date|date:"M d, Y" }}</div>
+                                <div class="text-muted small">{{ app.application_date|time:"H:i" }}</div>
+                            </td>
+                            <td>
+                                <a href="{% url 'bookkeeper:application_detail' app.id %}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye me-1"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                    No pending applications
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-lg-4">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-activity me-2"></i>
+                    Recent Activity
+                </h5>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                {% for activity in recent_activity %}
+                <div class="p-3 border-bottom">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="notification-icon {% if activity.action == 'verified' %}approval{% else %}rejection{% endif %}" style="width: 36px; height: 36px; flex-shrink: 0;">
+                            {% if activity.action == 'verified' %}
+                            <i class="bi bi-check"></i>
+                            {% else %}
+                            <i class="bi bi-x"></i>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">
+                                {% if activity.action == 'verified' %}
+                                Application Verified
+                                {% else %}
+                                Application Rejected
+                                {% endif %}
+                            </div>
+                            <div class="text-muted small">
+                                {{ activity.application.user.firstname }} {{ activity.application.user.lastname }}
+                            </div>
+                            <div class="text-muted small">
+                                by {{ activity.verified_by.firstname }} &bull; {{ activity.verified_at|timesince }} ago
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
+                    No recent activity
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats Card -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Weekly Overview
+                </h5>
+                <span class="badge bg-primary">Last 7 Days</span>
+            </div>
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <div class="border-end">
+                        <h3 class="mb-0 text-primary">{{ stats.recent_verifications }}</h3>
+                        <div class="text-muted small">Total Verifications</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border-end">
+                        <h3 class="mb-0 text-success">{{ stats.verified_today }}</h3>
+                        <div class="text-muted small">Verified Today</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div>
+                        <h3 class="mb-0 text-danger">{{ stats.rejected_today }}</h3>
+                        <div class="text-muted small">Rejected Today</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh dashboard every 60 seconds
+    setTimeout(function() {
+        location.reload();
+    }, 60000);
+</script>
+{% endblock %}

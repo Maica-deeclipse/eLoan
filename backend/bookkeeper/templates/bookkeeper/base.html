@@ -1,0 +1,477 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Bookkeeper{% endblock %} - eLoan</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom Styles -->
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary-color: #ec4899;
+            --sidebar-width: 260px;
+            --sidebar-bg: #1f2937;
+            --sidebar-text: #9ca3af;
+            --sidebar-active: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-bg);
+            padding: 1.5rem;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-brand-icon {
+            font-size: 1.75rem;
+            margin-right: 0.75rem;
+        }
+
+        .sidebar-brand-text {
+            color: #fff;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .sidebar-brand-text small {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav-item {
+            margin-bottom: 0.25rem;
+        }
+
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .sidebar-nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--sidebar-active);
+        }
+
+        .sidebar-nav-link.active {
+            background: var(--primary-color);
+            color: var(--sidebar-active);
+        }
+
+        .sidebar-nav-link i {
+            font-size: 1.25rem;
+            margin-right: 0.75rem;
+            width: 1.5rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+
+        /* Top Navbar */
+        .top-navbar {
+            background: #fff;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+        }
+
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Notification Dropdown */
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.65rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+
+        /* User Dropdown */
+        .user-dropdown {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-color);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .user-info {
+            text-align: left;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 0.875rem;
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        /* Content Area */
+        .content-area {
+            padding: 1.5rem;
+        }
+
+        /* Stats Cards */
+        .stat-card {
+            background: #fff;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-card-icon.primary { background: rgba(99, 102, 241, 0.1); color: var(--primary-color); }
+        .stat-card-icon.success { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .stat-card-icon.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+        .stat-card-icon.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+        .stat-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 0.5rem 0;
+        }
+
+        .stat-card-label {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        /* Tables */
+        .table-card {
+            background: #fff;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-badge.submitted { background: #fef3c7; color: #92400e; }
+        .status-badge.verified { background: #d1fae5; color: #065f46; }
+        .status-badge.rejected { background: #fee2e2; color: #991b1b; }
+        .status-badge.pending { background: #e0e7ff; color: #3730a3; }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        /* Notification Items */
+        .notification-item {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-item.unread {
+            background: #f0f9ff;
+        }
+
+        .notification-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .notification-icon.new_application { background: #dbeafe; color: #2563eb; }
+        .notification-icon.status_change { background: #fef3c7; color: #d97706; }
+        .notification-icon.action_required { background: #fee2e2; color: #dc2626; }
+        .notification-icon.approval { background: #d1fae5; color: #059669; }
+        .notification-icon.rejection { background: #fee2e2; color: #dc2626; }
+        .notification-icon.info { background: #e5e7eb; color: #4b5563; }
+
+        /* Alerts */
+        .alert {
+            border: none;
+            border-radius: 0.5rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: #6b7280;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #d1d5db;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <span class="sidebar-brand-icon">&#128176;</span>
+            <div class="sidebar-brand-text">
+                eLoan
+                <small>Bookkeeper Portal</small>
+            </div>
+        </div>
+
+        <ul class="sidebar-nav">
+            <li class="sidebar-nav-item">
+                <a href="{% url 'bookkeeper:dashboard' %}" class="sidebar-nav-link {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'home' %}active{% endif %}">
+                    <i class="bi bi-grid-1x2"></i>
+                    Dashboard
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="{% url 'bookkeeper:applications' %}" class="sidebar-nav-link {% if 'application' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="bi bi-file-earmark-text"></i>
+                    Applications
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="{% url 'bookkeeper:reports' %}" class="sidebar-nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+                    <i class="bi bi-bar-chart-line"></i>
+                    Reports
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="{% url 'bookkeeper:notifications' %}" class="sidebar-nav-link {% if 'notification' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="bi bi-bell"></i>
+                    Notifications
+                    {% if unread_notifications_count %}
+                    <span class="badge bg-danger ms-auto">{{ unread_notifications_count }}</span>
+                    {% endif %}
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="{% url 'bookkeeper:settings' %}" class="sidebar-nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+                    <i class="bi bi-gear"></i>
+                    Settings
+                </a>
+            </li>
+        </ul>
+
+        <div style="position: absolute; bottom: 1.5rem; left: 1.5rem; right: 1.5rem;">
+            <a href="{% url 'bookkeeper:logout' %}" class="sidebar-nav-link text-danger">
+                <i class="bi bi-box-arrow-left"></i>
+                Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Navbar -->
+        <nav class="top-navbar">
+            <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+
+            <div class="navbar-actions">
+                <!-- Notifications Dropdown -->
+                <div class="dropdown">
+                    <button class="notification-btn" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-bell"></i>
+                        {% if unread_notifications_count %}
+                        <span class="notification-badge">{{ unread_notifications_count }}</span>
+                        {% endif %}
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end" style="width: 320px; max-height: 400px; overflow-y: auto;">
+                        <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                            <strong>Notifications</strong>
+                            <a href="{% url 'bookkeeper:notifications' %}" class="text-decoration-none small">View All</a>
+                        </div>
+                        {% for notification in recent_notifications %}
+                        <a href="{% url 'bookkeeper:notifications' %}" class="dropdown-item py-2 {% if not notification.is_read %}bg-light{% endif %}">
+                            <div class="d-flex gap-2">
+                                <div class="notification-icon {{ notification.notification_type }}" style="width: 32px; height: 32px; font-size: 0.875rem;">
+                                    {% if notification.notification_type == 'new_application' %}
+                                    <i class="bi bi-file-plus"></i>
+                                    {% elif notification.notification_type == 'approval' %}
+                                    <i class="bi bi-check-circle"></i>
+                                    {% elif notification.notification_type == 'rejection' %}
+                                    <i class="bi bi-x-circle"></i>
+                                    {% else %}
+                                    <i class="bi bi-info-circle"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="fw-semibold small">{{ notification.title }}</div>
+                                    <div class="text-muted small text-truncate" style="max-width: 230px;">{{ notification.message|truncatechars:50 }}</div>
+                                </div>
+                            </div>
+                        </a>
+                        {% empty %}
+                        <div class="text-center py-3 text-muted">
+                            <i class="bi bi-bell-slash"></i>
+                            <div class="small">No notifications</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- User Dropdown -->
+                <div class="dropdown">
+                    <div class="user-dropdown" role="button" data-bs-toggle="dropdown">
+                        <div class="user-avatar">
+                            {{ user.firstname|slice:":1" }}{{ user.lastname|slice:":1" }}
+                        </div>
+                        <div class="user-info d-none d-md-block">
+                            <div class="user-name">{{ user.firstname }} {{ user.lastname }}</div>
+                            <div class="user-role">{{ user.role.name }}</div>
+                        </div>
+                        <i class="bi bi-chevron-down ms-2"></i>
+                    </div>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{% url 'bookkeeper:settings' %}"><i class="bi bi-gear me-2"></i>Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{% url 'bookkeeper:logout' %}"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Alerts -->
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
