@@ -18,6 +18,8 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
+from django.http import HttpResponse
 
 from authentication.login import StaffLoginView, ApplicantLoginView
 from authentication.password_reset import (
@@ -28,13 +30,25 @@ from authentication.password_reset import (
 from rest_framework_simplejwt.views import TokenRefreshView
 from reports.views import reports_dashboard
 
+def favicon_view(request):
+    """Avoid 404 for browser favicon requests."""
+    return HttpResponse(status=204)
+
 urlpatterns = [
+    path('favicon.ico', favicon_view),
+    # Root URL redirects to Django admin login
+    path('', RedirectView.as_view(url='/admin/login/', permanent=False), name='home'),
+
     path('admin/', admin.site.urls),
     path('admin/reports/dashboard/', reports_dashboard, name='reports_dashboard'),
 
     # Staff Portal API Modules
     path('api/bookkeeper/', include('bookkeeper.urls', namespace='bookkeeper')),
     path('api/treasurer/', include('treasurer.urls', namespace='treasurer')),
+    path('api/credit-committee/', include('credit_committee.urls', namespace='credit_committee')),
+
+    # Applicant Mobile App API
+    path('api/applicant/', include('applicant.urls', namespace='applicant')),
 
     # Authentication endpoints
     path('api/auth/login/', StaffLoginView.as_view(), name='staff_login'),

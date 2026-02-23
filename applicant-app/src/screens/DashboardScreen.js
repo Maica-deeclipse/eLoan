@@ -1,128 +1,267 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+/**
+ * Dashboard Screen
+ * Main home screen showing loan stats and recent applications
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import authService from '../services/authService';
+import { useAuth } from '../context/AuthContext';
+import dashboardService from '../services/dashboardService';
 
-export default function DashboardScreen({ navigation }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loggingOut, setLoggingOut] = useState(false);
+// Stats Card Component
+const StatsCard = ({ title, value, icon, color = '#6366f1' }) => (
+  <View style={[styles.statsCard, { borderLeftColor: color }]}>
+    <Text style={styles.statsIcon}>{icon}</Text>
+    <Text style={styles.statsValue}>{value}</Text>
+    <Text style={styles.statsTitle}>{title}</Text>
+  </View>
+);
 
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
-    try {
-      const currentUser = await authService.getCurrentUser();
-      setUser(currentUser);
-    } catch (err) {
-      console.error('Failed to load user data:', err);
-    } finally {
-      setLoading(false);
-    }
+// Recent Application Card Component
+const ApplicationCard = ({ application, onPress }) => {
+  const getStatusColor = (status) => {
+    const colors = {
+      'Draft': '#9ca3af',
+      'Submitted': '#f59e0b',
+      'Verified by Bookkeeper': '#3b82f6',
+      'Pending Credit Committee': '#8b5cf6',
+      'Approved by Credit Committee': '#10b981',
+      'Rejected by Bookkeeper': '#ef4444',
+      'Rejected by Credit Committee': '#ef4444',
+      'Disbursed': '#059669',
+      'Paid': '#22c55e',
+    };
+    return colors[status] || '#6b7280';
   };
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
+  return (
+    <TouchableOpacity style={styles.applicationCard} onPress={onPress}>
+      <View style={styles.applicationHeader}>
+        <Text style={styles.applicationLoanType}>{application.loan_type}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(application.status) }]}>
+          <Text style={styles.statusText} numberOfLines={1}>{application.status}</Text>
+        </View>
+      </View>
+      <View style={styles.applicationDetails}>
+        <Text style={styles.applicationAmount}>
+          ₱{parseFloat(application.amount_requested).toLocaleString()}
+        </Text>
+        <Text style={styles.applicationDate}>
+          {new Date(application.application_date).toLocaleDateString()}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// Notification Preview Card Component
+const NotificationCard = ({ notification }) => (
+  <View style={styles.notificationCard}>
+    <Text style={styles.notificationTitle}>{notification.title}</Text>
+    <Text style={styles.notificationMessage} numberOfLines={2}>
+      {notification.message}
+    </Text>
+    <Text style={styles.notificationTime}>
+      {new Date(notification.created_at).toLocaleDateString()}
+    </Text>
+  </View>
+);
+
+export default function DashboardScreen({ navigation }) {
+  const { user, logout } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [recentApplications, setRecentApplications] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [canApply, setCanApply] = useState({ can_apply: false, reason: '' });
+
+  const loadDashboard = useCallback(async () => {
     try {
-      await authService.logout();
-      navigation.replace('Login');
-    } catch (err) {
-      console.error('Logout failed:', err);
-      setLoggingOut(false);
+      const [dashboardData, canApplyResult] = await Promise.all([
+        dashboardService.getDashboard(),
+        dashboardService.checkCanApply(),
+      ]);
+
+      setStats(dashboardData.stats);
+      setRecentApplications(dashboardData.recent_applications || []);
+      setNotifications(dashboardData.notifications || []);
+      setCanApply(canApplyResult);
+    } catch (error) {
+      console.error('Dashboard load error:', error);
+      if (error.response?.status === 401) {
+        // Token expired, logout
+        await logout();
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  }, [logout]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const handleApplyPress = () => {
+    if (canApply.can_apply) {
+      navigation.navigate('ApplicationWizard');
+      return;
+    }
+
+    const hasEditableApplication = recentApplications.some((app) =>
+      ['Draft', 'Submitted'].includes(app.status)
+    );
+
+    if (hasEditableApplication) {
+      navigation.navigate('ApplicationWizard');
+      return;
+    }
+
+    Alert.alert('Cannot Apply', canApply.reason);
+  };
+
+  const handleApplicationPress = (application) => {
+    navigation.navigate('ApplicationDetail', { id: application.id });
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6366f1" />
+        <Text style={styles.loadingText}>Loading...</Text>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#6366f1']} />
+        }
+      >
+        {/* Header */}
         <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Welcome back,</Text>
+            <Text style={styles.userName}>{user?.firstname || 'Applicant'}</Text>
+          </View>
           <View style={styles.logoContainer}>
             <Text style={styles.logoIcon}>💰</Text>
             <Text style={styles.logoText}>eLoan</Text>
           </View>
-          <Text style={styles.welcomeText}>Welcome Back!</Text>
         </View>
 
-        <View style={styles.content}>
-          {user && (
-            <View style={styles.userCard}>
-              <View style={styles.userAvatar}>
-                <Text style={styles.userAvatarText}>
-                  {user.first_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
-                </Text>
-              </View>
-              <Text style={styles.userName}>
-                {user.first_name && user.last_name
-                  ? `${user.first_name} ${user.last_name}`
-                  : user.email}
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <StatsCard
+            title="Total Apps"
+            value={stats?.total_applications || 0}
+            icon="📋"
+            color="#6366f1"
+          />
+          <StatsCard
+            title="Active Loans"
+            value={stats?.approved_loans || 0}
+            icon="✅"
+            color="#10b981"
+          />
+          <StatsCard
+            title="Pending"
+            value={stats?.pending_applications || 0}
+            icon="⏳"
+            color="#f59e0b"
+          />
+          <StatsCard
+            title="Total Paid"
+            value={`₱${parseFloat(stats?.total_paid || 0).toLocaleString()}`}
+            icon="💰"
+            color="#059669"
+          />
+        </View>
+
+        {/* Apply Button */}
+        <TouchableOpacity
+          style={[
+            styles.applyButton,
+            !canApply.can_apply && styles.applyButtonDisabled,
+          ]}
+          onPress={handleApplyPress}
+        >
+          <Text style={styles.applyButtonText}>
+            {canApply.can_apply ? '+ Apply for a Loan' : 'Cannot Apply'}
+          </Text>
+          {!canApply.can_apply && (
+            <Text style={styles.applyButtonSubtext}>{canApply.reason}</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Recent Applications */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Applications</Text>
+            {recentApplications.length > 0 && (
+              <TouchableOpacity onPress={() => navigation.navigate('MyApplications')}>
+                <Text style={styles.seeAllLink}>See All</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {recentApplications.length > 0 ? (
+            recentApplications.map((app) => (
+              <ApplicationCard
+                key={app.id}
+                application={app}
+                onPress={() => handleApplicationPress(app)}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>📄</Text>
+              <Text style={styles.emptyStateText}>No applications yet</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Start your first loan application today!
               </Text>
-              <Text style={styles.userEmail}>{user.email}</Text>
-              {user.role && (
-                <View style={styles.roleBadge}>
-                  <Text style={styles.roleText}>{user.role}</Text>
-                </View>
-              )}
             </View>
           )}
-
-          <View style={styles.placeholderCard}>
-            <Text style={styles.placeholderIcon}>🚧</Text>
-            <Text style={styles.placeholderTitle}>Dashboard Coming Soon</Text>
-            <Text style={styles.placeholderText}>
-              We're working on bringing you a comprehensive dashboard to manage your loan applications.
-            </Text>
-            <Text style={styles.placeholderSubtext}>Stay tuned for updates!</Text>
-          </View>
-
-          <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>What's Next?</Text>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoBullet}>•</Text>
-              <Text style={styles.infoText}>View your loan applications</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoBullet}>•</Text>
-              <Text style={styles.infoText}>Track application status</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoBullet}>•</Text>
-              <Text style={styles.infoText}>Submit new loan requests</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoBullet}>•</Text>
-              <Text style={styles.infoText}>Manage your profile</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.logoutButton, loggingOut && styles.logoutButtonDisabled]}
-            onPress={handleLogout}
-            disabled={loggingOut}
-          >
-            {loggingOut ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.logoutButtonText}>Logout</Text>
-            )}
-          </TouchableOpacity>
         </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>eLoan Management System • Applicant Access</Text>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+        {/* Notifications Preview */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Notifications</Text>
+            {notifications.length > 0 && (
+              <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+                <Text style={styles.seeAllLink}>See All</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {notifications.length > 0 ? (
+            notifications.slice(0, 3).map((notif) => (
+              <NotificationCard key={notif.id} notification={notif} />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>🔔</Text>
+              <Text style={styles.emptyStateText}>No notifications</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -132,192 +271,229 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
+    backgroundColor: '#f9fafb',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f9fafb',
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: 12,
     fontSize: 16,
     color: '#6b7280',
   },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 32,
-    paddingTop: 20,
+    marginBottom: 20,
+  },
+  greeting: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1f2937',
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
   logoIcon: {
-    fontSize: 40,
-    marginRight: 8,
+    fontSize: 24,
+    marginRight: 4,
   },
   logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  welcomeText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  content: {
-    flex: 1,
-  },
-  userCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  userAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#6366f1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  userAvatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  userName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 12,
-  },
-  roleBadge: {
-    backgroundColor: '#ede9fe',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  roleText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#6366f1',
-    textTransform: 'capitalize',
   },
-  placeholderCard: {
-    backgroundColor: '#fff',
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  statsCard: {
+    width: '48%',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 32,
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  placeholderIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  placeholderTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1f2937',
+    padding: 16,
     marginBottom: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  placeholderText: {
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
+  statsIcon: {
+    fontSize: 24,
     marginBottom: 8,
-    lineHeight: 24,
   },
-  placeholderSubtext: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontStyle: 'italic',
+  statsValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
   },
-  infoCard: {
-    backgroundColor: '#fff',
+  statsTitle: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  applyButton: {
+    backgroundColor: '#6366f1',
     borderRadius: 12,
     padding: 20,
+    alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  infoTitle: {
+  applyButtonDisabled: {
+    backgroundColor: '#9ca3af',
+    shadowColor: '#9ca3af',
+  },
+  applyButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  applyButtonSubtext: {
+    color: '#e5e7eb',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: 16,
   },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  infoBullet: {
-    fontSize: 20,
+  seeAllLink: {
     color: '#6366f1',
-    marginRight: 12,
-    width: 20,
+    fontSize: 14,
+    fontWeight: '500',
   },
-  infoText: {
-    fontSize: 15,
-    color: '#374151',
-    flex: 1,
-  },
-  logoutButton: {
-    backgroundColor: '#dc2626',
-    borderRadius: 8,
+  applicationCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
     padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  applicationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginBottom: 8,
   },
-  logoutButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  logoutButtonText: {
-    color: '#fff',
+  applicationLoanType: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#1f2937',
+    flex: 1,
   },
-  footer: {
-    marginTop: 32,
-    alignItems: 'center',
-    paddingBottom: 20,
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    maxWidth: 140,
   },
-  footerText: {
-    color: '#6b7280',
+  statusText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  applicationDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  applicationAmount: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  applicationDate: {
     fontSize: 12,
+    color: '#9ca3af',
+  },
+  notificationCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  notificationTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
     marginBottom: 4,
   },
-  versionText: {
-    color: '#9ca3af',
+  notificationMessage: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  notificationTime: {
     fontSize: 11,
+    color: '#9ca3af',
+  },
+  emptyState: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  emptyStateIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  emptyStateSubtext: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 4,
+    textAlign: 'center',
   },
 });

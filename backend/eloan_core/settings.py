@@ -31,7 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '192.168.1.211',
+    '10.144.154.226',
     '10.0.0.52',
 ]
 
@@ -64,6 +64,8 @@ INSTALLED_APPS = [
     'reports',
     'bookkeeper',
     'treasurer',
+    'credit_committee',
+    'applicant',
 ]
 
 MIDDLEWARE = [
@@ -203,12 +205,13 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 # CORS Configuration
 # Allow requests from the frontend application and mobile app
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',   # Web frontend
-    'http://127.0.0.1:3000',   # Web frontend
-    'http://localhost:8081',   # Expo dev server (default)
-    'http://127.0.0.1:8081',   # Expo dev server
-    'http://localhost:19000',  # Expo dev server (alternative port)
-    'http://localhost:19006',  # Expo web
+    'http://localhost:3000',       # Web frontend
+    'http://127.0.0.1:3000',       # Web frontend
+    'http://10.144.154.226:3000',   # Web frontend (network access)
+    'http://localhost:8081',       # Expo dev server (default)
+    'http://127.0.0.1:8081',       # Expo dev server
+    'http://localhost:19000',      # Expo dev server (alternative port)
+    'http://localhost:19006',      # Expo web
 ]
 
 # For development, you can use CORS_ALLOW_ALL_ORIGINS = True

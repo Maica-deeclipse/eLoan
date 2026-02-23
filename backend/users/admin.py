@@ -21,7 +21,6 @@ PRODUCTION:
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.mail import send_mail
 from django.urls import reverse
 from django.utils.html import format_html
@@ -103,17 +102,10 @@ eLoan Admin Team
 
 class UserChangeForm(forms.ModelForm):
     """Form for updating users in the admin panel."""
-    password = ReadOnlyPasswordHashField(
-        label="Password",
-        help_text=(
-            "Raw passwords are not stored. "
-            '<a href="../password/">Change password</a>.'
-        ),
-    )
 
     class Meta:
         model = User
-        fields = ('email', 'password', 'firstname', 'lastname', 'role', 'status', 'is_active', 'is_staff')
+        fields = ('email', 'firstname', 'lastname', 'role', 'status', 'is_active', 'is_staff')
 
 
 @admin.register(User)
@@ -125,7 +117,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     list_filter = ('role', 'status', 'is_staff', 'is_superuser', 'date_joined')
 
     fieldsets = (
-        (None, {'fields': ('email', 'password')}),
+        (None, {'fields': ('email',)}),
         ('Personal Info', {'fields': ('firstname', 'lastname')}),
         ('Role & Status', {'fields': ('role', 'status')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),

@@ -5,19 +5,33 @@ import '../styles/Login.css';
 
 function Login() {
   const navigate = useNavigate();
-  const { role } = useParams(); // Get role from URL parameter
+  const { role: urlRole } = useParams(); // Get role from URL parameter
+
+  // Map URL role to actual role name
+  const getRoleName = (urlRole) => {
+    const roleMap = {
+      'admin': 'Super Administrator',
+      'Bookkeeper': 'Bookkeeper',
+      'Treasurer': 'Treasurer',
+      'Credit Committee': 'Credit Committee',
+    };
+    return roleMap[urlRole] || urlRole || '';
+  };
+
+  const roleName = getRoleName(urlRole);
 
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    role: role || '' // Auto-populate role from URL
+    role: roleName // Auto-populate role from URL
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Determine page title based on role
-  const pageTitle = role ? `${role} Login` : 'Staff Login';
-  const pageSubtitle = role ? `Sign in to ${role} Portal` : 'Sign in to your account';
+  const displayRole = urlRole === 'admin' ? 'Super Administrator' : urlRole;
+  const pageTitle = displayRole ? `${displayRole} Login` : 'Staff Login';
+  const pageSubtitle = displayRole ? `Sign in to ${displayRole} Portal` : 'Sign in to your account';
 
   const handleChange = (e) => {
     setFormData({

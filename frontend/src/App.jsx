@@ -24,6 +24,16 @@ import TreasurerReports from './pages/treasurer/Reports';
 import TreasurerNotifications from './pages/treasurer/Notifications';
 import TreasurerSettings from './pages/treasurer/Settings';
 
+// Credit Committee Module
+import CreditCommitteeLayout from './components/credit-committee/CreditCommitteeLayout';
+import CreditCommitteeDashboard from './pages/credit-committee/Dashboard';
+import CreditCommitteeApplications from './pages/credit-committee/Applications';
+import CreditCommitteeApplicationDetail from './pages/credit-committee/ApplicationDetail';
+import CreditCommitteeDecisionHistory from './pages/credit-committee/DecisionHistory';
+import CreditCommitteeReports from './pages/credit-committee/Reports';
+import CreditCommitteeNotifications from './pages/credit-committee/Notifications';
+import CreditCommitteeSettings from './pages/credit-committee/Settings';
+
 function App() {
   return (
     <Router>
@@ -60,9 +70,22 @@ function App() {
           <Route path="settings" element={<TreasurerSettings />} />
         </Route>
 
-        {/* Placeholder Dashboard Routes (Credit Committee, Admin) */}
-        <Route path="/credit-committee/dashboard" element={<PlaceholderDashboard role="Credit Committee" />} />
+        {/* Credit Committee Module */}
+        <Route path="/credit-committee" element={<CreditCommitteeLayout />}>
+          <Route index element={<Navigate to="/credit-committee/dashboard" replace />} />
+          <Route path="dashboard" element={<CreditCommitteeDashboard />} />
+          <Route path="applications" element={<CreditCommitteeApplications />} />
+          <Route path="applications/:id" element={<CreditCommitteeApplicationDetail />} />
+          <Route path="decisions" element={<CreditCommitteeDecisionHistory />} />
+          <Route path="reports" element={<CreditCommitteeReports />} />
+          <Route path="notifications" element={<CreditCommitteeNotifications />} />
+          <Route path="settings" element={<CreditCommitteeSettings />} />
+        </Route>
+
+        {/* Super Admin - Django admin dashboard at /admindashboard */}
+        <Route path="/admin" element={<Navigate to="/admindashboard/" replace />} />
         <Route path="/admin/dashboard" element={<PlaceholderDashboard role="Super Administrator" />} />
+
         <Route path="/dashboard" element={<PlaceholderDashboard role="Staff" />} />
 
         {/* Fallback Route */}

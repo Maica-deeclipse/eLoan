@@ -13,12 +13,16 @@ class LoanType(models.Model):
     max_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     interest_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     max_term_months = models.IntegerField(default=0)
+    required_comakers = models.IntegerField(default=0, help_text='Number of co-makers required for this loan type')
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
 
     def __str__(self):
         return self.loan_name
+
+    class Meta:
+        ordering = ['loan_name']
 
 
 class ApplicationStatus(models.Model):

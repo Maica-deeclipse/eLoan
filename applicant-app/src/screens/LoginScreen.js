@@ -10,9 +10,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import authService from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,10 +30,12 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
 
     try {
-      await authService.login(email, password);
-      // Navigation will be handled by AuthContext or navigator
-      // For now, navigate to Dashboard
-      navigation.replace('Dashboard');
+      const result = await login(email, password);
+      if (!result.success) {
+        setError(result.error || 'Login failed. Please try again.');
+      }
+      // Navigation is handled automatically by AuthContext
+      // When isAuthenticated becomes true, AppNavigator shows the Main screen
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.');
     } finally {

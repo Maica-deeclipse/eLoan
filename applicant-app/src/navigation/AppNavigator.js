@@ -1,36 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View } from 'react-native';
-import authService from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import SetPasswordScreen from '../screens/SetPasswordScreen';
-import DashboardScreen from '../screens/DashboardScreen';
+import ApplicationDetailScreen from '../screens/ApplicationDetailScreen';
+import ApplicationStack from './ApplicationStack';
+import MainTabNavigator from './MainTabNavigator';
 
 const Stack = createStackNavigator();
 
 export default function AppNavigator() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const authenticated = await authService.isAuthenticated();
-      setIsAuthenticated(authenticated);
-    } catch (error) {
-      console.error('Auth check error:', error);
-      setIsAuthenticated(false);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { isAuthenticated, loading } = useAuth();
 
   // Deep linking configuration
   const linking = {
@@ -53,19 +38,22 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer linking={linking}>
-      <Stack.Navigator
-        initialRouteName={isAuthenticated ? 'Dashboard' : 'Login'}
-        screenOptions={{
-          headerShown: false, // Hide headers for all screens
-        }}
-      >
-        {/* Public Routes */}
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
-
-        {/* Protected Routes */}
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {isAuthenticated ? (
+          <>
+            {/* Protected Routes */}
+            <Stack.Screen name="Main" component={MainTabNavigator} />
+            <Stack.Screen name="ApplicationDetail" component={ApplicationDetailScreen} />
+            <Stack.Screen name="ApplicationWizard" component={ApplicationStack} />
+          </>
+        ) : (
+          <>
+            {/* Public Routes */}
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
