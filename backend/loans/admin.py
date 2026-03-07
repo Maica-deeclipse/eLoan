@@ -5,7 +5,7 @@ from unfold.decorators import display
 from .models import (
     LoanType, ApplicationStatus, LoanApplication,
     LoanCoMaker, LoanDocument, FaceVerification,
-    LivenessCheck, AuditLog
+    LivenessCheck, AuditLog, StatusChangeLog, StatusTransitionRule
 )
 
 
@@ -21,6 +21,26 @@ class LoanDocumentInline(TabularInline):
     extra = 0
     fields = ('document_type', 'file_path', 'verified', 'verified_by', 'uploaded_at')
     readonly_fields = ('uploaded_at',)
+
+
+class StatusChangeLogInline(TabularInline):
+    """Inline display of status change history for loan applications."""
+    model = StatusChangeLog
+    extra = 0
+    fields = ('from_status', 'to_status', 'changed_by', 'changed_by_role', 'changed_at', 'remarks')
+    readonly_fields = ('from_status', 'to_status', 'changed_by', 'changed_by_role', 'changed_at', 'remarks')
+    ordering = ('-changed_at',)
+    verbose_name = 'Status Change'
+    verbose_name_plural = 'Status Change History'
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(LoanType)
@@ -59,7 +79,7 @@ class LoanApplicationAdmin(ModelAdmin):
     ordering = ('-application_date',)
     date_hierarchy = 'application_date'
 
-    inlines = [LoanCoMakerInline, LoanDocumentInline]
+    inlines = [LoanCoMakerInline, LoanDocumentInline, StatusChangeLogInline]
 
     fieldsets = (
         ('Applicant Information', {
@@ -222,3 +242,69 @@ class AuditLogAdmin(ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(StatusChangeLog)
+class StatusChangeLogAdmin(ModelAdmin):
+    list_display = ('application_link', 'status_transition', 'changed_by_info', 'changed_at', 'remarks_preview')
+    list_filter = ('changed_by_role', 'to_status', 'changed_at')
+    search_fields = ('application__id', 'changed_by__email', 'remarks')
+    ordering = ('-changed_at',)
+    date_hierarchy = 'changed_at'
+    readonly_fields = ('application', 'from_status', 'to_status', 'changed_by', 'changed_by_role', 'changed_at', 'remarks')
+
+    def application_link(self, obj):
+        return format_html(
+            '<a href="/admin/loans/loanapplication/{}/change/">App #{}</a>',
+            obj.application_id,
+            obj.application_id
+        )
+    application_link.short_description = 'Application'
+
+    def status_transition(self, obj):
+        from_name = obj.from_status.status_name if obj.from_status else 'None'
+        to_name = obj.to_status.status_name if obj.to_status else 'None'
+        return format_html(
+            '<span style="color: #6b7280;">{}</span> → <span style="font-weight: 600;">{}</span>',
+            from_name,
+            to_name
+        )
+    status_transition.short_description = 'Status Change'
+
+    def changed_by_info(self, obj):
+        if obj.changed_by:
+            return format_html(
+                '{} <span style="color: #6b7280; font-size: 11px;">({}) </span>',
+                f"{obj.changed_by.firstname} {obj.changed_by.lastname}",
+                obj.changed_by_role or 'Unknown'
+            )
+        return format_html('<span style="color: #999;">System</span>')
+    changed_by_info.short_description = 'Changed By'
+
+    def remarks_preview(self, obj):
+        if obj.remarks:
+            return obj.remarks[:50] + '...' if len(obj.remarks) > 50 else obj.remarks
+        return format_html('<span style="color: #999;">-</span>')
+    remarks_preview.short_description = 'Remarks'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(StatusTransitionRule)
+class StatusTransitionRuleAdmin(ModelAdmin):
+    list_display = ('transition_display', 'allowed_role')
+    list_filter = ('allowed_role', 'from_status', 'to_status')
+    search_fields = ('from_status__status_name', 'to_status__status_name', 'allowed_role')
+    ordering = ('from_status', 'to_status', 'allowed_role')
+
+    def transition_display(self, obj):
+        return format_html(
+            '{} → {}',
+            obj.from_status.status_name,
+            obj.to_status.status_name
+        )
+    transition_display.short_description = 'Transition'

@@ -335,16 +335,20 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
         dispatch({ type: 'RESET' });
         setLoanType(selectedLoanType, selectedLoanType.required_comakers || 0);
         dispatch({ type: 'SET_APPLICATION_ID', payload: existingDraft.id });
-        dispatch({ type: 'LOAD_APPLICATION', payload });
+        // Load all data but override currentStep to always start at step 2 (PersonalDetails)
+        dispatch({ type: 'LOAD_APPLICATION', payload: { ...payload, currentStep: 2 } });
 
         await saveLoanTypeDraft(loanTypeId, {
           applicationId: existingDraft.id,
-          currentStep,
+          currentStep: 2, // Always start at step 2 when resuming
           personalDetails: payload.personalDetails,
           loanDetails: payload.loanDetails,
         });
 
-        navigation.navigate(getRouteFromStep(currentStep, selectedLoanType.required_comakers || 0));
+        // Always start at PersonalDetails (step 2) when resuming
+        // All data from previous steps is already loaded above
+        // User can click "Continue" through pre-filled steps to reach where they left off
+        navigation.navigate('PersonalDetails');
         return;
       }
 

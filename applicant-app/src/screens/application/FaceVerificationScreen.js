@@ -137,7 +137,52 @@ const FaceVerificationScreen = ({ navigation }) => {
       if (!faceImage) {
         throw new Error('Missing face image');
       }
-      await applicationService.uploadFaceCapture(state.applicationId, faceImage);
+
+      // Upload face capture and perform face comparison
+      const faceResult = await applicationService.uploadFaceCapture(state.applicationId, faceImage);
+
+      // Check if face verification succeeded
+      if (!faceResult.is_match) {
+        const errorMessage = faceResult.error_message || 'Face verification failed. Please try again.';
+        const similarityScore = faceResult.similarity_score;
+
+        // Increment retry count in context
+        const currentRetryCount = state.faceVerification.retryCount || 0;
+        dispatch({
+          type: 'SET_FACE_VERIFICATION',
+          payload: {
+            completed: false,
+            imageUri: faceImage,
+            verified: false,
+            similarityScore: similarityScore,
+            errorMessage: errorMessage,
+            retryCount: currentRetryCount + 1,
+          },
+        });
+
+        // Show detailed error message with retry option
+        Alert.alert(
+          'Face Verification Failed',
+          `${errorMessage}${similarityScore ? `\n\nSimilarity Score: ${similarityScore.toFixed(1)}%\nRequired: 80%` : ''}\n\nPlease retake your selfie ensuring:\n• Good lighting on your face\n• Face the camera directly\n• Remove glasses or hats if possible`,
+          [
+            {
+              text: 'Retry',
+              onPress: () => {
+                // Reset to face capture step to retake selfie
+                setStep('face_capture');
+                setCapturedImage(null);
+                setLivenessImages([]);
+                setLivenessIndex(0);
+              },
+            },
+          ]
+        );
+
+        setLoading(false);
+        return; // Don't proceed with liveness checks
+      }
+
+      // Face verification successful - proceed with liveness checks
       for (const entry of livenessImgs) {
         await applicationService.performLivenessCheck(
           state.applicationId,
@@ -146,9 +191,17 @@ const FaceVerificationScreen = ({ navigation }) => {
         );
       }
 
+      // Update context with successful verification
       dispatch({
         type: 'SET_FACE_VERIFICATION',
-        payload: { completed: true, imageUri: faceImage, verified: true },
+        payload: {
+          completed: true,
+          imageUri: faceImage,
+          verified: true,
+          similarityScore: faceResult.similarity_score,
+          errorMessage: null,
+          retryCount: state.faceVerification.retryCount || 0,
+        },
       });
       dispatch({
         type: 'SET_LIVENESS_CHECK',
@@ -156,18 +209,50 @@ const FaceVerificationScreen = ({ navigation }) => {
       });
 
       setStep('complete');
-      Alert.alert('Success', 'Face verification completed successfully!');
+
+      // Show success message with similarity score
+      const successMessage = faceResult.similarity_score
+        ? `Face verification successful!\n\nSimilarity Score: ${faceResult.similarity_score.toFixed(1)}%`
+        : 'Face verification completed successfully!';
+
+      Alert.alert('Success', successMessage);
     } catch (error) {
       console.error('Verification error:', error);
-      Alert.alert(
-        'Verification Failed',
-        error.response?.data?.error || 'Please try again with better lighting.'
-      );
-      // Reset to try again
-      setStep('intro');
-      setCapturedImage(null);
-      setLivenessImages([]);
-      setLivenessIndex(0);
+
+      // Extract error details
+      const errorData = error.response?.data;
+      let errorMessage = 'An error occurred during face verification. Please try again.';
+
+      if (errorData) {
+        // Handle specific error scenarios
+        if (errorData.error_message) {
+          errorMessage = errorData.error_message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+
+        // Add helpful hints for specific errors
+        if (errorMessage.includes('No face detected') || errorMessage.includes('face')) {
+          errorMessage += '\n\nTips:\n• Ensure good lighting\n• Face the camera directly\n• Remove obstructions (glasses, hat, mask)';
+        } else if (errorMessage.includes('ID document not found') || errorMessage.includes('valid ID')) {
+          errorMessage += '\n\nPlease go back to Step 5 and upload your valid ID document first.';
+        }
+      }
+
+      Alert.alert('Verification Error', errorMessage, [
+        {
+          text: 'Retry',
+          onPress: () => {
+            // Reset to intro
+            setStep('intro');
+            setCapturedImage(null);
+            setLivenessImages([]);
+            setLivenessIndex(0);
+          },
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -360,6 +445,39 @@ const FaceVerificationScreen = ({ navigation }) => {
         Your face has been successfully verified
       </Text>
 
+      {/* Display similarity score if available */}
+      {state.faceVerification.similarityScore && (
+        <View style={styles.scoreContainer}>
+          <Text style={styles.scoreLabel}>Similarity Score</Text>
+          <Text style={styles.scoreValue}>
+            {state.faceVerification.similarityScore.toFixed(1)}%
+          </Text>
+          <View style={styles.scoreBar}>
+            <View
+              style={[
+                styles.scoreBarFill,
+                {
+                  width: `${Math.min(100, state.faceVerification.similarityScore)}%`,
+                  backgroundColor:
+                    state.faceVerification.similarityScore >= 90
+                      ? '#28a745'
+                      : state.faceVerification.similarityScore >= 80
+                      ? '#17a2b8'
+                      : '#ffc107',
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.scoreDescription}>
+            {state.faceVerification.similarityScore >= 90
+              ? 'Excellent match!'
+              : state.faceVerification.similarityScore >= 80
+              ? 'Good match'
+              : 'Match confirmed'}
+          </Text>
+        </View>
+      )}
+
       {capturedImage && (
         <View style={styles.capturedImageContainer}>
           <Image source={{ uri: capturedImage }} style={styles.capturedImage} />
@@ -486,6 +604,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   requirementText: {
+    flex: 1,
     fontSize: 15,
     color: '#495057',
     marginLeft: 12,
@@ -624,6 +743,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   challengeInstruction: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
     color: '#0d6efd',
@@ -667,6 +787,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6c757d',
     marginBottom: 24,
+  },
+  scoreContainer: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  scoreLabel: {
+    fontSize: 14,
+    color: '#6c757d',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  scoreValue: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#28a745',
+    marginBottom: 12,
+  },
+  scoreBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#e9ecef',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  scoreBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  scoreDescription: {
+    fontSize: 14,
+    color: '#28a745',
+    fontWeight: '600',
   },
   capturedImageContainer: {
     marginBottom: 24,

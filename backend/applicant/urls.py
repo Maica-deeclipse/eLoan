@@ -56,15 +56,18 @@ urlpatterns = [
     path('applications/<int:pk>/submit/', views.SubmitApplicationView.as_view(), name='submit_application'),
     path('applications/<int:pk>/withdraw/', views.WithdrawApplicationView.as_view(), name='withdraw_application'),
     path('applications/<int:pk>/delete/', views.DeleteDraftApplicationView.as_view(), name='delete_draft_application'),
+    path('applications/<int:pk>/download-pdf/', views.DownloadApplicationPDFView.as_view(), name='download_application_pdf'),
 
     # Documents
     path('applications/<int:app_id>/documents/', views.DocumentListView.as_view(), name='documents'),
     path('applications/<int:app_id>/documents/upload/', views.DocumentUploadView.as_view(), name='upload_document'),
+    path('applications/<int:app_id>/id-ocr-scan/', views.IDOCRScanView.as_view(), name='id_ocr_scan'),
     path('documents/<int:pk>/', views.DocumentDetailView.as_view(), name='document_detail'),
     path('documents/<int:pk>/replace/', views.DocumentReplaceView.as_view(), name='replace_document'),
 
     # Verification
     path('applications/<int:app_id>/face-capture/', views.FaceCaptureView.as_view(), name='face_capture'),
+    path('applications/<int:app_id>/face-verification/retry/', views.RetryFaceVerificationView.as_view(), name='retry_face_verification'),
     path('applications/<int:app_id>/liveness-check/', views.LivenessCheckView.as_view(), name='liveness_check'),
     path('applications/<int:app_id>/verification-status/', views.VerificationStatusView.as_view(), name='verification_status'),
     path('applications/<int:app_id>/esignature/', views.ESignatureView.as_view(), name='esignature'),

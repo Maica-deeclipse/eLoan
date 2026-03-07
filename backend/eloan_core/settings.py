@@ -31,7 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '10.144.154.226',
+    '10.69.134.52',
     '10.0.0.52',
 ]
 
@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'treasurer',
     'credit_committee',
     'applicant',
+    'members',
 ]
 
 MIDDLEWARE = [
@@ -176,6 +177,16 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Face Verification Settings
+FACE_VERIFICATION = {
+    'ENABLED': True,
+    'AUTO_APPROVE_THRESHOLD': 80,  # Similarity % for auto-approval (≥80% = pass)
+    'MODEL': 'ArcFace',  # Face comparison model (ArcFace, Facenet, VGG-Face, etc.)
+    'DISTANCE_METRIC': 'cosine',  # Distance metric (cosine, euclidean, euclidean_l2)
+    'DETECTOR_BACKEND': 'opencv',  # Face detector (opencv, ssd, dlib, mtcnn, retinaface)
+    'UNLIMITED_RETRIES': True,  # Allow unlimited retry attempts
+}
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
 
@@ -207,7 +218,7 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',       # Web frontend
     'http://127.0.0.1:3000',       # Web frontend
-    'http://10.144.154.226:3000',   # Web frontend (network access)
+    'http://.168.1.211:3000',   # Web frontend (network access)
     'http://localhost:8081',       # Expo dev server (default)
     'http://127.0.0.1:8081',       # Expo dev server
     'http://localhost:19000',      # Expo dev server (alternative port)
@@ -281,6 +292,32 @@ UNFOLD = {
                         "title": "Roles",
                         "icon": "badge",
                         "link": lambda request: "/admin/users/role/",
+                    },
+                ],
+            },
+            {
+                "title": "Member Management",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Pending Registrations",
+                        "icon": "pending_actions",
+                        "link": lambda request: "/admin/users/user/?account_status__exact=pending",
+                    },
+                    {
+                        "title": "All Members",
+                        "icon": "people",
+                        "link": lambda request: "/admin/members/member/",
+                    },
+                    {
+                        "title": "Savings Records",
+                        "icon": "savings",
+                        "link": lambda request: "/admin/members/savings/",
+                    },
+                    {
+                        "title": "Shared Capital",
+                        "icon": "account_balance",
+                        "link": lambda request: "/admin/members/sharedcapital/",
                     },
                 ],
             },

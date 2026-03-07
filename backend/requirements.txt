@@ -19,3 +19,16 @@ django-unfold>=0.40.0  # Modern Tailwind CSS-based admin interface
 # Additional utilities
 python-decouple>=3.8  # For environment variable management (.env files)
 python-dotenv>=1.0.0  # Alternative for loading .env files
+
+# Face Recognition & Computer Vision
+opencv-python>=4.9.0  # OpenCV for face detection using Haar Cascades
+deepface>=0.0.90  # DeepFace for face comparison using ArcFace model
+tf-keras>=2.17.0  # TensorFlow backend for DeepFace
+tensorflow>=2.17.0  # Required by tf-keras and DeepFace
+
+# OCR (Optical Character Recognition)
+pytesseract>=0.3.10  # Python wrapper for Tesseract OCR
+Pillow>=10.0.0  # Python Imaging Library for image processing
+# Note: Tesseract OCR must be installed separately on the system
+# Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
+# Install to: C:\Program Files\Tesseract-OCR\

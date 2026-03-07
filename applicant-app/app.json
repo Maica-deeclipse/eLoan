@@ -28,7 +28,7 @@
       "favicon": "./assets/logo.png"
     },
     "extra": {
-      "apiUrl": "http://10.144.154.226:8000/api/auth"
+      "apiUrl": "http://10.69.134.52:8000/api/auth"
     }
   }
 }

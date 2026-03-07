@@ -14,12 +14,14 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
+import OCRResultsModal from '../../components/OCRResultsModal';
+import NameMismatchModal from '../../components/NameMismatchModal';
 
 const REQUIRED_DOCUMENTS = [
   {
     key: 'valid_id',
     label: 'Valid Government ID',
-    description: 'e.g., Driver\'s License, Passport, SSS ID, Voter\'s ID',
+    description: 'e.g., Philippine National ID, Driver\'s License, Passport, UMID',
     required: true,
     acceptedTypes: ['image'],
   },
@@ -48,10 +50,17 @@ const REQUIRED_DOCUMENTS = [
 ];
 
 const DocumentUploadScreen = ({ navigation }) => {
-  const { state, dispatch } = useApplication();
+  const { state, dispatch, setOcrData, verifyOcrData, clearOcrData } = useApplication();
   const [loading, setLoading] = useState(false);
   const [documents, setDocuments] = useState({});
   const [uploading, setUploading] = useState(null);
+
+  // OCR State
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [showOCRModal, setShowOCRModal] = useState(false);
+  const [ocrResults, setOcrResults] = useState(null);
+  const [showNameMismatchModal, setShowNameMismatchModal] = useState(false);
+  const [pendingImageUri, setPendingImageUri] = useState(null);
 
   useEffect(() => {
     // Initialize from state if available
@@ -196,12 +205,193 @@ const DocumentUploadScreen = ({ navigation }) => {
 
       setDocuments(updatedDocs);
       dispatch({ type: 'SET_DOCUMENTS', payload: updatedDocs });
+
+      // Just show success message for all documents (including valid_id)
+      // Face verification will be done in the next step (Step 6)
       Alert.alert('Success', 'Document uploaded successfully');
     } catch (error) {
       console.error('Upload error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Failed to upload document');
     } finally {
       setUploading(null);
+    }
+  };
+
+  // OCR Functions
+  const performOCRScan = async (imageUri, docInfo = null) => {
+    setOcrLoading(true);
+    setShowOCRModal(true);
+
+    try {
+      // Get user's profile name for validation
+      const profileName = `${state.personalDetails?.firstName || ''} ${state.personalDetails?.lastName || ''}`.trim()
+        || `${state.userProfile?.first_name || ''} ${state.userProfile?.last_name || ''}`.trim();
+
+      const result = await applicationService.scanIDWithOCR(
+        state.applicationId,
+        imageUri,
+        profileName
+      );
+
+      // Check if OCR extraction was successful (has extracted data)
+      if (!result.success || !result.extracted_data?.full_name) {
+        throw new Error(result.error || 'Could not extract information from ID');
+      }
+
+      setOcrResults(result);
+      setOcrData(result);
+
+      // Check for name mismatch
+      if (result.name_validation && !result.name_validation.match) {
+        // Will show mismatch after OCR modal is closed
+      }
+    } catch (error) {
+      console.error('OCR scan error:', error);
+      setShowOCRModal(false);
+
+      // Delete the uploaded document since OCR failed
+      if (docInfo && docInfo.id) {
+        try {
+          await applicationService.deleteDocument(docInfo.id);
+          // Remove from local state
+          const updatedDocs = { ...documents };
+          delete updatedDocs.valid_id;
+          setDocuments(updatedDocs);
+          dispatch({ type: 'SET_DOCUMENTS', payload: updatedDocs });
+        } catch (deleteError) {
+          console.error('Failed to delete document after OCR failure:', deleteError);
+        }
+      }
+
+      // Clear OCR data
+      clearOcrData();
+      setOcrResults(null);
+
+      Alert.alert(
+        'ID Scan Failed',
+        error.response?.data?.error || error.message || 'Could not read your ID. Please upload a clearer photo with good lighting.',
+        [
+          {
+            text: 'Try Again',
+            onPress: () => {
+              const validIdConfig = REQUIRED_DOCUMENTS.find(d => d.key === 'valid_id');
+              if (validIdConfig) {
+                showUploadOptions(validIdConfig);
+              }
+            }
+          },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  const handleOCRConfirm = (editedData) => {
+    // Update OCR data with any edits
+    const updatedOcrData = {
+      ...ocrResults,
+      extracted_data: {
+        full_name: editedData.fullName,
+        id_number: editedData.idNumber,
+        birthdate: editedData.birthdate,
+        address: editedData.address,
+      },
+    };
+    setOcrResults(updatedOcrData);
+    setOcrData(updatedOcrData);
+    setShowOCRModal(false);
+
+    // Check for name mismatch after confirmation
+    if (ocrResults?.name_validation && !ocrResults.name_validation.match) {
+      setShowNameMismatchModal(true);
+    } else {
+      verifyOcrData();
+      Alert.alert('Success', 'ID verified and data extracted successfully!');
+    }
+  };
+
+  const handleOCRRescan = async () => {
+    setShowOCRModal(false);
+    setOcrResults(null);
+    clearOcrData();
+
+    // Delete the current valid_id document before rescanning
+    const currentDoc = documents.valid_id;
+    if (currentDoc && currentDoc.id) {
+      try {
+        await applicationService.deleteDocument(currentDoc.id);
+        const updatedDocs = { ...documents };
+        delete updatedDocs.valid_id;
+        setDocuments(updatedDocs);
+        dispatch({ type: 'SET_DOCUMENTS', payload: updatedDocs });
+      } catch (error) {
+        console.error('Failed to delete document for rescan:', error);
+      }
+    }
+
+    // Show upload options again for valid_id
+    const validIdConfig = REQUIRED_DOCUMENTS.find(d => d.key === 'valid_id');
+    if (validIdConfig) {
+      showUploadOptions(validIdConfig);
+    }
+  };
+
+  const handleUseOcrName = () => {
+    // User chose to use the OCR name - update profile
+    const ocrName = ocrResults?.extracted_data?.full_name || ocrResults?.fullName || '';
+    dispatch({
+      type: 'SET_PERSONAL_DETAILS',
+      payload: { ocrVerifiedName: ocrName },
+    });
+    verifyOcrData();
+    setShowNameMismatchModal(false);
+    Alert.alert('Success', 'ID verified successfully! Your profile will be updated with the name from your ID.');
+  };
+
+  const handleUseProfileName = () => {
+    // User chose to keep their profile name
+    verifyOcrData();
+    setShowNameMismatchModal(false);
+    Alert.alert('Success', 'ID verified successfully! Keeping your profile name.');
+  };
+
+  const handleUseCustomName = (customName) => {
+    // User entered a custom name
+    dispatch({
+      type: 'SET_PERSONAL_DETAILS',
+      payload: { ocrVerifiedName: customName },
+    });
+    verifyOcrData();
+    setShowNameMismatchModal(false);
+    Alert.alert('Success', 'ID verified successfully with your corrected name!');
+  };
+
+  const handleNameMismatchCancel = async () => {
+    setShowNameMismatchModal(false);
+    // Clear OCR data
+    clearOcrData();
+    setOcrResults(null);
+
+    // Delete the current valid_id document
+    const currentDoc = documents.valid_id;
+    if (currentDoc && currentDoc.id) {
+      try {
+        await applicationService.deleteDocument(currentDoc.id);
+        const updatedDocs = { ...documents };
+        delete updatedDocs.valid_id;
+        setDocuments(updatedDocs);
+        dispatch({ type: 'SET_DOCUMENTS', payload: updatedDocs });
+      } catch (error) {
+        console.error('Failed to delete document:', error);
+      }
+    }
+
+    // Prompt to upload again
+    const validIdConfig = REQUIRED_DOCUMENTS.find(d => d.key === 'valid_id');
+    if (validIdConfig) {
+      showUploadOptions(validIdConfig);
     }
   };
 
@@ -288,6 +478,7 @@ const DocumentUploadScreen = ({ navigation }) => {
       return;
     }
 
+    // Proceed to face verification step
     dispatch({ type: 'SET_STEP', payload: 6 });
     navigation.navigate('FaceVerification');
   };
@@ -316,7 +507,11 @@ const DocumentUploadScreen = ({ navigation }) => {
             <Text style={styles.documentDescription}>{docConfig.description}</Text>
           </View>
           {isUploaded && !isMultiple && (
-            <Ionicons name="checkmark-circle" size={28} color="#28a745" />
+            <Ionicons
+              name="checkmark-circle"
+              size={28}
+              color="#28a745"
+            />
           )}
         </View>
 
@@ -397,6 +592,36 @@ const DocumentUploadScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* OCR Results Modal - Disabled (OCR happens in background, face verification in next step) */}
+      <OCRResultsModal
+        visible={false}
+        ocrData={ocrResults}
+        loading={ocrLoading}
+        onConfirm={handleOCRConfirm}
+        onRescan={handleOCRRescan}
+        onClose={() => {
+          if (!ocrLoading) {
+            setShowOCRModal(false);
+          }
+        }}
+      />
+
+      {/* Name Mismatch Modal - Disabled (not using OCR validation in this step) */}
+      <NameMismatchModal
+        visible={false}
+        ocrName={ocrResults?.extracted_data?.full_name || ocrResults?.fullName || ''}
+        profileName={
+          state.personalDetails?.ocrVerifiedName ||
+          `${state.userProfile?.first_name || ''} ${state.userProfile?.last_name || ''}`.trim() ||
+          'Your Profile Name'
+        }
+        similarity={ocrResults?.name_validation?.similarity || 0}
+        onUseOcrName={handleUseOcrName}
+        onUseProfileName={handleUseProfileName}
+        onUseCustomName={handleUseCustomName}
+        onCancel={handleNameMismatchCancel}
+      />
+
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
@@ -799,6 +1024,81 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginRight: 8,
+  },
+  // OCR Status Styles
+  ocrStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  ocrStatusVerified: {
+    backgroundColor: '#d4edda',
+  },
+  ocrStatusWarning: {
+    backgroundColor: '#fff3cd',
+  },
+  ocrStatusPending: {
+    backgroundColor: '#e7f1ff',
+  },
+  ocrStatusText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 8,
+    flex: 1,
+  },
+  resolveButton: {
+    backgroundColor: '#ff9800',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  resolveButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  ocrDataPreview: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  ocrDataRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  ocrDataLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    width: 80,
+  },
+  ocrDataValue: {
+    fontSize: 13,
+    color: '#212529',
+    fontWeight: '500',
+    flex: 1,
+  },
+  ocrConfidenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  ocrConfidenceLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    width: 80,
+  },
+  ocrConfidenceBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  ocrConfidenceValue: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

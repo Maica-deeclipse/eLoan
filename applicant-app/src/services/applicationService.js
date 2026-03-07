@@ -177,6 +177,17 @@ class ApplicationService {
   }
 
   /**
+   * Retry face verification without re-uploading images
+   * Uses existing selfie and ID document from previous attempt
+   */
+  async retryFaceVerification(applicationId) {
+    const response = await apiService.post(
+      `/applicant/applications/${applicationId}/face-verification/retry/`
+    );
+    return response.data;
+  }
+
+  /**
    * Upload e-signature
    */
   async uploadESignature(applicationId, signatureBase64, termsAccepted) {
@@ -269,6 +280,42 @@ class ApplicationService {
    */
   async removeCoMaker(comakerId) {
     const response = await apiService.delete(`/applicant/comakers/${comakerId}/`);
+    return response.data;
+  }
+
+  /**
+   * Scan ID with OCR
+   * Uploads an ID image and extracts information using OCR
+   *
+   * @param {number} applicationId - Application ID
+   * @param {string} imageUri - URI of the ID image
+   * @param {string} profileName - User's profile name for validation
+   * @returns {Object} OCR results with extracted data and confidence scores
+   */
+  async scanIDWithOCR(applicationId, imageUri, profileName = null) {
+    const formData = new FormData();
+
+    // Get file extension
+    const ext = imageUri.split('.').pop().toLowerCase() || 'jpg';
+    const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+
+    formData.append('image', {
+      uri: imageUri,
+      type: mimeType,
+      name: `id_scan_${Date.now()}.${ext}`,
+    });
+
+    if (profileName) {
+      formData.append('profile_name', profileName);
+    }
+
+    const response = await apiService.post(
+      `/applicant/applications/${applicationId}/id-ocr-scan/`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
     return response.data;
   }
 }

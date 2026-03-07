@@ -20,20 +20,13 @@ const initialState = {
   // Step 2: Personal Details
   personalDetails: {
     contactNumber: '',
-    secondaryContact: '',
     addressLine1: '',
-    addressLine2: '',
     city: '',
     province: '',
     zipCode: '',
     employerName: '',
-    employerAddress: '',
     position: '',
     monthlyIncome: '',
-    yearsEmployed: '',
-    emergencyContactName: '',
-    emergencyContactNumber: '',
-    emergencyContactRelationship: '',
   },
 
   // Step 3: Loan Details
@@ -57,6 +50,9 @@ const initialState = {
     completed: false,
     imageUri: null,
     verified: false,
+    similarityScore: null,
+    errorMessage: null,
+    retryCount: 0,
   },
   livenessCheck: {
     completed: false,
@@ -69,6 +65,32 @@ const initialState = {
     completed: false,
     signatureUri: null,
     termsAccepted: false,
+  },
+
+  // OCR Data (from ID scan)
+  ocrData: {
+    scanned: false,
+    idType: null,
+    idTypeConfidence: 0,
+    fullName: '',
+    idNumber: '',
+    birthdate: '',
+    address: '',
+    confidenceScores: {
+      fullName: 0,
+      idNumber: 0,
+      birthdate: 0,
+      address: 0,
+    },
+    overallConfidence: 0,
+    imagePath: null,
+    nameValidation: {
+      match: true,
+      similarity: 1,
+      ocrName: '',
+      profileName: '',
+    },
+    verified: false,
   },
 
   // Validation state
@@ -251,6 +273,69 @@ function applicationReducer(state, action) {
         ...action.payload,
       };
 
+    case 'SET_OCR_DATA':
+      return {
+        ...state,
+        ocrData: {
+          ...state.ocrData,
+          scanned: true,
+          idType: action.payload.id_type,
+          idTypeConfidence: action.payload.id_type_confidence || 0,
+          fullName: action.payload.extracted_data?.full_name || '',
+          idNumber: action.payload.extracted_data?.id_number || '',
+          birthdate: action.payload.extracted_data?.birthdate || '',
+          address: action.payload.extracted_data?.address || '',
+          confidenceScores: {
+            fullName: action.payload.confidence_scores?.full_name || 0,
+            idNumber: action.payload.confidence_scores?.id_number || 0,
+            birthdate: action.payload.confidence_scores?.birthdate || 0,
+            address: action.payload.confidence_scores?.address || 0,
+          },
+          overallConfidence: action.payload.overall_confidence || 0,
+          imagePath: action.payload.image_path,
+          nameValidation: action.payload.name_validation || state.ocrData.nameValidation,
+          verified: false,
+        },
+      };
+
+    case 'VERIFY_OCR_DATA':
+      return {
+        ...state,
+        ocrData: {
+          ...state.ocrData,
+          verified: true,
+        },
+      };
+
+    case 'CLEAR_OCR_DATA':
+      return {
+        ...state,
+        ocrData: {
+          scanned: false,
+          idType: null,
+          idTypeConfidence: 0,
+          fullName: '',
+          idNumber: '',
+          birthdate: '',
+          address: '',
+          confidenceScores: {
+            fullName: 0,
+            idNumber: 0,
+            birthdate: 0,
+            address: 0,
+          },
+          overallConfidence: 0,
+          imagePath: null,
+          nameValidation: {
+            match: true,
+            similarity: 1,
+            ocrName: '',
+            profileName: '',
+          },
+          verified: false,
+        },
+      };
+
     default:
       return state;
   }
@@ -303,6 +388,18 @@ export function ApplicationProvider({ children }) {
     dispatch({ type: 'SET_ESIGNATURE', payload: data });
   };
 
+  const setOcrData = (data) => {
+    dispatch({ type: 'SET_OCR_DATA', payload: data });
+  };
+
+  const verifyOcrData = () => {
+    dispatch({ type: 'VERIFY_OCR_DATA' });
+  };
+
+  const clearOcrData = () => {
+    dispatch({ type: 'CLEAR_OCR_DATA' });
+  };
+
   const resetApplication = () => {
     dispatch({ type: 'RESET' });
   };
@@ -349,6 +446,9 @@ export function ApplicationProvider({ children }) {
         setFaceVerification,
         setLivenessCheck,
         setESignature,
+        setOcrData,
+        verifyOcrData,
+        clearOcrData,
         resetApplication,
         canProceedToStep,
         getNextStep,

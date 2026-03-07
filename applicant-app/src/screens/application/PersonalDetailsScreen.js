@@ -1,6 +1,7 @@
 /**
  * Personal Details Screen (Step 2)
- * Collects applicant's personal information
+ * Displays applicant's personal information (mostly read-only from profile)
+ * Users must edit their profile in Settings to change contact/address/employment info
  */
 
 import React, { useState, useEffect } from 'react';
@@ -17,6 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApplication } from '../../context/ApplicationContext';
 import profileService from '../../services/profileService';
 import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraftStorage';
@@ -25,8 +27,9 @@ export default function PersonalDetailsScreen({ navigation }) {
   const { state, setPersonalDetails, dispatch } = useApplication();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [redirectingToSettings, setRedirectingToSettings] = useState(false);
 
-  // Form fields
+  // Form fields - Read-only fields (from profile)
   const [contactNumber, setContactNumber] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
@@ -34,9 +37,9 @@ export default function PersonalDetailsScreen({ navigation }) {
   const [zipCode, setZipCode] = useState('');
   const [employerName, setEmployerName] = useState('');
   const [position, setPosition] = useState('');
+
+  // Editable field
   const [monthlyIncome, setMonthlyIncome] = useState('');
-  const [emergencyContactName, setEmergencyContactName] = useState('');
-  const [emergencyContactNumber, setEmergencyContactNumber] = useState('');
 
   useEffect(() => {
     loadAutofillData();
@@ -58,8 +61,6 @@ export default function PersonalDetailsScreen({ navigation }) {
           employerName,
           position,
           monthlyIncome,
-          emergencyContactName,
-          emergencyContactNumber,
         },
       });
     }, 350);
@@ -76,14 +77,12 @@ export default function PersonalDetailsScreen({ navigation }) {
     employerName,
     position,
     monthlyIncome,
-    emergencyContactName,
-    emergencyContactNumber,
   ]);
 
   const loadAutofillData = async () => {
     try {
       const data = await profileService.getAutofillData();
-      // Pre-fill fields with existing data
+      // Pre-fill fields with existing data from profile
       setContactNumber(data.contact_number || '');
       setAddressLine1(data.address_line1 || '');
       setCity(data.city || '');
@@ -92,8 +91,6 @@ export default function PersonalDetailsScreen({ navigation }) {
       setEmployerName(data.employer_name || '');
       setPosition(data.position || '');
       setMonthlyIncome(data.monthly_income || '');
-      setEmergencyContactName(data.emergency_contact_name || '');
-      setEmergencyContactNumber(data.emergency_contact_number || '');
 
       if (state.loanType?.id && state.applicationId) {
         const localDraft = await getLoanTypeDraft(state.loanType.id);
@@ -102,20 +99,8 @@ export default function PersonalDetailsScreen({ navigation }) {
             ? localDraft.personalDetails || {}
             : {};
 
-        setContactNumber(localPersonalDetails.contactNumber ?? data.contact_number ?? '');
-        setAddressLine1(localPersonalDetails.addressLine1 ?? data.address_line1 ?? '');
-        setCity(localPersonalDetails.city ?? data.city ?? '');
-        setProvince(localPersonalDetails.province ?? data.province ?? '');
-        setZipCode(localPersonalDetails.zipCode ?? data.zip_code ?? '');
-        setEmployerName(localPersonalDetails.employerName ?? data.employer_name ?? '');
-        setPosition(localPersonalDetails.position ?? data.position ?? '');
+        // Only restore monthly income from draft (other fields are read-only from profile)
         setMonthlyIncome(localPersonalDetails.monthlyIncome ?? data.monthly_income ?? '');
-        setEmergencyContactName(
-          localPersonalDetails.emergencyContactName ?? data.emergency_contact_name ?? ''
-        );
-        setEmergencyContactNumber(
-          localPersonalDetails.emergencyContactNumber ?? data.emergency_contact_number ?? ''
-        );
       }
     } catch (error) {
       console.error('Load autofill error:', error);
@@ -126,15 +111,36 @@ export default function PersonalDetailsScreen({ navigation }) {
 
   const validateForm = () => {
     if (!contactNumber.trim()) {
-      Alert.alert('Validation Error', 'Contact number is required');
+      Alert.alert(
+        'Missing Information',
+        'Contact number is required. Please update your profile in Settings.',
+        [
+          { text: 'Go to Settings', onPress: () => navigation.navigate('ProfileScreen') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
       return false;
     }
     if (!addressLine1.trim()) {
-      Alert.alert('Validation Error', 'Address is required');
+      Alert.alert(
+        'Missing Information',
+        'Address is required. Please update your profile in Settings.',
+        [
+          { text: 'Go to Settings', onPress: () => navigation.navigate('ProfileScreen') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
       return false;
     }
     if (!employerName.trim()) {
-      Alert.alert('Validation Error', 'Office is required');
+      Alert.alert(
+        'Missing Information',
+        'Office/Department is required. Please update your profile in Settings.',
+        [
+          { text: 'Go to Settings', onPress: () => navigation.navigate('ProfileScreen') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
       return false;
     }
     return true;
@@ -145,18 +151,9 @@ export default function PersonalDetailsScreen({ navigation }) {
 
     setSaving(true);
     try {
-      // Save to profile
+      // Only save monthly income (editable field)
       await profileService.updateProfile({
-        contact_number: contactNumber,
-        address_line1: addressLine1,
-        city: city,
-        province: province,
-        zip_code: zipCode,
-        employer_name: employerName,
-        position: position,
         monthly_income: monthlyIncome || null,
-        emergency_contact_name: emergencyContactName,
-        emergency_contact_number: emergencyContactNumber,
       });
 
       // Update context
@@ -169,8 +166,6 @@ export default function PersonalDetailsScreen({ navigation }) {
         employerName,
         position,
         monthlyIncome,
-        emergencyContactName,
-        emergencyContactNumber,
       });
 
       dispatch({ type: 'VALIDATE_PERSONAL_DETAILS', payload: true });
@@ -189,8 +184,6 @@ export default function PersonalDetailsScreen({ navigation }) {
             employerName,
             position,
             monthlyIncome,
-            emergencyContactName,
-            emergencyContactNumber,
           },
         });
       }
@@ -204,11 +197,29 @@ export default function PersonalDetailsScreen({ navigation }) {
     }
   };
 
+  const handleEditInSettings = () => {
+    setRedirectingToSettings(true);
+    // Short delay to show loading state, then redirect
+    setTimeout(() => {
+      navigation.navigate('ProfileScreen');
+      setRedirectingToSettings(false);
+    }, 500);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#02327a" />
         <Text style={styles.loadingText}>Loading your information...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (redirectingToSettings) {
+    return (
+      <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
+        <ActivityIndicator size="large" color="#02327a" />
+        <Text style={styles.loadingText}>Redirecting to Settings...</Text>
       </SafeAreaView>
     );
   }
@@ -232,89 +243,128 @@ export default function PersonalDetailsScreen({ navigation }) {
           <View style={styles.instructions}>
             <Text style={styles.instructionTitle}>Personal Details</Text>
             <Text style={styles.instructionText}>
-              Please verify and complete your personal information
+              Please verify your personal information below
+            </Text>
+          </View>
+
+          {/* Info Banner */}
+          <View style={styles.infoBanner}>
+            <Ionicons name="information-circle" size={20} color="#02327a" />
+            <Text style={styles.infoBannerText}>
+              Your contact, address, and employment details are pulled from your profile.{' '}
+              <Text style={styles.infoBannerLink} onPress={handleEditInSettings}>
+                Edit in Settings
+              </Text>
             </Text>
           </View>
 
           {/* Contact Information */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contact Information</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Contact Information</Text>
+              <TouchableOpacity onPress={handleEditInSettings} style={styles.editButton}>
+                <Ionicons name="pencil" size={14} color="#02327a" />
+                <Text style={styles.editButtonText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.field}>
-              <Text style={styles.label}>Contact Number *</Text>
-              <TextInput
-                style={styles.input}
-                value={contactNumber}
-                onChangeText={setContactNumber}
-                placeholder="09XX XXX XXXX"
-                keyboardType="phone-pad"
-              />
+              <Text style={styles.label}>Contact Number</Text>
+              <View style={styles.readOnlyInputContainer}>
+                <TextInput
+                  style={[styles.input, styles.inputDisabled]}
+                  value={contactNumber}
+                  placeholder="Not set"
+                  editable={false}
+                />
+                <Ionicons name="lock-closed" size={16} color="#9ca3af" style={styles.lockIcon} />
+              </View>
             </View>
           </View>
 
           {/* Address */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Address</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Address</Text>
+              <TouchableOpacity onPress={handleEditInSettings} style={styles.editButton}>
+                <Ionicons name="pencil" size={14} color="#02327a" />
+                <Text style={styles.editButtonText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.field}>
-              <Text style={styles.label}>Street Address *</Text>
-              <TextInput
-                style={styles.input}
-                value={addressLine1}
-                onChangeText={setAddressLine1}
-                placeholder="House/Unit No., Street, Barangay"
-              />
+              <Text style={styles.label}>Street Address</Text>
+              <View style={styles.readOnlyInputContainer}>
+                <TextInput
+                  style={[styles.input, styles.inputDisabled]}
+                  value={addressLine1}
+                  placeholder="Not set"
+                  editable={false}
+                />
+                <Ionicons name="lock-closed" size={16} color="#9ca3af" style={styles.lockIcon} />
+              </View>
             </View>
             <View style={styles.row}>
               <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
                 <Text style={styles.label}>City</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, styles.inputDisabled]}
                   value={city}
-                  onChangeText={setCity}
-                  placeholder="City"
+                  placeholder="Not set"
+                  editable={false}
                 />
               </View>
               <View style={[styles.field, { flex: 1 }]}>
                 <Text style={styles.label}>Province</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, styles.inputDisabled]}
                   value={province}
-                  onChangeText={setProvince}
-                  placeholder="Province"
+                  placeholder="Not set"
+                  editable={false}
                 />
               </View>
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>ZIP Code</Text>
               <TextInput
-                style={[styles.input, { width: 120 }]}
+                style={[styles.input, styles.inputDisabled, { width: 120 }]}
                 value={zipCode}
-                onChangeText={setZipCode}
-                placeholder="ZIP"
-                keyboardType="numeric"
+                placeholder="Not set"
+                editable={false}
               />
             </View>
           </View>
 
           {/* Employment */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Employment Information</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Employment Information</Text>
+              <TouchableOpacity onPress={handleEditInSettings} style={styles.editButton}>
+                <Ionicons name="pencil" size={14} color="#02327a" />
+                <Text style={styles.editButtonText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.field}>
-              <Text style={styles.label}>Office *</Text>
-              <TextInput
-                style={styles.input}
-                value={employerName}
-                onChangeText={setEmployerName}
-                placeholder="Office/Department Name"
-              />
+              <Text style={styles.label}>Office/Department</Text>
+              <View style={styles.readOnlyInputContainer}>
+                <TextInput
+                  style={[styles.input, styles.inputDisabled]}
+                  value={employerName}
+                  placeholder="Not set"
+                  editable={false}
+                />
+                <Ionicons name="lock-closed" size={16} color="#9ca3af" style={styles.lockIcon} />
+              </View>
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>Position</Text>
-              <TextInput
-                style={styles.input}
-                value={position}
-                onChangeText={setPosition}
-                placeholder="Your Position/Title"
-              />
+              <View style={styles.readOnlyInputContainer}>
+                <TextInput
+                  style={[styles.input, styles.inputDisabled]}
+                  value={position}
+                  placeholder="Not set"
+                  editable={false}
+                />
+                <Ionicons name="lock-closed" size={16} color="#9ca3af" style={styles.lockIcon} />
+              </View>
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>Monthly Income</Text>
@@ -325,30 +375,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 placeholder="₱0.00"
                 keyboardType="numeric"
               />
-            </View>
-          </View>
-
-          {/* Emergency Contact */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Emergency Contact</Text>
-            <View style={styles.field}>
-              <Text style={styles.label}>Contact Name</Text>
-              <TextInput
-                style={styles.input}
-                value={emergencyContactName}
-                onChangeText={setEmergencyContactName}
-                placeholder="Full Name"
-              />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Contact Number</Text>
-              <TextInput
-                style={styles.input}
-                value={emergencyContactNumber}
-                onChangeText={setEmergencyContactNumber}
-                placeholder="09XX XXX XXXX"
-                keyboardType="phone-pad"
-              />
+              <Text style={styles.helperText}>You can update this for each application</Text>
             </View>
           </View>
         </ScrollView>
@@ -408,7 +435,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#02327a',
     borderRadius: 2,
   },
   progressText: {
@@ -423,7 +450,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   instructions: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   instructionTitle: {
     fontSize: 20,
@@ -434,6 +461,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     marginTop: 4,
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#e6eaf2',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  infoBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#374151',
+    marginLeft: 10,
+    lineHeight: 18,
+  },
+  infoBannerLink: {
+    color: '#02327a',
+    fontWeight: '600',
   },
   section: {
     backgroundColor: '#fff',
@@ -446,12 +492,31 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#6b7280',
-    marginBottom: 16,
     textTransform: 'uppercase',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#e6eaf2',
+    borderRadius: 6,
+  },
+  editButtonText: {
+    fontSize: 12,
+    color: '#02327a',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   field: {
     marginBottom: 16,
@@ -465,6 +530,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontWeight: '500',
   },
+  readOnlyInputContainer: {
+    position: 'relative',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#e5e7eb',
@@ -474,6 +542,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1f2937',
     backgroundColor: '#fff',
+  },
+  inputDisabled: {
+    backgroundColor: '#f3f4f6',
+    color: '#6b7280',
+    borderColor: '#e5e7eb',
+  },
+  lockIcon: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    marginTop: -8,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 4,
   },
   footer: {
     flexDirection: 'row',
@@ -502,7 +586,7 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     flex: 2,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#02327a',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',

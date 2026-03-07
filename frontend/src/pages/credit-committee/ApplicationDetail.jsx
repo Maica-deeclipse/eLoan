@@ -188,6 +188,7 @@ export default function ApplicationDetail() {
                     <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: '#6b7280' }}>Type</th>
                     <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: '#6b7280' }}>Uploaded</th>
                     <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: '#6b7280' }}>Verified</th>
+                    <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: '#6b7280' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -203,6 +204,25 @@ export default function ApplicationDetail() {
                         ) : (
                           <span style={{ color: '#6b7280' }}>Pending</span>
                         )}
+                      </td>
+                      <td style={{ padding: '0.75rem 0' }}>
+                        <button
+                          onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/media/${doc.file_path}`, '_blank')}
+                          style={{
+                            background: '#8b5cf6',
+                            color: 'white',
+                            border: 'none',
+                            padding: '0.375rem 0.75rem',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                          }}
+                          onMouseOver={(e) => e.target.style.background = '#7c3aed'}
+                          onMouseOut={(e) => e.target.style.background = '#8b5cf6'}
+                        >
+                          &#128065; View
+                        </button>
                       </td>
                     </tr>
                   ))}

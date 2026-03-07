@@ -521,6 +521,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   termsCardText: {
+    flex: 1,
     marginLeft: 12,
   },
   termsCardTitle: {

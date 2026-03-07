@@ -8,8 +8,10 @@ All endpoints require JWT authentication and Applicant role.
 from decimal import Decimal
 import os
 import uuid
+import logging
 
 from django.conf import settings
+from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.views import APIView
@@ -17,6 +19,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from shared.services.pdf_service import LoanApplicationPDFService
+from loans.models import AuditLog
 
 from .services import (
     ApplicantDashboardService,
@@ -28,8 +33,11 @@ from .services import (
     CoMakerService,
     NotificationService
 )
+from .face_verification_service import FaceComparisonService
 from .models import ESignature
 from .utils import get_client_ip, DocumentTypes, ApplicationStatuses
+
+logger = logging.getLogger(__name__)
 
 
 class ApplicantBaseView(APIView):
@@ -416,6 +424,50 @@ class DeleteDraftApplicationView(ApplicantBaseView):
         })
 
 
+class DownloadApplicationPDFView(ApplicantBaseView):
+    """
+    GET /api/applicant/applications/<id>/download-pdf/
+
+    Download PDF of an approved loan application.
+    Only allows download of the applicant's own approved applications.
+    """
+
+    def get(self, request, pk):
+        # Get application with ownership check
+        application = LoanApplicationService.get_application_by_id(pk, request.user)
+
+        if not application:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if application is approved
+        if not LoanApplicationPDFService.can_download(application):
+            return Response(
+                {'error': 'PDF download is only available for approved applications'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Generate PDF
+        pdf_buffer = LoanApplicationPDFService.generate_pdf(application)
+        filename = LoanApplicationPDFService.get_filename(application)
+
+        # Create audit log
+        AuditLog.objects.create(
+            user=request.user,
+            action=f"Downloaded PDF for loan application #{application.id}"
+        )
+
+        # Return file response
+        return FileResponse(
+            pdf_buffer,
+            as_attachment=True,
+            filename=filename,
+            content_type='application/pdf'
+        )
+
+
 # =============================================================================
 # Documents API
 # =============================================================================
@@ -574,6 +626,100 @@ class DocumentReplaceView(ApplicantBaseView):
 
 
 # =============================================================================
+# ID OCR Scanning API
+# =============================================================================
+class IDOCRScanView(ApplicantBaseView):
+    """
+    POST /api/applicant/applications/<app_id>/id-ocr-scan/
+
+    Upload an ID image and extract information using OCR.
+    Supports: Driver's License, UMID, Passport
+
+    Request:
+        - image: File (required) - ID image to scan
+        - profile_name: String (optional) - Name to validate against
+
+    Response:
+        - success: Boolean
+        - id_type: String (drivers_license, umid, passport, unknown)
+        - extracted_data: Object with full_name, id_number, birthdate, address
+        - confidence_scores: Object with confidence for each field
+        - overall_confidence: Float (0-1)
+        - name_validation: Object (if profile_name provided)
+    """
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, app_id):
+        from .ocr_service import IDOCRService
+
+        # Verify application ownership
+        application = LoanApplicationService.get_application_by_id(app_id, request.user)
+        if not application:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Validate request
+        image = request.FILES.get('image')
+        if not image:
+            return Response(
+                {'error': 'Image file is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file type
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+        ext = os.path.splitext(image.name)[1].lower()
+        if ext not in allowed_extensions:
+            return Response(
+                {'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Save image to disk
+        filename = f"id_scan_{uuid.uuid4().hex[:12]}{ext}"
+        file_path = f"applicant/id_scans/{application.id}/{filename}"
+
+        full_dir = os.path.join(settings.MEDIA_ROOT, f"applicant/id_scans/{application.id}")
+        os.makedirs(full_dir, exist_ok=True)
+
+        full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+        with open(full_path, 'wb+') as destination:
+            for chunk in image.chunks():
+                destination.write(chunk)
+
+        # Get profile name for validation (optional)
+        profile_name = request.data.get('profile_name')
+        if not profile_name:
+            # Try to get from user's profile
+            user = request.user
+            profile_name = f"{user.firstname} {user.lastname}".strip()
+
+        # Process OCR
+        try:
+            result = IDOCRService.process_id_image(full_path, profile_name)
+
+            # Add image path to response
+            result['image_path'] = file_path
+
+            if result.get('success'):
+                return Response(result, status=status.HTTP_200_OK)
+            else:
+                return Response(result, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        except Exception as e:
+            import traceback
+            logger.exception(f"OCR processing error: {str(e)}")
+            return Response({
+                'success': False,
+                'error': f'OCR processing failed: {str(e)}',
+                'message': 'Could not process ID. Please ensure the image is clear and try again.',
+                'debug_info': traceback.format_exc() if settings.DEBUG else None,
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# =============================================================================
 # Face Verification API
 # =============================================================================
 class FaceCaptureView(ApplicantBaseView):
@@ -608,24 +754,86 @@ class FaceCaptureView(ApplicantBaseView):
             for chunk in image.chunks():
                 destination.write(chunk)
 
-        # For now, auto-verify (in production, you'd integrate with a face recognition service)
+        # Save face capture (creates or updates FaceVerification record)
         verification = FaceVerificationService.save_face_capture(
             application,
             file_path,
             request.user,
-            match_score=Decimal('95.00')  # Placeholder
+            match_score=None  # Will be set by face comparison service
         )
 
-        # Auto-verify for now (in production, this would be done by the verification service)
-        verification.verification_status = 'Verified'
-        verification.verified_at = timezone.now()
-        verification.save()
+        # Perform face comparison using DeepFace
+        try:
+            verification = FaceComparisonService.verify_faces_for_application(application.id)
 
-        return Response({
-            'id': verification.id,
-            'status': verification.verification_status,
-            'message': 'Face captured successfully',
-        }, status=status.HTTP_201_CREATED)
+            # Build response based on verification result
+            response_data = {
+                'id': verification.id,
+                'verification_status': verification.verification_status,
+                'similarity_score': float(verification.similarity_score) if verification.similarity_score else None,
+                'is_match': verification.is_match,
+                'face_detected_in_id': verification.face_detected_in_id,
+                'face_detected_in_selfie': verification.face_detected_in_selfie,
+                'error_message': verification.error_message,
+            }
+
+            # Determine response status code
+            if verification.verification_status == 'Verified':
+                response_data['message'] = f'Face verification successful! Similarity: {verification.similarity_score}%'
+                return Response(response_data, status=status.HTTP_201_CREATED)
+            else:
+                response_data['message'] = verification.error_message or 'Face verification failed'
+                return Response(response_data, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        except Exception as e:
+            return Response({
+                'error': f'Face verification error: {str(e)}',
+                'message': 'An error occurred during face verification. Please try again.',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RetryFaceVerificationView(ApplicantBaseView):
+    """POST /api/applicant/applications/<app_id>/face-verification/retry/"""
+
+    def post(self, request, app_id):
+        """
+        Retry face verification without re-uploading images.
+        Uses existing selfie and ID document from previous attempt.
+        """
+        application = LoanApplicationService.get_application_by_id(app_id, request.user)
+        if not application:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Perform face comparison
+        try:
+            verification = FaceComparisonService.verify_faces_for_application(application.id)
+
+            # Build response
+            response_data = {
+                'id': verification.id,
+                'verification_status': verification.verification_status,
+                'similarity_score': float(verification.similarity_score) if verification.similarity_score else None,
+                'is_match': verification.is_match,
+                'face_detected_in_id': verification.face_detected_in_id,
+                'face_detected_in_selfie': verification.face_detected_in_selfie,
+                'error_message': verification.error_message,
+            }
+
+            if verification.verification_status == 'Verified':
+                response_data['message'] = f'Face verification successful! Similarity: {verification.similarity_score}%'
+                return Response(response_data, status=status.HTTP_200_OK)
+            else:
+                response_data['message'] = verification.error_message or 'Face verification failed'
+                return Response(response_data, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        except Exception as e:
+            return Response({
+                'error': f'Face verification error: {str(e)}',
+                'message': 'An error occurred during face verification. Please try again.',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class LivenessCheckView(ApplicantBaseView):

@@ -41,6 +41,7 @@ urlpatterns = [
     path('applications/<int:pk>/', views.ApplicationDetailView.as_view(), name='application_detail'),
     path('applications/<int:pk>/verify/', views.VerifyApplicationView.as_view(), name='verify_application'),
     path('applications/<int:pk>/reject/', views.RejectApplicationView.as_view(), name='reject_application'),
+    path('applications/<int:pk>/download-pdf/', views.DownloadApplicationPDFView.as_view(), name='download_application_pdf'),
 
     # ==========================================================================
     # Reports
