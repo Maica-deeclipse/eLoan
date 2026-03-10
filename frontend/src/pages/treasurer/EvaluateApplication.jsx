@@ -168,14 +168,23 @@ export default function EvaluateApplication() {
                         <span style={{ marginLeft: '0.5rem', color: '#10b981', fontSize: '0.75rem' }}>&#10004; Verified</span>
                       )}
                     </div>
-                    <a
-                      href={doc.file_path}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: '#10b981', fontSize: '0.875rem' }}
+                    <button
+                      onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/media/${doc.file_path}`, '_blank')}
+                      style={{
+                        background: '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.375rem 0.75rem',
+                        borderRadius: '0.375rem',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                      }}
+                      onMouseOver={(e) => e.target.style.background = '#059669'}
+                      onMouseOut={(e) => e.target.style.background = '#10b981'}
                     >
-                      View
-                    </a>
+                      &#128065; View
+                    </button>
                   </div>
                 ))}
               </div>

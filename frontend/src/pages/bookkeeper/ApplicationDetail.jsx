@@ -83,7 +83,7 @@ export default function ApplicationDetail() {
     );
   }
 
-  const { application, documents, comakers, verification_history, can_review } = data;
+  const { application, documents, comakers, verification_history, face_verification, can_review } = data;
 
   return (
     <div>
@@ -174,6 +174,7 @@ export default function ApplicationDetail() {
                     <th style={thStyle}>Document Type</th>
                     <th style={thStyle}>Uploaded</th>
                     <th style={thStyle}>Verified</th>
+                    <th style={thStyle}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -192,12 +193,201 @@ export default function ApplicationDetail() {
                           {doc.verified ? 'Verified' : 'Pending'}
                         </span>
                       </td>
+                      <td style={tdStyle}>
+                        <button
+                          onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/media/${doc.file_path}`, '_blank')}
+                          style={{
+                            background: '#0d6efd',
+                            color: 'white',
+                            border: 'none',
+                            padding: '0.375rem 0.75rem',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                          }}
+                          onMouseOver={(e) => e.target.style.background = '#0b5ed7'}
+                          onMouseOut={(e) => e.target.style.background = '#0d6efd'}
+                        >
+                          &#128065; View
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
           </Card>
+
+          {/* Face Verification */}
+          {face_verification && (
+            <Card title="Face Verification" style={{ marginTop: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                {/* ID Photo */}
+                <div>
+                  <h4 style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem', fontWeight: '600' }}>
+                    ID Photo
+                  </h4>
+                  {face_verification.id_photo_url ? (
+                    <img
+                      src={face_verification.id_photo_url}
+                      alt="ID Face"
+                      style={{
+                        width: '200px',
+                        height: '200px',
+                        objectFit: 'cover',
+                        borderRadius: '8px',
+                        border: '2px solid #e5e7eb',
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      padding: '2rem',
+                      background: '#f9fafb',
+                      borderRadius: '8px',
+                      textAlign: 'center',
+                      color: '#6b7280',
+                      height: '200px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      No face detected in ID
+                    </div>
+                  )}
+                </div>
+
+                {/* Selfie */}
+                <div>
+                  <h4 style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem', fontWeight: '600' }}>
+                    Selfie
+                  </h4>
+                  {face_verification.selfie_url ? (
+                    <img
+                      src={face_verification.selfie_url}
+                      alt="Selfie"
+                      style={{
+                        width: '200px',
+                        height: '200px',
+                        objectFit: 'cover',
+                        borderRadius: '8px',
+                        border: '2px solid #e5e7eb',
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      padding: '2rem',
+                      background: '#f9fafb',
+                      borderRadius: '8px',
+                      textAlign: 'center',
+                      color: '#6b7280',
+                      height: '200px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      No selfie uploaded
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Verification Results */}
+              <div style={{
+                marginTop: '1.5rem',
+                padding: '1rem',
+                background: '#f9fafb',
+                borderRadius: '8px',
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <InfoRow label="Similarity Score">
+                    {face_verification.similarity_score ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                        <span style={{
+                          fontSize: '1.5rem',
+                          fontWeight: 'bold',
+                          color: face_verification.similarity_score >= 80 ? '#10b981' :
+                                 face_verification.similarity_score >= 60 ? '#f59e0b' : '#ef4444'
+                        }}>
+                          {face_verification.similarity_score}%
+                        </span>
+                        <div style={{
+                          width: '100px',
+                          height: '6px',
+                          background: '#e5e7eb',
+                          borderRadius: '3px',
+                          overflow: 'hidden',
+                          marginTop: '0.25rem',
+                        }}>
+                          <div style={{
+                            width: `${face_verification.similarity_score}%`,
+                            height: '100%',
+                            background: face_verification.similarity_score >= 80 ? '#10b981' :
+                                       face_verification.similarity_score >= 60 ? '#f59e0b' : '#ef4444',
+                          }} />
+                        </div>
+                      </div>
+                    ) : 'N/A'}
+                  </InfoRow>
+
+                  <InfoRow label="Match Result">
+                    <span style={{
+                      background: face_verification.is_match ? '#d1fae5' : '#fee2e2',
+                      color: face_verification.is_match ? '#065f46' : '#991b1b',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '0.25rem',
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                    }}>
+                      {face_verification.is_match ? 'MATCH' : 'NO MATCH'}
+                    </span>
+                  </InfoRow>
+
+                  <InfoRow label="Face in ID" value={face_verification.face_detected_in_id ? '✓ Detected' : '✗ Not Detected'} />
+                  <InfoRow label="Face in Selfie" value={face_verification.face_detected_in_selfie ? '✓ Detected' : '✗ Not Detected'} />
+
+                  <InfoRow label="Model Used" value={face_verification.comparison_model || 'N/A'} />
+                  <InfoRow label="Verification Status">
+                    <span style={{
+                      background: face_verification.verification_status === 'Verified' ? '#d1fae5' :
+                                  face_verification.verification_status === 'Failed' ? '#fee2e2' : '#fef3c7',
+                      color: face_verification.verification_status === 'Verified' ? '#065f46' :
+                             face_verification.verification_status === 'Failed' ? '#991b1b' : '#92400e',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '0.25rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                    }}>
+                      {face_verification.verification_status}
+                    </span>
+                  </InfoRow>
+                </div>
+
+                {face_verification.error_message && (
+                  <div style={{
+                    marginTop: '1rem',
+                    padding: '0.75rem',
+                    background: '#fee2e2',
+                    color: '#991b1b',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.875rem',
+                  }}>
+                    <strong>Error:</strong> {face_verification.error_message}
+                  </div>
+                )}
+
+                {face_verification.processed_at && (
+                  <div style={{
+                    marginTop: '0.75rem',
+                    fontSize: '0.75rem',
+                    color: '#6b7280',
+                  }}>
+                    Processed: {formatDateTime(face_verification.processed_at)}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
 
           {/* Co-makers */}
           {comakers.length > 0 && (

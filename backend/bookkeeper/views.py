@@ -10,7 +10,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.conf import settings
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+
+from shared.services.pdf_service import LoanApplicationPDFService
+from loans.models import AuditLog
 
 from .services import (
     ApplicationService,
@@ -190,8 +195,43 @@ class ApplicationDetailView(BookkeeperBaseView):
                 }
                 for v in application.bookkeeper_verifications.all()
             ],
+            'face_verification': self._get_face_verification_data(application, request),
             'can_review': can_review,
         })
+
+    def _get_face_verification_data(self, application, request):
+        """Helper method to get face verification data for application"""
+        face_verification = application.face_verifications.order_by('-created_at').first()
+
+        if not face_verification:
+            return None
+
+        # Build absolute URLs for images
+        id_photo_url = None
+        if face_verification.id_photo_path:
+            id_photo_url = request.build_absolute_uri(
+                settings.MEDIA_URL + face_verification.id_photo_path
+            )
+
+        selfie_url = None
+        if face_verification.captured_image_path:
+            selfie_url = request.build_absolute_uri(
+                settings.MEDIA_URL + face_verification.captured_image_path
+            )
+
+        return {
+            'id': face_verification.id,
+            'similarity_score': str(face_verification.similarity_score) if face_verification.similarity_score else None,
+            'is_match': face_verification.is_match,
+            'face_detected_in_id': face_verification.face_detected_in_id,
+            'face_detected_in_selfie': face_verification.face_detected_in_selfie,
+            'verification_status': face_verification.verification_status,
+            'id_photo_url': id_photo_url,
+            'selfie_url': selfie_url,
+            'error_message': face_verification.error_message,
+            'processed_at': face_verification.processed_at.isoformat() if face_verification.processed_at else None,
+            'comparison_model': face_verification.comparison_model,
+        }
 
 
 class VerifyApplicationView(BookkeeperBaseView):
@@ -286,6 +326,50 @@ class RejectApplicationView(BookkeeperBaseView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class DownloadApplicationPDFView(BookkeeperBaseView):
+    """
+    GET /api/bookkeeper/applications/<id>/download-pdf/
+
+    Download PDF of any approved loan application.
+    Available to all bookkeepers for any approved application.
+    """
+
+    def get(self, request, pk):
+        # Get application (no ownership check for bookkeeper)
+        application = ApplicationService.get_application_by_id(pk)
+
+        if not application:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if application is approved
+        if not LoanApplicationPDFService.can_download(application):
+            return Response(
+                {'error': 'PDF download is only available for approved applications'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Generate PDF
+        pdf_buffer = LoanApplicationPDFService.generate_pdf(application)
+        filename = LoanApplicationPDFService.get_filename(application)
+
+        # Create audit log
+        AuditLog.objects.create(
+            user=request.user,
+            action=f"Bookkeeper downloaded PDF for loan application #{application.id}"
+        )
+
+        # Return file response
+        return FileResponse(
+            pdf_buffer,
+            as_attachment=True,
+            filename=filename,
+            content_type='application/pdf'
+        )
 
 
 # =============================================================================

@@ -93,11 +93,33 @@ class LoanDocument(models.Model):
 
 class FaceVerification(models.Model):
     loan_application = models.ForeignKey(LoanApplication, on_delete=models.CASCADE, related_name='face_verifications')
-    captured_image_path = models.CharField(max_length=255, null=True, blank=True)
-    match_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    # Image paths
+    captured_image_path = models.CharField(max_length=255, null=True, blank=True, help_text='Path to captured selfie')
+    id_photo_path = models.CharField(max_length=255, null=True, blank=True, help_text='Path to ID photo extracted from document')
+
+    # Legacy field (kept for backward compatibility)
+    match_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text='Legacy match score field')
+
+    # Face detection status
+    face_detected_in_id = models.BooleanField(default=False, help_text='Whether a face was detected in ID photo')
+    face_detected_in_selfie = models.BooleanField(default=False, help_text='Whether a face was detected in selfie')
+
+    # DeepFace comparison results
+    similarity_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text='DeepFace similarity score (0-100)')
+    comparison_model = models.CharField(max_length=50, default='ArcFace', help_text='Face comparison model used')
+    comparison_distance = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True, help_text='Raw distance metric from DeepFace')
+    comparison_threshold = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text='Threshold used for verification')
+    is_match = models.BooleanField(null=True, blank=True, help_text='Whether faces match based on threshold')
+
+    # Error handling
+    error_message = models.TextField(null=True, blank=True, help_text='Error message if verification failed')
+
+    # Status and timestamps
     verification_status = models.CharField(max_length=20, default='Pending')
     verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     verified_at = models.DateTimeField(null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True, help_text='When face comparison was performed')
     created_at = models.DateTimeField(auto_now_add=True, null=True)
 
 
@@ -116,3 +138,116 @@ class AuditLog(models.Model):
     action = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True, null=True)
     ip_address = models.CharField(max_length=50, null=True, blank=True)
+
+
+class StatusChangeLog(models.Model):
+    """
+    Tracks all status changes for loan applications.
+    Auto-populated via Django signals for clean architecture.
+    """
+    application = models.ForeignKey(
+        LoanApplication,
+        on_delete=models.CASCADE,
+        related_name='status_change_logs'
+    )
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='status_changes_made'
+    )
+    changed_by_role = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text='Role of the user who made the change'
+    )
+    from_status = models.ForeignKey(
+        ApplicationStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='status_changes_from',
+        help_text='Previous status'
+    )
+    to_status = models.ForeignKey(
+        ApplicationStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='status_changes_to',
+        help_text='New status'
+    )
+    changed_at = models.DateTimeField(default=timezone.now)
+    remarks = models.TextField(
+        null=True,
+        blank=True,
+        help_text='Optional remarks/reason for status change'
+    )
+
+    class Meta:
+        ordering = ['-changed_at']
+        verbose_name = 'Status Change Log'
+        verbose_name_plural = 'Status Change Logs'
+        indexes = [
+            models.Index(fields=['application', 'changed_at']),
+            models.Index(fields=['changed_by', 'changed_at']),
+        ]
+
+    def __str__(self):
+        from_name = self.from_status.status_name if self.from_status else 'None'
+        to_name = self.to_status.status_name if self.to_status else 'None'
+        return f"App #{self.application_id}: {from_name} → {to_name}"
+
+
+class StatusTransitionRule(models.Model):
+    """
+    Defines allowed status transitions per role.
+    Used to enforce role-based workflow rules.
+    """
+    from_status = models.ForeignKey(
+        ApplicationStatus,
+        on_delete=models.CASCADE,
+        related_name='transition_rules_from'
+    )
+    to_status = models.ForeignKey(
+        ApplicationStatus,
+        on_delete=models.CASCADE,
+        related_name='transition_rules_to'
+    )
+    allowed_role = models.CharField(
+        max_length=50,
+        help_text='Role allowed to make this transition (e.g., Applicant, Bookkeeper, Treasurer, Credit Committee)'
+    )
+
+    class Meta:
+        unique_together = ('from_status', 'to_status', 'allowed_role')
+        verbose_name = 'Status Transition Rule'
+        verbose_name_plural = 'Status Transition Rules'
+
+    def __str__(self):
+        return f"{self.from_status} → {self.to_status} ({self.allowed_role})"
+
+    @classmethod
+    def is_transition_allowed(cls, from_status, to_status, role_name):
+        """
+        Check if a status transition is allowed for a given role.
+
+        Args:
+            from_status: ApplicationStatus instance or None
+            to_status: ApplicationStatus instance
+            role_name: String name of the role
+
+        Returns:
+            bool: True if transition is allowed
+        """
+        # Allow initial status assignment (from None)
+        if from_status is None:
+            return True
+
+        return cls.objects.filter(
+            from_status=from_status,
+            to_status=to_status,
+            allowed_role=role_name
+        ).exists()

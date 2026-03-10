@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'treasurer',
     'credit_committee',
     'applicant',
+    'members',
 ]
 
 MIDDLEWARE = [
@@ -175,6 +176,16 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Media files (Uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Face Verification Settings
+FACE_VERIFICATION = {
+    'ENABLED': True,
+    'AUTO_APPROVE_THRESHOLD': 80,  # Similarity % for auto-approval (≥80% = pass)
+    'MODEL': 'ArcFace',  # Face comparison model (ArcFace, Facenet, VGG-Face, etc.)
+    'DISTANCE_METRIC': 'cosine',  # Distance metric (cosine, euclidean, euclidean_l2)
+    'DETECTOR_BACKEND': 'opencv',  # Face detector (opencv, ssd, dlib, mtcnn, retinaface)
+    'UNLIMITED_RETRIES': True,  # Allow unlimited retry attempts
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
@@ -296,17 +307,17 @@ UNFOLD = {
                     {
                         "title": "All Members",
                         "icon": "people",
-                        "link": lambda request: "/admin/applicant/member/",
+                        "link": lambda request: "/admin/members/member/",
                     },
                     {
                         "title": "Savings Records",
                         "icon": "savings",
-                        "link": lambda request: "/admin/applicant/savings/",
+                        "link": lambda request: "/admin/members/savings/",
                     },
                     {
                         "title": "Shared Capital",
                         "icon": "account_balance",
-                        "link": lambda request: "/admin/applicant/sharedcapital/",
+                        "link": lambda request: "/admin/members/sharedcapital/",
                     },
                 ],
             },
