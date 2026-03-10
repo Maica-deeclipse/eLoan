@@ -22,6 +22,7 @@ from django.views.generic import RedirectView
 from django.http import HttpResponse
 
 from authentication.login import StaffLoginView, ApplicantLoginView
+from authentication.registration import ApplicantRegistrationView
 from authentication.password_reset import (
     SetPasswordView,
     ValidateTokenView,
@@ -60,9 +61,9 @@ urlpatterns = [
     path('api/auth/set-password/', SetPasswordView.as_view(), name='set_password'),
     path('api/auth/validate-token/', ValidateTokenView.as_view(), name='validate_token'),
 
-    # Public registration disabled per security requirements
-    # Staff users (Bookkeeper, Treasurer, Credit Committee) are created by Super Admin only
-    # path('api/auth/register/', RegisterView.as_view(), name='register'),
+    # Applicant self-registration (public endpoint)
+    # Creates account with 'pending' status - requires Super Admin approval to login
+    path('api/auth/register/', ApplicantRegistrationView.as_view(), name='applicant_register'),
 ]
 
 # Serve media files in development

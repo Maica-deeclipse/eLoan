@@ -151,17 +151,25 @@ class ForgotPasswordView(APIView):
         try:
             user = User.objects.get(email=email)
 
-            # Check if user has an authorized role (staff or applicant)
-            if user.role and user.role.name in ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Applicant']:
+            # Check if user is super admin or has an authorized role (staff or applicant)
+            is_authorized = (
+                user.is_superuser or
+                (user.role and user.role.name in ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Applicant'])
+            )
+
+            if is_authorized:
                 # Generate password reset link
                 reset_link = generate_password_reset_link(user, frontend_url=settings.FRONTEND_URL)
+
+                # Determine user role for email
+                user_role = 'Super Administrator' if user.is_superuser else user.role.name
 
                 # Send password reset email
                 subject = 'eLoan - Password Reset Request'
                 message = f"""
 Hello {user.firstname} {user.lastname},
 
-We received a request to reset your password for your eLoan account.
+We received a request to reset your password for your eLoan account ({user_role}).
 
 Please click the link below to reset your password:
 {reset_link}

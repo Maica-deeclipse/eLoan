@@ -140,6 +140,17 @@ class ApplicantLoginSerializer(serializers.Serializer):
                 'error': 'Your account has been suspended. Please contact the administrator.'
             })
 
+        # Check account_status for pending/rejected users
+        if user.account_status == 'pending':
+            raise serializers.ValidationError({
+                'error': 'Your account is pending approval. Please wait for admin verification.'
+            })
+
+        if user.account_status == 'rejected':
+            raise serializers.ValidationError({
+                'error': 'Your registration was rejected. Please contact the administrator.'
+            })
+
         # Validate that user has 'Applicant' role
         if not user.role or user.role.name != 'Applicant':
             raise serializers.ValidationError({

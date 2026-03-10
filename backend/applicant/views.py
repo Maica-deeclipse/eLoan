@@ -104,7 +104,8 @@ class LoanTypeListView(ApplicantBaseView):
     """GET /api/applicant/loan-types/"""
 
     def get(self, request):
-        loan_types = LoanApplicationService.get_active_loan_types()
+        # Pass user to get membership-adjusted max amounts
+        loan_types = LoanApplicationService.get_active_loan_types(user=request.user)
         return Response({'loan_types': loan_types})
 
 

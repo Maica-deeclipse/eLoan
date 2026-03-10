@@ -31,7 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '10.144.154.226',
+    '10.255.9.60',
     '10.0.0.52',
 ]
 
@@ -207,7 +207,7 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',       # Web frontend
     'http://127.0.0.1:3000',       # Web frontend
-    'http://10.144.154.226:3000',   # Web frontend (network access)
+    'http://10.255.9.60:3000',   # Web frontend (network access)
     'http://localhost:8081',       # Expo dev server (default)
     'http://127.0.0.1:8081',       # Expo dev server
     'http://localhost:19000',      # Expo dev server (alternative port)
@@ -285,6 +285,32 @@ UNFOLD = {
                 ],
             },
             {
+                "title": "Member Management",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Pending Registrations",
+                        "icon": "pending_actions",
+                        "link": lambda request: "/admin/users/user/?account_status__exact=pending",
+                    },
+                    {
+                        "title": "All Members",
+                        "icon": "people",
+                        "link": lambda request: "/admin/applicant/member/",
+                    },
+                    {
+                        "title": "Savings Records",
+                        "icon": "savings",
+                        "link": lambda request: "/admin/applicant/savings/",
+                    },
+                    {
+                        "title": "Shared Capital",
+                        "icon": "account_balance",
+                        "link": lambda request: "/admin/applicant/sharedcapital/",
+                    },
+                ],
+            },
+            {
                 "title": "Loan Management",
                 "separator": True,
                 "items": [
@@ -345,8 +371,16 @@ UNFOLD = {
                     "link": lambda request: "/admin/users/user/",
                 },
                 {
-                    "title": "Active Users",
-                    "link": lambda request: "/admin/users/user/?status__exact=active",
+                    "title": "Pending Approval",
+                    "link": lambda request: "/admin/users/user/?account_status__exact=pending",
+                },
+                {
+                    "title": "Approved",
+                    "link": lambda request: "/admin/users/user/?account_status__exact=approved",
+                },
+                {
+                    "title": "Rejected",
+                    "link": lambda request: "/admin/users/user/?account_status__exact=rejected",
                 },
                 {
                     "title": "Suspended",

@@ -31,6 +31,12 @@ from .utils import (
     ApplicationStatuses
 )
 
+# Import membership models (now in applicant app)
+from .models import Member
+
+# Flag to indicate membership is enabled (always True now since models are in this app)
+MEMBERSHIP_ENABLED = True
+
 
 class ApplicantDashboardService:
     """Service for applicant dashboard data."""
@@ -110,10 +116,12 @@ class LoanApplicationService:
 
         Business Rules:
         - User must be registered applicant
+        - User must have approved account status
+        - User must have a Member profile with minimum savings (200)
         - No active (unpaid) loan exists
 
         Returns:
-            dict: { 'can_apply': bool, 'reason': str }
+            dict: { 'can_apply': bool, 'reason': str, 'membership_info': dict }
         """
         # Check if user is an applicant
         if not user.role or user.role.name != 'Applicant':
@@ -121,6 +129,32 @@ class LoanApplicationService:
                 'can_apply': False,
                 'reason': 'Only registered applicants can apply for loans.'
             }
+
+        # Check membership eligibility (if membership module is enabled)
+        membership_info = None
+        if MEMBERSHIP_ENABLED:
+            try:
+                member = user.member_profile
+                membership_info = {
+                    'membership_type': member.membership_type,
+                    'total_savings': str(member.total_savings),
+                    'total_shared_capital': str(member.total_shared_capital),
+                    'max_loan_amount': str(member.max_loan_amount) if member.max_loan_amount else None,
+                }
+
+                # Check minimum savings requirement
+                if member.total_savings < MembershipService.MIN_SAVINGS:
+                    return {
+                        'can_apply': False,
+                        'reason': f'Minimum savings of PHP {MembershipService.MIN_SAVINGS:,.2f} required. Your current savings: PHP {member.total_savings:,.2f}',
+                        'membership_info': membership_info,
+                    }
+
+            except Member.DoesNotExist:
+                return {
+                    'can_apply': False,
+                    'reason': 'Member profile not found. Please contact the administrator to set up your membership.',
+                }
 
         # Check for active loans
         active_statuses = [
@@ -136,7 +170,8 @@ class LoanApplicationService:
         if active_loan:
             return {
                 'can_apply': False,
-                'reason': f'You have an active loan (Application #{active_loan.id}). Please complete payment before applying for a new loan.'
+                'reason': f'You have an active loan (Application #{active_loan.id}). Please complete payment before applying for a new loan.',
+                'membership_info': membership_info,
             }
 
         # Check for pending applications
@@ -155,27 +190,51 @@ class LoanApplicationService:
         if pending_app:
             return {
                 'can_apply': False,
-                'reason': f'You have a pending application (Application #{pending_app.id}). Please wait for it to be processed.'
+                'reason': f'You have a pending application (Application #{pending_app.id}). Please wait for it to be processed.',
+                'membership_info': membership_info,
             }
 
         return {
             'can_apply': True,
-            'reason': 'You can apply for a loan.'
+            'reason': 'You can apply for a loan.',
+            'membership_info': membership_info,
         }
 
     @staticmethod
-    def get_active_loan_types():
-        """Get all active loan types for selection."""
+    def get_active_loan_types(user=None):
+        """
+        Get all active loan types for selection.
+
+        If user is provided and has a Member profile, the max_amount will be
+        adjusted based on membership type (Associate members max 20k).
+        """
         loan_types = LoanType.objects.filter(is_active=True).order_by('loan_name')
+
+        # Get member's max loan amount if membership is enabled
+        member_max_amount = None
+        if MEMBERSHIP_ENABLED and user:
+            try:
+                member = user.member_profile
+                member_max_amount = member.max_loan_amount  # None for Regular, 20k for Associate
+            except Member.DoesNotExist:
+                pass
 
         result = []
         for lt in loan_types:
             comaker_req = get_comaker_requirement(lt)
+
+            # Determine effective max amount
+            effective_max = lt.max_amount
+            if member_max_amount is not None:
+                # Associate member: use the lower of loan type max or membership max
+                effective_max = min(lt.max_amount, member_max_amount)
+
             result.append({
                 'id': lt.id,
                 'loan_name': lt.loan_name,
                 'min_amount': str(lt.min_amount),
-                'max_amount': str(lt.max_amount),
+                'max_amount': str(effective_max),
+                'loan_type_max': str(lt.max_amount),  # Original loan type max
                 'interest_rate': str(lt.interest_rate),
                 'max_term_months': lt.max_term_months,
                 'description': lt.description,
@@ -293,10 +352,22 @@ class LoanApplicationService:
             term = int(data.get('term_months', 1))
             purpose = data.get('purpose', '')
 
-            # Validate amount
+            # Validate amount against loan type limits
             is_valid, error = validate_loan_amount(amount, application.loan_type)
             if not is_valid:
                 return False, error
+
+            # Validate amount against membership limits (if enabled)
+            if MEMBERSHIP_ENABLED:
+                try:
+                    member = application.user.member_profile
+                    eligibility = MembershipService.check_loan_eligibility(
+                        member, application.loan_type, amount
+                    )
+                    if not eligibility['eligible']:
+                        return False, eligibility['reason']
+                except Member.DoesNotExist:
+                    return False, "Member profile not found. Please contact the administrator."
 
             # Validate term
             is_valid, error = validate_loan_term(term, application.loan_type)
@@ -929,3 +1000,146 @@ class NotificationService:
             notification_type=notification_type,
             related_application=application
         )
+
+
+# =============================================================================
+# Membership Service
+# =============================================================================
+
+class MembershipService:
+    """
+    Business logic for membership classification and loan eligibility.
+    """
+
+    ASSOCIATE_MAX_LOAN = Decimal('20000.00')
+    REGULAR_THRESHOLD = Decimal('20000.00')
+    MIN_SAVINGS = Decimal('200.00')
+
+    @classmethod
+    def calculate_membership_type(cls, shared_capital_total):
+        """
+        Determine membership type based on shared capital.
+
+        Args:
+            shared_capital_total: Decimal total of shared capital
+
+        Returns:
+            str: 'associate' or 'regular'
+        """
+        if shared_capital_total >= cls.REGULAR_THRESHOLD:
+            return 'regular'
+        return 'associate'
+
+    @classmethod
+    def get_max_loan_amount(cls, member, loan_type=None):
+        """
+        Get maximum loan amount for a member.
+
+        Args:
+            member: Member instance
+            loan_type: LoanType instance (optional)
+
+        Returns:
+            Decimal: Maximum loan amount allowed
+        """
+        if member.membership_type == 'associate':
+            return cls.ASSOCIATE_MAX_LOAN
+
+        # Regular members use loan type config
+        if loan_type:
+            return loan_type.max_amount
+        return None
+
+    @classmethod
+    def check_loan_eligibility(cls, member, loan_type, requested_amount):
+        """
+        Check if member is eligible for a loan.
+
+        Args:
+            member: Member instance
+            loan_type: LoanType instance
+            requested_amount: Decimal amount requested
+
+        Returns:
+            dict: {eligible: bool, reason: str, max_amount: Decimal}
+        """
+        # Check minimum savings requirement
+        if member.total_savings < cls.MIN_SAVINGS:
+            return {
+                'eligible': False,
+                'reason': f'Minimum savings of PHP {cls.MIN_SAVINGS:,.2f} required. Current: PHP {member.total_savings:,.2f}',
+                'max_amount': Decimal('0.00')
+            }
+
+        max_amount = cls.get_max_loan_amount(member, loan_type)
+
+        if member.membership_type == 'associate':
+            if requested_amount > cls.ASSOCIATE_MAX_LOAN:
+                return {
+                    'eligible': False,
+                    'reason': f'Associate members can only borrow up to PHP {cls.ASSOCIATE_MAX_LOAN:,.2f}',
+                    'max_amount': cls.ASSOCIATE_MAX_LOAN
+                }
+
+        if max_amount and requested_amount > max_amount:
+            return {
+                'eligible': False,
+                'reason': f'Requested amount exceeds maximum of PHP {max_amount:,.2f}',
+                'max_amount': max_amount
+            }
+
+        return {
+            'eligible': True,
+            'reason': 'Eligible for loan',
+            'max_amount': max_amount
+        }
+
+    @classmethod
+    def record_savings(cls, member, amount, transaction_type, recorded_by,
+                       reference_number=None, remarks=None):
+        """
+        Record a savings transaction.
+        """
+        from django.db import transaction
+        from .models import Savings
+
+        with transaction.atomic():
+            if transaction_type == 'withdrawal':
+                if member.total_savings < amount:
+                    raise ValueError('Insufficient savings balance')
+
+            return Savings.objects.create(
+                member=member,
+                amount=amount,
+                transaction_type=transaction_type,
+                recorded_by=recorded_by,
+                reference_number=reference_number,
+                remarks=remarks
+            )
+
+    @classmethod
+    def record_shared_capital(cls, member, amount, transaction_type, recorded_by,
+                              reference_number=None, remarks=None):
+        """
+        Record a shared capital transaction.
+        Auto-updates membership classification.
+        """
+        from django.db import transaction
+        from .models import SharedCapital
+
+        with transaction.atomic():
+            if transaction_type == 'withdrawal':
+                if member.total_shared_capital < amount:
+                    raise ValueError('Insufficient shared capital balance')
+
+            record = SharedCapital.objects.create(
+                member=member,
+                amount=amount,
+                transaction_type=transaction_type,
+                recorded_by=recorded_by,
+                reference_number=reference_number,
+                remarks=remarks
+            )
+
+            # Auto-update membership classification (already done in model save)
+            return record

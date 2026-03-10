@@ -24,6 +24,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.mail import send_mail
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils import timezone
 from django import forms
 from django.conf import settings
 from unfold.admin import ModelAdmin
@@ -38,7 +39,7 @@ class UserCreationForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ('email', 'firstname', 'lastname', 'role', 'status')
+        fields = ('email', 'firstname', 'lastname', 'role', 'status', 'employee_id', 'account_status')
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -105,7 +106,7 @@ class UserChangeForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ('email', 'firstname', 'lastname', 'role', 'status', 'is_active', 'is_staff')
+        fields = ('email', 'firstname', 'lastname', 'role', 'status', 'is_active', 'is_staff', 'employee_id', 'account_status')
 
 
 @admin.register(User)
@@ -113,13 +114,14 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
 
-    list_display = ('email', 'get_full_name', 'role', 'status', 'is_staff', 'date_joined')
-    list_filter = ('role', 'status', 'is_staff', 'is_superuser', 'date_joined')
+    list_display = ('email', 'get_full_name', 'employee_id', 'role', 'account_status_display', 'status', 'is_staff', 'date_joined')
+    list_filter = ('role', 'status', 'account_status', 'is_staff', 'is_superuser', 'date_joined')
 
     fieldsets = (
-        (None, {'fields': ('email',)}),
+        (None, {'fields': ('email', 'employee_id')}),
         ('Personal Info', {'fields': ('firstname', 'lastname')}),
-        ('Role & Status', {'fields': ('role', 'status')}),
+        ('Role & Status', {'fields': ('role', 'status', 'account_status')}),
+        ('Approval Info', {'fields': ('approved_by', 'approved_at', 'rejection_reason'), 'classes': ('collapse',)}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
@@ -127,15 +129,24 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'firstname', 'lastname', 'role', 'status'),
+            'fields': ('email', 'firstname', 'lastname', 'employee_id', 'role', 'status', 'account_status'),
             'description': 'An invitation email will be sent to the user to set their password.'
         }),
     )
 
-    search_fields = ('email', 'firstname', 'lastname')
+    readonly_fields = ('last_login', 'date_joined', 'approved_by', 'approved_at')
+
+    @display(description='Account Status', label=True)
+    def account_status_display(self, obj):
+        if obj.account_status == 'approved':
+            return 'Approved', 'success'
+        elif obj.account_status == 'rejected':
+            return 'Rejected', 'danger'
+        return 'Pending', 'warning'
+
+    search_fields = ('email', 'firstname', 'lastname', 'employee_id')
     ordering = ('-date_joined',)
     filter_horizontal = ('groups', 'user_permissions',)
-    readonly_fields = ('last_login', 'date_joined')
 
     def save_model(self, request, obj, form, change):
         """Override to show email status message after user creation."""
@@ -163,7 +174,67 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
         return f"{obj.firstname} {obj.lastname}"
     get_full_name.short_description = 'Full Name'
 
-    actions = ['resend_invitation', 'activate_users', 'suspend_users', 'send_test_email']
+    actions = ['approve_registrations', 'reject_registrations', 'resend_invitation', 'activate_users', 'suspend_users', 'send_test_email']
+
+    def approve_registrations(self, request, queryset):
+        """Approve pending user registrations."""
+        pending_users = queryset.filter(account_status='pending')
+        count = 0
+        for user in pending_users:
+            user.account_status = 'approved'
+            user.approved_by = request.user
+            user.approved_at = timezone.now()
+            user.save()
+
+            # Create Member profile if user is an Applicant
+            if user.role and user.role.name == 'Applicant':
+                try:
+                    from applicant.models import Member
+                    Member.objects.get_or_create(user=user)
+                except Exception as e:
+                    print(f"Could not create member profile for {user.email}: {e}")
+
+            # Log the approval
+            try:
+                from applicant.models import MembershipApprovalLog
+                MembershipApprovalLog.objects.create(
+                    user=user,
+                    action='approved',
+                    performed_by=request.user,
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                )
+            except Exception as e:
+                print(f"Could not log approval for {user.email}: {e}")
+
+            count += 1
+
+        self.message_user(request, f"{count} registration(s) approved successfully.")
+    approve_registrations.short_description = "Approve selected registrations"
+
+    def reject_registrations(self, request, queryset):
+        """Reject pending user registrations."""
+        pending_users = queryset.filter(account_status='pending')
+        count = 0
+        for user in pending_users:
+            user.account_status = 'rejected'
+            user.save()
+
+            # Log the rejection
+            try:
+                from applicant.models import MembershipApprovalLog
+                MembershipApprovalLog.objects.create(
+                    user=user,
+                    action='rejected',
+                    performed_by=request.user,
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                )
+            except Exception as e:
+                print(f"Could not log rejection for {user.email}: {e}")
+
+            count += 1
+
+        self.message_user(request, f"{count} registration(s) rejected.")
+    reject_registrations.short_description = "Reject selected registrations"
 
     def resend_invitation(self, request, queryset):
         """Admin action to resend invitation emails."""

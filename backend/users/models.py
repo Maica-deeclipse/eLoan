@@ -53,6 +53,29 @@ class User(AbstractBaseUser, PermissionsMixin):
         default='active'
     )
 
+    # Registration and membership fields
+    employee_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
+
+    ACCOUNT_STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    account_status = models.CharField(
+        max_length=20,
+        choices=ACCOUNT_STATUS_CHOICES,
+        default='approved'  # Default approved for existing/admin-created users
+    )
+    approved_by = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='approved_users'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(null=True, blank=True)
+
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
