@@ -838,10 +838,22 @@ class RetryFaceVerificationView(ApplicantBaseView):
 
 
 class LivenessCheckView(ApplicantBaseView):
-    """POST /api/applicant/applications/<app_id>/liveness-check/"""
+    """
+    POST /api/applicant/applications/<app_id>/liveness-check/
+
+    Performs liveness detection using MediaPipe to verify the user is a real person.
+    Supports multiple detection methods:
+    - 'blink': Eye blink detection using Eye Aspect Ratio (EAR)
+    - 'head_turn': Head pose detection
+    - 'combined': Both blink and head pose checks (recommended)
+
+    The liveness check must pass before application can be submitted.
+    """
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, app_id):
+        from .liveness_service import LivenessVerificationService
+
         application = LoanApplicationService.get_application_by_id(app_id, request.user)
         if not application:
             return Response(
@@ -849,7 +861,7 @@ class LivenessCheckView(ApplicantBaseView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        method = request.data.get('method', 'blink')
+        method = request.data.get('method', 'combined')
         image = request.FILES.get('image')
 
         if not image:
@@ -858,25 +870,69 @@ class LivenessCheckView(ApplicantBaseView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Save liveness check (in production, you'd integrate with a liveness detection service)
-        check = FaceVerificationService.save_liveness_check(
-            application,
-            method,
-            Decimal('98.00'),  # Placeholder confidence score
-            request.user
-        )
+        # Validate method
+        valid_methods = ['blink', 'head_turn', 'head_nod', 'combined']
+        if method not in valid_methods:
+            return Response(
+                {'error': f'Invalid method. Must be one of: {", ".join(valid_methods)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Auto-verify for now
-        check.check_status = 'Verified'
-        check.verified_at = timezone.now()
-        check.save()
+        # Validate file type
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+        ext = os.path.splitext(image.name)[1].lower()
+        if ext not in allowed_extensions:
+            return Response(
+                {'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        return Response({
-            'id': check.id,
-            'method': check.method,
-            'status': check.check_status,
-            'message': 'Liveness check completed successfully',
-        }, status=status.HTTP_201_CREATED)
+        # Save image to disk
+        filename = f"liveness_{uuid.uuid4().hex[:12]}{ext}"
+        file_path = f"applicant/liveness/{application.id}/{filename}"
+
+        full_dir = os.path.join(settings.MEDIA_ROOT, f"applicant/liveness/{application.id}")
+        os.makedirs(full_dir, exist_ok=True)
+
+        full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+        with open(full_path, 'wb+') as destination:
+            for chunk in image.chunks():
+                destination.write(chunk)
+
+        # Perform liveness verification using MediaPipe
+        try:
+            result = LivenessVerificationService.verify_liveness_for_application(
+                application_id=application.id,
+                image_path=full_path,
+                method=method
+            )
+
+            # Build response based on result
+            response_data = {
+                'id': result.get('liveness_check_id'),
+                'method': method,
+                'status': result.get('check_status', 'Failed'),
+                'is_live': result.get('is_live', False),
+                'confidence': result.get('confidence', 0.0),
+                'threshold': result.get('threshold', 70.0),
+                'details': result.get('details', {}),
+            }
+
+            if result.get('is_live') and result.get('check_status') == 'Verified':
+                response_data['message'] = f"Liveness check passed! Confidence: {result.get('confidence', 0):.1f}%"
+                return Response(response_data, status=status.HTTP_201_CREATED)
+            else:
+                response_data['message'] = result.get('error_message', 'Liveness check failed. Please try again.')
+                response_data['error'] = result.get('error_message', 'Liveness verification failed')
+                # Return 422 to indicate the check failed but request was valid
+                return Response(response_data, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        except Exception as e:
+            logger.exception(f"Liveness check error: {str(e)}")
+            return Response({
+                'error': f'Liveness check error: {str(e)}',
+                'message': 'An error occurred during liveness verification. Please try again.',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class VerificationStatusView(ApplicantBaseView):
@@ -892,16 +948,129 @@ class VerificationStatusView(ApplicantBaseView):
 
         status_data = FaceVerificationService.get_verification_status(application)
 
+        # Get latest verification details
+        face_details = {}
+        if status_data['face_capture']['latest']:
+            fv = status_data['face_capture']['latest']
+            face_details = {
+                'similarity_score': float(fv.similarity_score) if fv.similarity_score else None,
+                'is_match': fv.is_match,
+                'error_message': fv.error_message,
+            }
+
+        liveness_details = {}
+        if status_data['liveness_check']['latest']:
+            lc = status_data['liveness_check']['latest']
+            liveness_details = {
+                'confidence_score': float(lc.confidence_score) if lc.confidence_score else None,
+                'method': lc.method,
+            }
+
         return Response({
             'face_capture': {
                 'completed': status_data['face_capture']['completed'],
                 'verified': status_data['face_capture']['verified'],
+                'details': face_details,
             },
             'liveness_check': {
                 'completed': status_data['liveness_check']['completed'],
                 'verified': status_data['liveness_check']['verified'],
-            }
+                'details': liveness_details,
+            },
+            'can_submit': (
+                status_data['face_capture']['verified'] and
+                status_data['liveness_check']['verified']
+            )
         })
+
+
+class CombinedVerificationView(ApplicantBaseView):
+    """
+    POST /api/applicant/applications/<app_id>/combined-verification/
+
+    Performs both liveness detection AND face comparison in a single request.
+    This is the recommended endpoint for mobile apps.
+
+    Request:
+        - selfie: File (required) - Selfie image for liveness and face comparison
+
+    Response:
+        - liveness: Liveness check result
+        - face_comparison: Face comparison result (ID photo vs selfie)
+        - overall_verified: Boolean - True if both checks passed
+    """
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, app_id):
+        from .liveness_service import LivenessVerificationService
+
+        application = LoanApplicationService.get_application_by_id(app_id, request.user)
+        if not application:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        selfie = request.FILES.get('selfie') or request.FILES.get('image')
+        method = request.data.get('method', 'combined')
+
+        if not selfie:
+            return Response(
+                {'error': 'Selfie image is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file type
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+        ext = os.path.splitext(selfie.name)[1].lower()
+        if ext not in allowed_extensions:
+            return Response(
+                {'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Save selfie to disk
+        filename = f"selfie_{uuid.uuid4().hex[:12]}{ext}"
+        file_path = f"applicant/faces/{application.id}/{filename}"
+
+        full_dir = os.path.join(settings.MEDIA_ROOT, f"applicant/faces/{application.id}")
+        os.makedirs(full_dir, exist_ok=True)
+
+        full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+        with open(full_path, 'wb+') as destination:
+            for chunk in selfie.chunks():
+                destination.write(chunk)
+
+        try:
+            # Perform combined verification (liveness + face comparison)
+            result = LivenessVerificationService.verify_with_face_comparison(
+                application_id=application.id,
+                selfie_path=full_path,
+                method=method
+            )
+
+            # Build response
+            response_data = {
+                'overall_verified': result.get('overall_verified', False),
+                'liveness': result.get('liveness', {}),
+                'face_comparison': result.get('face_comparison', {}),
+                'can_submit': result.get('overall_verified', False),
+            }
+
+            if result.get('overall_verified'):
+                response_data['message'] = 'Verification successful! Both liveness and face comparison passed.'
+                return Response(response_data, status=status.HTTP_201_CREATED)
+            else:
+                response_data['message'] = result.get('error_message', 'Verification failed')
+                response_data['error'] = result.get('error_message', 'Verification failed')
+                return Response(response_data, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        except Exception as e:
+            logger.exception(f"Combined verification error: {str(e)}")
+            return Response({
+                'error': f'Verification error: {str(e)}',
+                'message': 'An error occurred during verification. Please try again.',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # =============================================================================

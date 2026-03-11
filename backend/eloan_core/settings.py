@@ -31,7 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '10.255.9.60',
+    '10.128.37.52',
     '10.0.0.52',
 ]
 
@@ -66,7 +66,7 @@ INSTALLED_APPS = [
     'treasurer',
     'credit_committee',
     'applicant',
-    'members',
+    # 'members',  # Disabled: duplicate models with applicant app
 ]
 
 MIDDLEWARE = [
@@ -187,6 +187,16 @@ FACE_VERIFICATION = {
     'UNLIMITED_RETRIES': True,  # Allow unlimited retry attempts
 }
 
+# Liveness Detection Settings (MediaPipe)
+LIVENESS_DETECTION = {
+    'ENABLED': True,
+    'MIN_CONFIDENCE_THRESHOLD': 70,  # Minimum confidence % to pass liveness check
+    'EAR_THRESHOLD': 0.21,  # Eye Aspect Ratio threshold (below = eyes closed)
+    'HEAD_TURN_THRESHOLD': 15,  # Max yaw angle in degrees for natural pose
+    'HEAD_NOD_THRESHOLD': 10,  # Max pitch angle in degrees for natural pose
+    'DEFAULT_METHOD': 'combined',  # Default detection method: blink, head_turn, combined
+}
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
 
@@ -218,7 +228,7 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',       # Web frontend
     'http://127.0.0.1:3000',       # Web frontend
-    'http://10.255.9.60:3000',   # Web frontend (network access)
+    'http://10.128.37.52:3000',   # Web frontend (network access)
     'http://localhost:8081',       # Expo dev server (default)
     'http://127.0.0.1:8081',       # Expo dev server
     'http://localhost:19000',      # Expo dev server (alternative port)

@@ -124,13 +124,69 @@ class FaceVerification(models.Model):
 
 
 class LivenessCheck(models.Model):
+    """
+    Stores liveness detection results using MediaPipe.
+
+    Methods:
+    - blink: Eye blink detection using Eye Aspect Ratio (EAR)
+    - head_turn: Head pose detection (yaw angle)
+    - head_nod: Head pose detection (pitch angle)
+    - combined: Multiple checks combined
+
+    Check Status:
+    - Pending: Not yet processed
+    - Verified: Liveness confirmed
+    - Failed: Liveness check failed
+    """
     loan_application = models.ForeignKey(LoanApplication, on_delete=models.CASCADE, related_name='liveness_checks')
-    method = models.CharField(max_length=20, null=True, blank=True)
-    confidence_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    check_status = models.CharField(max_length=20, default='Pending')
-    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    method = models.CharField(max_length=20, null=True, blank=True,
+                              help_text='Detection method: blink, head_turn, head_nod, combined')
+    confidence_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True,
+                                           help_text='Confidence score 0-100')
+    check_status = models.CharField(max_length=20, default='Pending',
+                                    help_text='Pending, Verified, or Failed')
+
+    # MediaPipe detection details (stored as JSON-like text for flexibility)
+    detection_details = models.TextField(null=True, blank=True,
+                                         help_text='JSON details from MediaPipe detection')
+
+    # Eye Aspect Ratio for blink detection
+    left_ear = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True,
+                                   help_text='Left Eye Aspect Ratio')
+    right_ear = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True,
+                                    help_text='Right Eye Aspect Ratio')
+    avg_ear = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True,
+                                  help_text='Average Eye Aspect Ratio')
+    eyes_open = models.BooleanField(null=True, blank=True,
+                                    help_text='Whether eyes were detected as open')
+
+    # Head pose for movement detection
+    head_yaw = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True,
+                                   help_text='Head yaw angle in degrees')
+    head_pitch = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True,
+                                     help_text='Head pitch angle in degrees')
+    head_roll = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True,
+                                    help_text='Head roll angle in degrees')
+
+    # Image path
+    image_path = models.CharField(max_length=255, null=True, blank=True,
+                                  help_text='Path to the liveness check image')
+
+    # Error tracking
+    error_message = models.TextField(null=True, blank=True,
+                                     help_text='Error message if check failed')
+
+    # Verification metadata
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                    on_delete=models.SET_NULL, related_name='+')
     verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"LivenessCheck #{self.id} - {self.method} - {self.check_status}"
 
 
 class AuditLog(models.Model):

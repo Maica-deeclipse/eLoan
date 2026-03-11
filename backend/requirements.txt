@@ -32,3 +32,7 @@ Pillow>=10.0.0  # Python Imaging Library for image processing
 # Note: Tesseract OCR must be installed separately on the system
 # Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
 # Install to: C:\Program Files\Tesseract-OCR\
+
+# Liveness Detection
+mediapipe>=0.10.9  # Google MediaPipe for face mesh and landmark detection
+numpy>=1.24.0  # Required for MediaPipe computations
