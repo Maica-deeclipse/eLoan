@@ -623,30 +623,62 @@ class LivenessVerificationService:
             if settings.MEDIA_ROOT and image_path.startswith(settings.MEDIA_ROOT):
                 relative_path = image_path[len(settings.MEDIA_ROOT):].lstrip('/\\')
 
-            # Create or update LivenessCheck record with full details
-            liveness_check, created = LivenessCheck.objects.update_or_create(
+            # Delete any existing LivenessCheck records to start fresh
+            # This prevents "MultipleObjectsReturned" errors on retry
+            LivenessCheck.objects.filter(loan_application=application).delete()
+
+            # Create new LivenessCheck record with full details
+            liveness_check = LivenessCheck.objects.create(
                 loan_application=application,
-                defaults={
-                    'method': method,
-                    'confidence_score': Decimal(str(round(result.confidence, 2))),
-                    'check_status': check_status,
-                    'verified_at': timezone.now() if check_status == 'Verified' else None,
-                    # Eye detection data
-                    'left_ear': Decimal(str(round(eyes_data.get('left_ear', 0), 4))) if eyes_data.get('left_ear') else None,
-                    'right_ear': Decimal(str(round(eyes_data.get('right_ear', 0), 4))) if eyes_data.get('right_ear') else None,
-                    'avg_ear': Decimal(str(round(eyes_data.get('avg_ear', 0), 4))) if eyes_data.get('avg_ear') else None,
-                    'eyes_open': eyes_data.get('eyes_open'),
-                    # Head pose data
-                    'head_yaw': Decimal(str(round(head_pose.get('yaw', 0), 2))) if head_pose.get('yaw') else None,
-                    'head_pitch': Decimal(str(round(head_pose.get('pitch', 0), 2))) if head_pose.get('pitch') else None,
-                    'head_roll': Decimal(str(round(head_pose.get('roll', 0), 2))) if head_pose.get('roll') else None,
-                    # Image and error
-                    'image_path': relative_path,
-                    'error_message': result.error_message,
-                    # Store full details as JSON
-                    'detection_details': json.dumps(details) if details else None,
-                }
+                method=method,
+                confidence_score=Decimal(str(round(result.confidence, 2))),
+                check_status=check_status,
+                verified_at=timezone.now() if check_status == 'Verified' else None,
+                # Eye detection data
+                left_ear=Decimal(str(round(eyes_data.get('left_ear', 0), 4))) if eyes_data.get('left_ear') else None,
+                right_ear=Decimal(str(round(eyes_data.get('right_ear', 0), 4))) if eyes_data.get('right_ear') else None,
+                avg_ear=Decimal(str(round(eyes_data.get('avg_ear', 0), 4))) if eyes_data.get('avg_ear') else None,
+                eyes_open=eyes_data.get('eyes_open'),
+                # Head pose data
+                head_yaw=Decimal(str(round(head_pose.get('yaw', 0), 2))) if head_pose.get('yaw') else None,
+                head_pitch=Decimal(str(round(head_pose.get('pitch', 0), 2))) if head_pose.get('pitch') else None,
+                head_roll=Decimal(str(round(head_pose.get('roll', 0), 2))) if head_pose.get('roll') else None,
+                # Image and error
+                image_path=relative_path,
+                error_message=result.error_message,
+                # Store full details as JSON
+                detection_details=json.dumps(details) if details else None,
             )
+
+            # Audit log: Liveness check result
+            from loans.models import AuditLog
+            if check_status == 'Verified':
+                AuditLog.objects.create(
+                    user=application.applicant,
+                    action=f"Liveness check successful for application #{application.id}",
+                    action_type='LIVENESS_SUCCESS',
+                    severity='INFO',
+                    success=True,
+                    related_application=application
+                )
+            else:
+                AuditLog.objects.create(
+                    user=application.applicant,
+                    action=f"Liveness check failed for application #{application.id}",
+                    action_type='LIVENESS_FAIL',
+                    severity='WARNING',
+                    success=False,
+                    failure_reason=result.error_message or f"Confidence {result.confidence:.1f}% below threshold {threshold}%",
+                    related_application=application
+                )
+
+                # Check for repeated failures and alert
+                from applicant.security_alerts import SecurityAlertService
+                SecurityAlertService.check_and_alert_repeated_failures(
+                    user=application.applicant,
+                    application=application,
+                    failure_type='LIVENESS_FAIL'
+                )
 
             return {
                 'success': result.is_live and check_status == 'Verified',
@@ -723,15 +755,23 @@ class LivenessVerificationService:
 
         # Step 2: Face comparison (uses existing service)
         try:
-            from loans.models import FaceVerification
+            from loans.models import FaceVerification, LoanApplication
 
-            # Update FaceVerification with selfie path
-            face_verification, created = FaceVerification.objects.update_or_create(
-                loan_application_id=application_id,
-                defaults={'captured_image_path': selfie_path.replace('\\', '/')}
+            # Get application
+            application = LoanApplication.objects.get(id=application_id)
+
+            # Delete any existing FaceVerification records to start fresh
+            FaceVerification.objects.filter(loan_application=application).delete()
+
+            # Create new FaceVerification with selfie path
+            face_verification = FaceVerification.objects.create(
+                loan_application=application,
+                captured_image_path=selfie_path.replace('\\', '/')
             )
 
             # Perform face comparison
+            # Note: verify_faces_for_application will delete and recreate the record,
+            # but that's okay - it ensures clean state
             verification = FaceComparisonService.verify_faces_for_application(application_id)
 
             face_result = {

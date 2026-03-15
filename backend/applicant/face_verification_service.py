@@ -294,30 +294,50 @@ class FaceComparisonService:
             # Get application
             application = LoanApplication.objects.get(id=application_id)
 
-            # Get or create FaceVerification record
-            face_verification, created = FaceVerification.objects.get_or_create(
+            # Delete any existing FaceVerification records to start fresh
+            # This prevents "MultipleObjectsReturned" errors on retry
+            FaceVerification.objects.filter(loan_application=application).delete()
+
+            # Create new FaceVerification record
+            face_verification = FaceVerification.objects.create(
                 loan_application=application,
-                defaults={'verification_status': 'Processing'}
+                verification_status='Processing'
             )
 
-            # If not created, update status to Processing
-            if not created:
-                face_verification.verification_status = 'Processing'
-                face_verification.save()
-
-            # Get ID document (valid_id)
+            # Get ID document (buksu_id)
             try:
                 id_document = LoanDocument.objects.filter(
                     loan_application=application,
-                    document_type='valid_id'
+                    document_type='buksu_id'
                 ).latest('uploaded_at')
                 id_document_path = os.path.join(settings.MEDIA_ROOT, id_document.file_path)
             except LoanDocument.DoesNotExist:
-                face_verification.error_message = "ID document not found. Please upload your valid ID first."
+                face_verification.error_message = "BukSu ID not found. Please upload your BukSu ID first."
                 face_verification.verification_status = 'Failed'
                 face_verification.processed_at = timezone.now()
                 face_verification.save()
-                logger.error(f"No valid_id document found for application {application_id}")
+                logger.error(f"No buksu_id document found for application {application_id}")
+
+                # Audit log: Missing BukSu ID
+                from loans.models import AuditLog
+                AuditLog.objects.create(
+                    user=application.applicant,
+                    action=f"Face verification failed for application #{application.id}: Missing BukSu ID",
+                    action_type='FACE_VERIFY_FAIL',
+                    severity='WARNING',
+                    success=False,
+                    failure_reason="BukSu ID document not uploaded",
+                    related_application=application
+                )
+
+                # Check for repeated failures and alert
+                from .security_alerts import SecurityAlertService
+                SecurityAlertService.check_and_alert_repeated_failures(
+                    user=application.applicant,
+                    application=application,
+                    failure_type='FACE_VERIFY_FAIL'
+                )
+
                 return face_verification
 
             # Get selfie path
@@ -327,6 +347,27 @@ class FaceComparisonService:
                 face_verification.processed_at = timezone.now()
                 face_verification.save()
                 logger.error(f"No selfie found for application {application_id}")
+
+                # Audit log: Missing selfie
+                from loans.models import AuditLog
+                AuditLog.objects.create(
+                    user=application.applicant,
+                    action=f"Face verification failed for application #{application.id}: Missing selfie",
+                    action_type='FACE_VERIFY_FAIL',
+                    severity='WARNING',
+                    success=False,
+                    failure_reason="Selfie image not captured",
+                    related_application=application
+                )
+
+                # Check for repeated failures and alert
+                from .security_alerts import SecurityAlertService
+                SecurityAlertService.check_and_alert_repeated_failures(
+                    user=application.applicant,
+                    application=application,
+                    failure_type='FACE_VERIFY_FAIL'
+                )
+
                 return face_verification
 
             selfie_path = os.path.join(settings.MEDIA_ROOT, face_verification.captured_image_path)
@@ -345,6 +386,27 @@ class FaceComparisonService:
                 face_verification.processed_at = timezone.now()
                 face_verification.save()
                 logger.error(f"Failed to extract face from ID: {id_face_result['message']}")
+
+                # Audit log: Failed to extract face from ID
+                from loans.models import AuditLog
+                AuditLog.objects.create(
+                    user=application.applicant,
+                    action=f"Face verification failed for application #{application.id}: Cannot extract face from ID",
+                    action_type='FACE_VERIFY_FAIL',
+                    severity='WARNING',
+                    success=False,
+                    failure_reason=id_face_result['message'],
+                    related_application=application
+                )
+
+                # Check for repeated failures and alert
+                from .security_alerts import SecurityAlertService
+                SecurityAlertService.check_and_alert_repeated_failures(
+                    user=application.applicant,
+                    application=application,
+                    failure_type='FACE_VERIFY_FAIL'
+                )
+
                 return face_verification
 
             face_verification.face_detected_in_id = True
@@ -363,6 +425,27 @@ class FaceComparisonService:
                 face_verification.processed_at = timezone.now()
                 face_verification.save()
                 logger.error(f"No face detected in selfie: {selfie_detection['message']}")
+
+                # Audit log: No face detected in selfie
+                from loans.models import AuditLog
+                AuditLog.objects.create(
+                    user=application.applicant,
+                    action=f"Face verification failed for application #{application.id}: No face detected in selfie",
+                    action_type='FACE_VERIFY_FAIL',
+                    severity='WARNING',
+                    success=False,
+                    failure_reason=selfie_detection['message'],
+                    related_application=application
+                )
+
+                # Check for repeated failures and alert
+                from .security_alerts import SecurityAlertService
+                SecurityAlertService.check_and_alert_repeated_failures(
+                    user=application.applicant,
+                    application=application,
+                    failure_type='FACE_VERIFY_FAIL'
+                )
+
                 return face_verification
 
             face_verification.face_detected_in_selfie = True
@@ -377,6 +460,27 @@ class FaceComparisonService:
                 face_verification.processed_at = timezone.now()
                 face_verification.save()
                 logger.error(f"Face comparison failed: {comparison_result['message']}")
+
+                # Audit log: Face comparison failed
+                from loans.models import AuditLog
+                AuditLog.objects.create(
+                    user=application.applicant,
+                    action=f"Face verification failed for application #{application.id}: Comparison error",
+                    action_type='FACE_VERIFY_FAIL',
+                    severity='WARNING',
+                    success=False,
+                    failure_reason=comparison_result['message'],
+                    related_application=application
+                )
+
+                # Check for repeated failures and alert
+                from .security_alerts import SecurityAlertService
+                SecurityAlertService.check_and_alert_repeated_failures(
+                    user=application.applicant,
+                    application=application,
+                    failure_type='FACE_VERIFY_FAIL'
+                )
+
                 return face_verification
 
             # Store comparison results
@@ -396,6 +500,17 @@ class FaceComparisonService:
                 face_verification.verified_at = timezone.now()
                 face_verification.error_message = None
                 logger.info(f"Face verification PASSED: {comparison_result['similarity_percentage']}% similarity")
+
+                # Audit log: Success
+                from loans.models import AuditLog
+                AuditLog.objects.create(
+                    user=application.applicant,
+                    action=f"Face verification successful for application #{application.id}",
+                    action_type='FACE_VERIFY_SUCCESS',
+                    severity='INFO',
+                    success=True,
+                    related_application=application
+                )
             else:
                 face_verification.verification_status = 'Failed'
                 face_verification.error_message = (
@@ -403,6 +518,26 @@ class FaceComparisonService:
                     f"is below the required threshold ({auto_approve_threshold}%)."
                 )
                 logger.warning(f"Face verification FAILED: {comparison_result['similarity_percentage']}% similarity")
+
+                # Audit log: Similarity below threshold
+                from loans.models import AuditLog
+                AuditLog.objects.create(
+                    user=application.applicant,
+                    action=f"Face verification failed for application #{application.id}: Similarity below threshold",
+                    action_type='FACE_VERIFY_FAIL',
+                    severity='WARNING',
+                    success=False,
+                    failure_reason=f"Similarity {comparison_result['similarity_percentage']:.1f}% below threshold {auto_approve_threshold}%",
+                    related_application=application
+                )
+
+                # Check for repeated failures and alert
+                from .security_alerts import SecurityAlertService
+                SecurityAlertService.check_and_alert_repeated_failures(
+                    user=application.applicant,
+                    application=application,
+                    failure_type='FACE_VERIFY_FAIL'
+                )
 
             face_verification.processed_at = timezone.now()
             face_verification.save()

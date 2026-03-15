@@ -31,7 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '10.128.37.52',
+    '10.0.0.22',
     '10.0.0.52',
 ]
 
@@ -197,6 +197,32 @@ LIVENESS_DETECTION = {
     'DEFAULT_METHOD': 'combined',  # Default detection method: blink, head_turn, combined
 }
 
+# File Encryption Settings
+# CRITICAL: Store ENCRYPTION_KEY in environment variable in production!
+# Generate key: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+from cryptography.fernet import Fernet
+
+ENCRYPTION_KEY = config(
+    'ENCRYPTION_KEY',
+    default=Fernet.generate_key().decode()  # Auto-generate if not set (DEV ONLY)
+)
+
+# Cache Configuration (for rate limiting)
+# For development: use in-memory cache
+# For production: use Redis for better performance and persistence
+CACHES = {
+    'default': {
+        'BACKEND': config(
+            'CACHE_BACKEND',
+            default='django.core.cache.backends.locmem.LocMemCache'
+        ),
+        'LOCATION': config('CACHE_LOCATION', default='eloan-cache'),
+        # For Redis in production, use:
+        # 'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        # 'LOCATION': 'redis://127.0.0.1:6379/1',
+    }
+}
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
 
@@ -228,7 +254,7 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',       # Web frontend
     'http://127.0.0.1:3000',       # Web frontend
-    'http://10.128.37.52:3000',   # Web frontend (network access)
+    'http://10.0.0.22:3000',   # Web frontend (network access)
     'http://localhost:8081',       # Expo dev server (default)
     'http://127.0.0.1:8081',       # Expo dev server
     'http://localhost:19000',      # Expo dev server (alternative port)
@@ -317,17 +343,17 @@ UNFOLD = {
                     {
                         "title": "All Members",
                         "icon": "people",
-                        "link": lambda request: "/admin/members/member/",
+                        "link": lambda request: "/admin/applicant/",
                     },
                     {
                         "title": "Savings Records",
                         "icon": "savings",
-                        "link": lambda request: "/admin/members/savings/",
+                        "link": lambda request: "/admin/applicant/savings/",
                     },
                     {
                         "title": "Shared Capital",
                         "icon": "account_balance",
-                        "link": lambda request: "/admin/members/sharedcapital/",
+                        "link": lambda request: "/admin/applicant/sharedcapital/",
                     },
                 ],
             },

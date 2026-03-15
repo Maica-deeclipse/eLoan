@@ -190,10 +190,106 @@ class LivenessCheck(models.Model):
 
 
 class AuditLog(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
-    action = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True, null=True)
-    ip_address = models.CharField(max_length=50, null=True, blank=True)
+    """
+    Comprehensive audit log for all system actions.
+
+    Tracks:
+    - User actions (submissions, uploads, verifications)
+    - Security events (failed verifications, rate limits)
+    - Administrative actions (status changes, document reviews)
+    """
+
+    ACTION_TYPES = [
+        ('APPLICATION_SUBMIT', 'Application Submitted'),
+        ('APPLICATION_WITHDRAW', 'Application Withdrawn'),
+        ('APPLICATION_DELETE', 'Application Deleted'),
+        ('DOCUMENT_UPLOAD', 'Document Uploaded'),
+        ('DOCUMENT_DELETE', 'Document Deleted'),
+        ('FACE_VERIFY_SUCCESS', 'Face Verification Success'),
+        ('FACE_VERIFY_FAIL', 'Face Verification Failed'),
+        ('LIVENESS_SUCCESS', 'Liveness Check Success'),
+        ('LIVENESS_FAIL', 'Liveness Check Failed'),
+        ('RATE_LIMIT_HIT', 'Rate Limit Exceeded'),
+        ('SUSPICIOUS_ACTIVITY', 'Suspicious Activity Detected'),
+        ('PDF_DOWNLOAD', 'PDF Downloaded'),
+        ('OTHER', 'Other Action'),
+    ]
+
+    SEVERITY_LEVELS = [
+        ('INFO', 'Information'),
+        ('WARNING', 'Warning'),
+        ('ALERT', 'Alert'),
+        ('CRITICAL', 'Critical'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        help_text="User who performed the action"
+    )
+    action = models.TextField(help_text="Human-readable description of the action")
+    action_type = models.CharField(
+        max_length=30,
+        choices=ACTION_TYPES,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Categorized action type for filtering and reporting"
+    )
+    severity = models.CharField(
+        max_length=10,
+        choices=SEVERITY_LEVELS,
+        default='INFO',
+        db_index=True,
+        help_text="Severity level of the action"
+    )
+    success = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Whether the action completed successfully"
+    )
+    failure_reason = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Detailed reason for failure (if success=False)"
+    )
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        null=True,
+        db_index=True,
+        help_text="When the action occurred"
+    )
+    ip_address = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="IP address of the request"
+    )
+    related_application = models.ForeignKey(
+        'LoanApplication',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='audit_logs',
+        help_text="Related loan application (if applicable)"
+    )
+
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', 'action_type', 'timestamp']),
+            models.Index(fields=['action_type', 'success', 'timestamp']),
+            models.Index(fields=['related_application', 'action_type']),
+            models.Index(fields=['severity', 'timestamp']),
+        ]
+        verbose_name = 'Audit Log'
+        verbose_name_plural = 'Audit Logs'
+
+    def __str__(self):
+        user_str = self.user.get_full_name() if self.user else 'System'
+        return f"{user_str} - {self.action} ({self.timestamp})"
 
 
 class StatusChangeLog(models.Model):

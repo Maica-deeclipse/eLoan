@@ -20,6 +20,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from .throttles import (
+    FaceVerificationThrottle,
+    LivenessCheckThrottle,
+    DocumentUploadThrottle,
+    IDOCRThrottle
+)
+
 from shared.services.pdf_service import LoanApplicationPDFService
 from loans.models import AuditLog
 
@@ -511,6 +518,7 @@ class DocumentListView(ApplicantBaseView):
 class DocumentUploadView(ApplicantBaseView):
     """POST /api/applicant/applications/<app_id>/documents/upload/"""
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [DocumentUploadThrottle]
 
     def post(self, request, app_id):
         application = LoanApplicationService.get_application_by_id(app_id, request.user)
@@ -549,6 +557,15 @@ class DocumentUploadView(ApplicantBaseView):
         with open(full_path, 'wb+') as destination:
             for chunk in file.chunks():
                 destination.write(chunk)
+
+        # Encrypt file at rest
+        from .encryption_utils import FileEncryptionService
+        encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
+        if not encrypt_success:
+            # Log encryption failure but don't block upload
+            import logging
+            logger = logging.getLogger('encryption')
+            logger.error(f"Failed to encrypt document {file_path}: {encrypt_error}")
 
         document, error = DocumentService.upload_document(
             application,
@@ -649,6 +666,7 @@ class IDOCRScanView(ApplicantBaseView):
         - name_validation: Object (if profile_name provided)
     """
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [IDOCRThrottle]
 
     def post(self, request, app_id):
         from .ocr_service import IDOCRService
@@ -701,6 +719,14 @@ class IDOCRScanView(ApplicantBaseView):
         try:
             result = IDOCRService.process_id_image(full_path, profile_name)
 
+            # Encrypt ID image after OCR processing
+            from .encryption_utils import FileEncryptionService
+            encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
+            if not encrypt_success:
+                import logging
+                logger = logging.getLogger('encryption')
+                logger.error(f"Failed to encrypt ID scan {file_path}: {encrypt_error}")
+
             # Add image path to response
             result['image_path'] = file_path
 
@@ -726,6 +752,7 @@ class IDOCRScanView(ApplicantBaseView):
 class FaceCaptureView(ApplicantBaseView):
     """POST /api/applicant/applications/<app_id>/face-capture/"""
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [FaceVerificationThrottle]
 
     def post(self, request, app_id):
         application = LoanApplicationService.get_application_by_id(app_id, request.user)
@@ -767,6 +794,14 @@ class FaceCaptureView(ApplicantBaseView):
         try:
             verification = FaceComparisonService.verify_faces_for_application(application.id)
 
+            # Encrypt face image after processing
+            from .encryption_utils import FileEncryptionService
+            encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
+            if not encrypt_success:
+                import logging
+                logger = logging.getLogger('encryption')
+                logger.error(f"Failed to encrypt face image {file_path}: {encrypt_error}")
+
             # Build response based on verification result
             response_data = {
                 'id': verification.id,
@@ -795,6 +830,7 @@ class FaceCaptureView(ApplicantBaseView):
 
 class RetryFaceVerificationView(ApplicantBaseView):
     """POST /api/applicant/applications/<app_id>/face-verification/retry/"""
+    throttle_classes = [FaceVerificationThrottle]
 
     def post(self, request, app_id):
         """
@@ -850,6 +886,7 @@ class LivenessCheckView(ApplicantBaseView):
     The liveness check must pass before application can be submitted.
     """
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [LivenessCheckThrottle]
 
     def post(self, request, app_id):
         from .liveness_service import LivenessVerificationService
@@ -935,6 +972,162 @@ class LivenessCheckView(ApplicantBaseView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class LivenessVideoView(ApplicantBaseView):
+    """
+    POST /api/applicant/applications/<app_id>/liveness-video/
+
+    Performs liveness detection from a video file.
+    Extracts multiple frames from the video and analyzes them for liveness indicators.
+    This provides more robust anti-spoofing compared to single-image liveness checks.
+
+    Request:
+        - video: Video file (MP4, MOV, AVI)
+
+    Response:
+        - Liveness verification results
+    """
+    parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [LivenessCheckThrottle]
+
+    def post(self, request, app_id):
+        from .liveness_service import LivenessVerificationService
+        import cv2
+        import tempfile
+
+        application = LoanApplicationService.get_application_by_id(app_id, request.user)
+        if not application:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        video = request.FILES.get('video')
+        if not video:
+            return Response(
+                {'error': 'Video file is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file type
+        allowed_extensions = ['.mp4', '.mov', '.avi', '.webm']
+        ext = os.path.splitext(video.name)[1].lower()
+        if ext not in allowed_extensions:
+            return Response(
+                {'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Save video to disk
+        filename = f"liveness_video_{uuid.uuid4().hex[:12]}{ext}"
+        file_path = f"applicant/liveness/{application.id}/{filename}"
+
+        full_dir = os.path.join(settings.MEDIA_ROOT, f"applicant/liveness/{application.id}")
+        os.makedirs(full_dir, exist_ok=True)
+
+        full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+        with open(full_path, 'wb+') as destination:
+            for chunk in video.chunks():
+                destination.write(chunk)
+
+        try:
+            # Extract frames from video for analysis
+            cap = cv2.VideoCapture(full_path)
+
+            if not cap.isOpened():
+                return Response({
+                    'error': 'Failed to read video file',
+                    'message': 'Could not process the uploaded video. Please try again.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Get video properties
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+            # Extract frames at regular intervals (analyze 5-8 frames throughout the video)
+            num_frames_to_analyze = min(8, max(5, total_frames // 10))
+            frame_indices = [int(i * total_frames / num_frames_to_analyze) for i in range(num_frames_to_analyze)]
+
+            frames_analyzed = 0
+            liveness_results = []
+            temp_frame_files = []
+
+            for frame_idx in frame_indices:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                ret, frame = cap.read()
+
+                if not ret:
+                    continue
+
+                # Save frame temporarily
+                temp_frame = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg', dir=full_dir)
+                cv2.imwrite(temp_frame.name, frame)
+                temp_frame_files.append(temp_frame.name)
+
+                # Analyze this frame for liveness
+                result = LivenessVerificationService.verify_liveness_for_application(
+                    application_id=application.id,
+                    image_path=temp_frame.name,
+                    method='combined'
+                )
+
+                liveness_results.append(result)
+                frames_analyzed += 1
+
+            cap.release()
+
+            # Clean up temporary frame files
+            for temp_file in temp_frame_files:
+                try:
+                    os.remove(temp_file)
+                except:
+                    pass
+
+            if frames_analyzed == 0:
+                return Response({
+                    'error': 'No frames could be extracted from video',
+                    'message': 'Failed to process video. Please try recording again.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Aggregate results - require majority of frames to pass
+            passed_frames = sum(1 for r in liveness_results if r.get('is_live', False))
+            avg_confidence = sum(r.get('confidence', 0) for r in liveness_results) / len(liveness_results)
+
+            overall_passed = passed_frames >= (frames_analyzed * 0.6)  # 60% must pass
+
+            # Encrypt video file after processing
+            from .encryption_utils import FileEncryptionService
+            encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
+            if not encrypt_success:
+                import logging
+                logger = logging.getLogger('encryption')
+                logger.error(f"Failed to encrypt liveness video {file_path}: {encrypt_error}")
+
+            response_data = {
+                'method': 'video',
+                'frames_analyzed': frames_analyzed,
+                'frames_passed': passed_frames,
+                'pass_rate': f"{(passed_frames / frames_analyzed * 100):.1f}%",
+                'average_confidence': round(avg_confidence, 2),
+                'is_live': overall_passed,
+                'status': 'Verified' if overall_passed else 'Failed',
+            }
+
+            if overall_passed:
+                response_data['message'] = f"Video liveness check passed! Analyzed {frames_analyzed} frames with {avg_confidence:.1f}% average confidence."
+                return Response(response_data, status=status.HTTP_201_CREATED)
+            else:
+                response_data['message'] = f"Liveness check failed. Only {passed_frames}/{frames_analyzed} frames passed. Please try again with better lighting and follow the instructions."
+                response_data['error'] = 'Liveness verification failed'
+                return Response(response_data, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        except Exception as e:
+            logger.exception(f"Video liveness check error: {str(e)}")
+            return Response({
+                'error': f'Video processing error: {str(e)}',
+                'message': 'An error occurred while processing the video. Please try again.',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class VerificationStatusView(ApplicantBaseView):
     """GET /api/applicant/applications/<app_id>/verification-status/"""
 
@@ -1000,6 +1193,7 @@ class CombinedVerificationView(ApplicantBaseView):
         - overall_verified: Boolean - True if both checks passed
     """
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [FaceVerificationThrottle, LivenessCheckThrottle]
 
     def post(self, request, app_id):
         from .liveness_service import LivenessVerificationService
