@@ -22,13 +22,27 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.eloan.applicant"
+      "package": "com.eloan.applicant",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO"
+      ]
     },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow eLoan to access your camera for face verification.",
+          "microphonePermission": "Allow eLoan to access your microphone for video recording.",
+          "recordAudioAndroid": true
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/logo.png"
     },
     "extra": {
-      "apiUrl": "http://10.144.154.226:8000/api/auth"
+      "apiUrl": "http://10.255.14.161:8000/api/auth"
     }
   }
 }
