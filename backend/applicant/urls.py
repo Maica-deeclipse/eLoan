@@ -70,6 +70,7 @@ urlpatterns = [
     path('applications/<int:app_id>/face-verification/retry/', views.RetryFaceVerificationView.as_view(), name='retry_face_verification'),
     path('applications/<int:app_id>/liveness-check/', views.LivenessCheckView.as_view(), name='liveness_check'),
     path('applications/<int:app_id>/liveness-video/', views.LivenessVideoView.as_view(), name='liveness_video'),
+    path('applications/<int:app_id>/liveness-photos/', views.LivenessPhotosView.as_view(), name='liveness_photos'),
     path('applications/<int:app_id>/combined-verification/', views.CombinedVerificationView.as_view(), name='combined_verification'),
     path('applications/<int:app_id>/verification-status/', views.VerificationStatusView.as_view(), name='verification_status'),
     path('applications/<int:app_id>/esignature/', views.ESignatureView.as_view(), name='esignature'),

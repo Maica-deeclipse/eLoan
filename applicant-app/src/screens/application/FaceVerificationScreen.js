@@ -20,25 +20,21 @@ const CAMERA_SIZE = SCREEN_WIDTH - 80;
 const LIVENESS_CHALLENGES = [
   { action: 'blink', instruction: 'Blink your eyes', icon: 'eye-outline' },
   { action: 'smile', instruction: 'Smile naturally', icon: 'happy-outline' },
-  { action: 'turn_left', instruction: 'Turn your head slightly left', icon: 'arrow-back' },
-  { action: 'turn_right', instruction: 'Turn your head slightly right', icon: 'arrow-forward' },
+  { action: 'turn', instruction: 'Turn your head slightly', icon: 'sync-outline' },
 ];
 
 const FaceVerificationScreen = ({ navigation }) => {
   const { state, dispatch } = useApplication();
   const [permission, requestPermission] = useCameraPermissions();
-  const [step, setStep] = useState('intro'); // intro, face_capture, liveness_video, complete
+  const [step, setStep] = useState('intro'); // intro, face_capture, liveness_check, complete
   const [capturedImage, setCapturedImage] = useState(null);
+  const [livenessImages, setLivenessImages] = useState([]);
+  const [currentChallenge, setCurrentChallenge] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const [livenessVideo, setLivenessVideo] = useState(null);
   const [countdown, setCountdown] = useState(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [currentInstruction, setCurrentInstruction] = useState('');
   const cameraRef = useRef(null);
-  const recordingTimerRef = useRef(null);
 
   useEffect(() => {
     // Check if face verification is already done
@@ -49,19 +45,10 @@ const FaceVerificationScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
-    if (step === 'face_capture' || step === 'liveness_video') {
+    if (step === 'face_capture' || step === 'liveness_check') {
       setCameraReady(false);
     }
   }, [step]);
-
-  useEffect(() => {
-    return () => {
-      // Cleanup recording timer on unmount
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
-    };
-  }, []);
 
   const handleCameraReady = () => {
     setCameraReady(true);
@@ -116,7 +103,9 @@ const FaceVerificationScreen = ({ navigation }) => {
       });
 
       setCapturedImage(photo.uri);
-      setStep('liveness_video');
+      setStep('liveness_check');
+      setCurrentChallenge(0);
+      setLivenessImages([]);
     } catch (error) {
       console.error('Capture error:', error);
       Alert.alert('Error', 'Failed to capture photo. Please try again.');
@@ -125,100 +114,57 @@ const FaceVerificationScreen = ({ navigation }) => {
     }
   };
 
-  const startLivenessRecording = async () => {
-    if (!cameraRef.current || isRecording) return;
-    if (!cameraReady || typeof cameraRef.current.recordAsync !== 'function') {
+  const captureLivenessPhoto = async () => {
+    if (!cameraRef.current || isCapturing) return;
+    if (!cameraReady || typeof cameraRef.current.takePictureAsync !== 'function') {
       Alert.alert('Camera', 'Camera is still initializing. Please try again.');
       return;
     }
 
-    try {
-      setIsRecording(true);
-      setRecordingDuration(0);
-      setCurrentInstruction('Look at the camera');
+    setIsCapturing(true);
 
-      // Start recording
-      const videoPromise = cameraRef.current.recordAsync({
-        maxDuration: 8, // 8 seconds max
-        quality: '720p',
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.7,
+        base64: false,
+        skipProcessing: true,
       });
 
-      // Show instructions during recording
-      const instructions = [
-        { time: 0, text: 'Look at the camera' },
-        { time: 2000, text: 'Blink your eyes' },
-        { time: 4000, text: 'Smile naturally' },
-        { time: 6000, text: 'Turn your head slightly' },
-      ];
+      const newLivenessImages = [...livenessImages, photo.uri];
+      setLivenessImages(newLivenessImages);
 
-      for (const instruction of instructions) {
-        await new Promise(resolve => setTimeout(resolve, instruction.time - recordingDuration));
-        setCurrentInstruction(instruction.text);
+      if (currentChallenge < LIVENESS_CHALLENGES.length - 1) {
+        // Move to next challenge
+        setCurrentChallenge(currentChallenge + 1);
+      } else {
+        // All challenges complete, submit verification
+        await submitVerification(capturedImage, newLivenessImages);
       }
-
-      // Update duration counter
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration(prev => {
-          if (prev >= 8) {
-            stopLivenessRecording();
-            return prev;
-          }
-          return prev + 0.1;
-        });
-      }, 100);
-
-      // Wait for recording to complete
-      const video = await videoPromise;
-
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
-
-      setLivenessVideo(video.uri);
-      setIsRecording(false);
-
-      // Submit verification
-      await submitVerification(capturedImage, video.uri);
     } catch (error) {
-      console.error('Recording error:', error);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
-      setIsRecording(false);
-      Alert.alert('Error', 'Failed to record video. Please try again.');
+      console.error('Liveness capture error:', error);
+      Alert.alert('Error', 'Failed to capture photo. Please try again.');
+    } finally {
+      setIsCapturing(false);
     }
   };
 
-  const stopLivenessRecording = async () => {
-    if (cameraRef.current && isRecording) {
-      try {
-        await cameraRef.current.stopRecording();
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-        }
-      } catch (error) {
-        console.error('Stop recording error:', error);
-      }
-    }
-  };
-
-  const submitVerification = async (faceImage, livenessVideoUri) => {
+  const submitVerification = async (faceImage, livenessPhotos) => {
     setLoading(true);
     try {
       if (!faceImage) {
         throw new Error('Missing face image');
       }
-      if (!livenessVideoUri) {
-        throw new Error('Missing liveness video');
+      if (!livenessPhotos || livenessPhotos.length === 0) {
+        throw new Error('Missing liveness photos');
       }
 
       // Upload face capture
       await applicationService.uploadFaceCapture(state.applicationId, faceImage);
 
-      // Upload liveness video
-      await applicationService.uploadLivenessVideo(
+      // Upload liveness photos
+      await applicationService.uploadLivenessPhotos(
         state.applicationId,
-        livenessVideoUri
+        livenessPhotos
       );
 
       dispatch({
@@ -241,7 +187,8 @@ const FaceVerificationScreen = ({ navigation }) => {
       // Reset to try again
       setStep('intro');
       setCapturedImage(null);
-      setLivenessVideo(null);
+      setLivenessImages([]);
+      setCurrentChallenge(0);
     } finally {
       setLoading(false);
     }
@@ -259,9 +206,8 @@ const FaceVerificationScreen = ({ navigation }) => {
 
   const retakeVerification = () => {
     setCapturedImage(null);
-    setLivenessVideo(null);
-    setRecordingDuration(0);
-    setCurrentInstruction('');
+    setLivenessImages([]);
+    setCurrentChallenge(0);
     setStep('face_capture');
   };
 
@@ -357,82 +303,72 @@ const FaceVerificationScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderLivenessVideo = () => {
+  const renderLivenessCheck = () => {
+    const challenge = LIVENESS_CHALLENGES[currentChallenge];
+
     return (
       <View style={styles.cameraContainer}>
         <View style={styles.livenessHeader}>
           <Text style={styles.livenessTitle}>Liveness Check</Text>
-          {isRecording && (
-            <View style={styles.recordingBadge}>
-              <View style={styles.recordingDot} />
-              <Text style={styles.recordingText}>REC {recordingDuration.toFixed(1)}s</Text>
-            </View>
-          )}
+          <Text style={styles.livenessProgress}>
+            {currentChallenge + 1} / {LIVENESS_CHALLENGES.length}
+          </Text>
         </View>
 
-        {currentInstruction && (
-          <View style={styles.instructionBanner}>
-            <Ionicons name="information-circle" size={24} color="#fff" />
-            <Text style={styles.instructionText}>{currentInstruction}</Text>
-          </View>
-        )}
-
-        {!isRecording && (
-          <View style={styles.livenessIntro}>
-            <Ionicons name="videocam" size={60} color="#0d6efd" />
-            <Text style={styles.livenessIntroTitle}>Video Liveness Check</Text>
-            <Text style={styles.livenessIntroText}>
-              We'll record a short video (8 seconds) to verify you're a real person. Please follow the
-              instructions that will appear on screen.
-            </Text>
-          </View>
-        )}
+        <View style={styles.challengeContainer}>
+          <Ionicons name={challenge.icon} size={28} color="#0d6efd" style={styles.challengeIcon} />
+          <Text style={styles.challengeInstruction}>{challenge.instruction}</Text>
+        </View>
 
         <View style={styles.cameraWrapper}>
           <CameraView
             ref={cameraRef}
             style={styles.camera}
             facing="front"
-            mode="video"
             onCameraReady={handleCameraReady}
           >
             <View style={styles.cameraOverlay}>
               <View style={styles.faceFrame} />
             </View>
-            {isRecording && currentInstruction && (
-              <View style={styles.overlayInstruction}>
-                <Text style={styles.overlayInstructionText}>{currentInstruction}</Text>
-              </View>
-            )}
           </CameraView>
         </View>
 
-        {!isRecording ? (
-          <TouchableOpacity
-            style={styles.recordButton}
-            onPress={startLivenessRecording}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="large" color="#fff" />
-            ) : (
-              <View style={styles.recordButtonInner}>
-                <Ionicons name="videocam" size={32} color="#fff" />
-                <Text style={styles.recordButtonText}>Start Recording</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.recordingIndicator}>
-            <Text style={styles.recordingMessage}>Recording in progress...</Text>
-            <Text style={styles.recordingSubtext}>Follow the instructions above</Text>
-          </View>
-        )}
+        {/* Progress indicators */}
+        <View style={styles.livenessIndicators}>
+          {LIVENESS_CHALLENGES.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.livenessIndicator,
+                index < currentChallenge && styles.livenessIndicatorComplete,
+                index === currentChallenge && styles.livenessIndicatorCurrent,
+              ]}
+            />
+          ))}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.captureButton, loading && styles.captureButtonDisabled]}
+          onPress={captureLivenessPhoto}
+          disabled={isCapturing || loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="large" color="#fff" />
+          ) : (
+            <View style={styles.captureButtonInner}>
+              <Ionicons name="camera" size={32} color="#fff" />
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <Text style={styles.captureHint}>
+          {challenge.instruction}, then tap to capture
+        </Text>
 
         <TouchableOpacity
           style={styles.cancelButton}
           onPress={() => setStep('face_capture')}
-          disabled={isRecording}
+          disabled={loading}
         >
           <Text style={styles.cancelButtonText}>Back</Text>
         </TouchableOpacity>
@@ -476,7 +412,7 @@ const FaceVerificationScreen = ({ navigation }) => {
 
       {step === 'intro' && renderIntro()}
       {step === 'face_capture' && renderFaceCapture()}
-      {step === 'liveness_video' && renderLivenessVideo()}
+      {step === 'liveness_check' && renderLivenessCheck()}
       {step === 'complete' && renderComplete()}
 
       {/* Navigation Buttons (only show on intro and complete) */}
@@ -662,6 +598,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  captureButtonDisabled: {
+    backgroundColor: '#adb5bd',
+  },
   captureButtonInner: {
     width: 70,
     height: 70,
@@ -671,6 +610,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#fff',
+  },
+  captureHint: {
+    fontSize: 14,
+    color: '#6c757d',
+    marginTop: 12,
+    textAlign: 'center',
   },
   cancelButton: {
     marginTop: 16,
@@ -737,116 +682,6 @@ const styles = StyleSheet.create({
   livenessIndicatorCurrent: {
     backgroundColor: '#0d6efd',
     width: 24,
-  },
-  // Video recording styles
-  recordingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#dc3545',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  recordingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fff',
-    marginRight: 6,
-  },
-  recordingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  instructionBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0d6efd',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  instructionText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
-    marginLeft: 8,
-  },
-  livenessIntro: {
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  livenessIntroTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#212529',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  livenessIntroText: {
-    fontSize: 14,
-    color: '#6c757d',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  overlayInstruction: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(13, 110, 253, 0.9)',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  overlayInstructionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  recordButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#dc3545',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
-    shadowColor: '#dc3545',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  recordButtonInner: {
-    alignItems: 'center',
-  },
-  recordButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  recordingIndicator: {
-    alignItems: 'center',
-    marginTop: 24,
-    padding: 16,
-  },
-  recordingMessage: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#212529',
-    marginBottom: 4,
-  },
-  recordingSubtext: {
-    fontSize: 14,
-    color: '#6c757d',
   },
   // Complete styles
   completeContainer: {
