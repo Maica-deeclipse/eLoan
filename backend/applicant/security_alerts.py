@@ -191,10 +191,10 @@ class SecurityAlertService:
 
         message = (
             f"⚠️ SUSPICIOUS ACTIVITY DETECTED\n\n"
-            f"User: {user.get_full_name()} (ID: {user.id})\n"
+            f"User: {user.firstname} {user.lastname} (ID: {user.id})\n"
             f"Email: {user.email}\n"
             f"Application: #{application.id}\n"
-            f"Loan Amount: ₱{application.amount:,.2f}\n\n"
+            f"Loan Amount: ₱{application.amount_requested or 0:,.2f}\n\n"
             f"ALERT REASON:\n"
             f"User has failed {failure_desc} {count} times within the last {cls._format_time_window(time_window)}.\n\n"
             f"This pattern may indicate:\n"

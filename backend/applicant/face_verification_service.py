@@ -49,6 +49,43 @@ class FaceComparisonService:
         return cls.SIMILARITY_THRESHOLDS.get(cls.MODEL_NAME, {}).get(cls.DISTANCE_METRIC, 0.68)
 
     @classmethod
+    def _load_image(cls, image_path):
+        """
+        Load image with OpenCV, falling back to Pillow for unsupported formats.
+
+        Args:
+            image_path (str): Path to image file
+
+        Returns:
+            tuple: (image_array, error_message) - image_array is None if loading failed
+        """
+        # Try OpenCV first
+        image = cv2.imread(image_path)
+        if image is not None:
+            return image, None
+
+        logger.warning(f"cv2.imread returned None for: {image_path}, trying Pillow fallback")
+
+        # Try Pillow as fallback (handles HEIC, WebP, and other formats)
+        try:
+            pil_image = Image.open(image_path)
+            logger.info(f"Pillow opened image: format={pil_image.format}, mode={pil_image.mode}, size={pil_image.size}")
+
+            # Convert to RGB if necessary (handles RGBA, P, L, CMYK modes)
+            if pil_image.mode != 'RGB':
+                pil_image = pil_image.convert('RGB')
+
+            # Convert PIL Image to numpy array for OpenCV
+            image = np.array(pil_image)
+            # Convert RGB to BGR (OpenCV uses BGR)
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            logger.info(f"Successfully loaded image via Pillow fallback, shape: {image.shape}")
+            return image, None
+        except Exception as pil_error:
+            logger.error(f"Pillow fallback also failed: {str(pil_error)}")
+            return None, f'Could not load image. OpenCV and Pillow both failed: {str(pil_error)}'
+
+    @classmethod
     def detect_face(cls, image_path):
         """
         Detect face in image using Haar Cascade.
@@ -67,11 +104,25 @@ class FaceComparisonService:
         try:
             logger.info(f"Detecting face in: {image_path}")
 
-            # Load image
-            image = cv2.imread(image_path)
+            # Debug: Check if file exists and get details
+            if not os.path.exists(image_path):
+                logger.error(f"Image file does not exist: {image_path}")
+                return {'success': False, 'face_count': 0, 'face_region': None,
+                       'message': f'Image file not found: {image_path}'}
+
+            file_size = os.path.getsize(image_path)
+            logger.info(f"Image file exists, size: {file_size} bytes")
+
+            if file_size == 0:
+                logger.error(f"Image file is empty: {image_path}")
+                return {'success': False, 'face_count': 0, 'face_region': None,
+                       'message': 'Image file is empty (0 bytes)'}
+
+            # Load image using helper method (with Pillow fallback)
+            image, load_error = cls._load_image(image_path)
             if image is None:
                 return {'success': False, 'face_count': 0, 'face_region': None,
-                       'message': 'Could not load image'}
+                       'message': load_error or 'Could not load image'}
 
             # Convert to grayscale for face detection
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -143,8 +194,15 @@ class FaceComparisonService:
                     'message': detection_result['message']
                 }
 
-            # Load image
-            image = cv2.imread(document_path)
+            # Load image using helper method (with Pillow fallback)
+            image, load_error = cls._load_image(document_path)
+            if image is None:
+                return {
+                    'success': False,
+                    'face_path': None,
+                    'coordinates': None,
+                    'message': load_error or 'Could not load image for face extraction'
+                }
             x, y, w, h = detection_result['face_region']
 
             # Add padding around face (20%)
@@ -278,18 +336,20 @@ class FaceComparisonService:
             }
 
     @classmethod
-    def verify_faces_for_application(cls, application_id):
+    def verify_faces_for_application(cls, application_id, captured_image_path=None):
         """
         Main method: Extract faces from ID and selfie, compare them, save results.
 
         Args:
             application_id (int): LoanApplication ID
+            captured_image_path (str): Path to the captured selfie image
 
         Returns:
             FaceVerification: Updated FaceVerification object
         """
         try:
             logger.info(f"Starting face verification for application {application_id}")
+            logger.info(f"Received captured_image_path parameter: {captured_image_path}")
 
             # Get application
             application = LoanApplication.objects.get(id=application_id)
@@ -298,9 +358,10 @@ class FaceComparisonService:
             # This prevents "MultipleObjectsReturned" errors on retry
             FaceVerification.objects.filter(loan_application=application).delete()
 
-            # Create new FaceVerification record
+            # Create new FaceVerification record with captured image path
             face_verification = FaceVerification.objects.create(
                 loan_application=application,
+                captured_image_path=captured_image_path,
                 verification_status='Processing'
             )
 
@@ -310,6 +371,7 @@ class FaceComparisonService:
                     loan_application=application,
                     document_type='buksu_id'
                 ).latest('uploaded_at')
+                logger.info(f"Found buksu_id document: id={id_document.id}, file_path={id_document.file_path}")
                 id_document_path = os.path.join(settings.MEDIA_ROOT, id_document.file_path)
             except LoanDocument.DoesNotExist:
                 face_verification.error_message = "BukSu ID not found. Please upload your BukSu ID first."
@@ -321,7 +383,7 @@ class FaceComparisonService:
                 # Audit log: Missing BukSu ID
                 from loans.models import AuditLog
                 AuditLog.objects.create(
-                    user=application.applicant,
+                    user=application.user,
                     action=f"Face verification failed for application #{application.id}: Missing BukSu ID",
                     action_type='FACE_VERIFY_FAIL',
                     severity='WARNING',
@@ -333,7 +395,7 @@ class FaceComparisonService:
                 # Check for repeated failures and alert
                 from .security_alerts import SecurityAlertService
                 SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.applicant,
+                    user=application.user,
                     application=application,
                     failure_type='FACE_VERIFY_FAIL'
                 )
@@ -351,7 +413,7 @@ class FaceComparisonService:
                 # Audit log: Missing selfie
                 from loans.models import AuditLog
                 AuditLog.objects.create(
-                    user=application.applicant,
+                    user=application.user,
                     action=f"Face verification failed for application #{application.id}: Missing selfie",
                     action_type='FACE_VERIFY_FAIL',
                     severity='WARNING',
@@ -363,7 +425,7 @@ class FaceComparisonService:
                 # Check for repeated failures and alert
                 from .security_alerts import SecurityAlertService
                 SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.applicant,
+                    user=application.user,
                     application=application,
                     failure_type='FACE_VERIFY_FAIL'
                 )
@@ -371,6 +433,22 @@ class FaceComparisonService:
                 return face_verification
 
             selfie_path = os.path.join(settings.MEDIA_ROOT, face_verification.captured_image_path)
+
+            # Debug: Log all paths being used
+            logger.info("=" * 50)
+            logger.info(f"FACE VERIFICATION DEBUG for Application {application_id}")
+            logger.info(f"MEDIA_ROOT: {settings.MEDIA_ROOT}")
+            logger.info(f"ID document file_path (from DB): {id_document.file_path}")
+            logger.info(f"ID document full path: {id_document_path}")
+            logger.info(f"ID document exists: {os.path.exists(id_document_path)}")
+            if os.path.exists(id_document_path):
+                logger.info(f"ID document size: {os.path.getsize(id_document_path)} bytes")
+            logger.info(f"Selfie captured_image_path (from DB): {face_verification.captured_image_path}")
+            logger.info(f"Selfie full path: {selfie_path}")
+            logger.info(f"Selfie exists: {os.path.exists(selfie_path)}")
+            if os.path.exists(selfie_path):
+                logger.info(f"Selfie size: {os.path.getsize(selfie_path)} bytes")
+            logger.info("=" * 50)
 
             # Create faces directory for extracted faces
             faces_dir = os.path.join(settings.MEDIA_ROOT, f'applicant/faces/{application_id}')
@@ -390,7 +468,7 @@ class FaceComparisonService:
                 # Audit log: Failed to extract face from ID
                 from loans.models import AuditLog
                 AuditLog.objects.create(
-                    user=application.applicant,
+                    user=application.user,
                     action=f"Face verification failed for application #{application.id}: Cannot extract face from ID",
                     action_type='FACE_VERIFY_FAIL',
                     severity='WARNING',
@@ -402,7 +480,7 @@ class FaceComparisonService:
                 # Check for repeated failures and alert
                 from .security_alerts import SecurityAlertService
                 SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.applicant,
+                    user=application.user,
                     application=application,
                     failure_type='FACE_VERIFY_FAIL'
                 )
@@ -429,7 +507,7 @@ class FaceComparisonService:
                 # Audit log: No face detected in selfie
                 from loans.models import AuditLog
                 AuditLog.objects.create(
-                    user=application.applicant,
+                    user=application.user,
                     action=f"Face verification failed for application #{application.id}: No face detected in selfie",
                     action_type='FACE_VERIFY_FAIL',
                     severity='WARNING',
@@ -441,7 +519,7 @@ class FaceComparisonService:
                 # Check for repeated failures and alert
                 from .security_alerts import SecurityAlertService
                 SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.applicant,
+                    user=application.user,
                     application=application,
                     failure_type='FACE_VERIFY_FAIL'
                 )
@@ -464,7 +542,7 @@ class FaceComparisonService:
                 # Audit log: Face comparison failed
                 from loans.models import AuditLog
                 AuditLog.objects.create(
-                    user=application.applicant,
+                    user=application.user,
                     action=f"Face verification failed for application #{application.id}: Comparison error",
                     action_type='FACE_VERIFY_FAIL',
                     severity='WARNING',
@@ -476,7 +554,7 @@ class FaceComparisonService:
                 # Check for repeated failures and alert
                 from .security_alerts import SecurityAlertService
                 SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.applicant,
+                    user=application.user,
                     application=application,
                     failure_type='FACE_VERIFY_FAIL'
                 )
@@ -504,7 +582,7 @@ class FaceComparisonService:
                 # Audit log: Success
                 from loans.models import AuditLog
                 AuditLog.objects.create(
-                    user=application.applicant,
+                    user=application.user,
                     action=f"Face verification successful for application #{application.id}",
                     action_type='FACE_VERIFY_SUCCESS',
                     severity='INFO',
@@ -522,7 +600,7 @@ class FaceComparisonService:
                 # Audit log: Similarity below threshold
                 from loans.models import AuditLog
                 AuditLog.objects.create(
-                    user=application.applicant,
+                    user=application.user,
                     action=f"Face verification failed for application #{application.id}: Similarity below threshold",
                     action_type='FACE_VERIFY_FAIL',
                     severity='WARNING',
@@ -534,7 +612,7 @@ class FaceComparisonService:
                 # Check for repeated failures and alert
                 from .security_alerts import SecurityAlertService
                 SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.applicant,
+                    user=application.user,
                     application=application,
                     failure_type='FACE_VERIFY_FAIL'
                 )

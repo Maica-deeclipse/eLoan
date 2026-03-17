@@ -9,7 +9,7 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
@@ -27,7 +27,8 @@ const LIVENESS_CHALLENGES = [
 const FaceVerificationScreen = ({ navigation }) => {
   const { state, dispatch } = useApplication();
   const [permission, requestPermission] = useCameraPermissions();
-  const [step, setStep] = useState('intro'); // intro, face_capture, liveness_video, complete
+  const [micPermission, requestMicPermission] = useMicrophonePermissions();
+  const [step, setStep] = useState('intro'); // intro, face_capture, transitioning, liveness_video, complete
   const [capturedImage, setCapturedImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -41,8 +42,8 @@ const FaceVerificationScreen = ({ navigation }) => {
   const recordingTimerRef = useRef(null);
 
   useEffect(() => {
-    // Check if face verification is already done
-    if (state.faceVerification?.completed) {
+    // Check if face verification is already done AND verified successfully
+    if (state.faceVerification?.completed && state.faceVerification?.verified) {
       setCapturedImage(state.faceVerification.imageUri);
       setStep('complete');
     }
@@ -116,6 +117,11 @@ const FaceVerificationScreen = ({ navigation }) => {
       });
 
       setCapturedImage(photo.uri);
+
+      // Reset camera ready state and wait for camera to unmount before switching to video mode
+      setCameraReady(false);
+      setStep('transitioning'); // Show loading while camera switches modes
+      await new Promise(resolve => setTimeout(resolve, 400));
       setStep('liveness_video');
     } catch (error) {
       console.error('Capture error:', error);
@@ -132,39 +138,55 @@ const FaceVerificationScreen = ({ navigation }) => {
       return;
     }
 
-    try {
-      setIsRecording(true);
-      setRecordingDuration(0);
-      setCurrentInstruction('Look at the camera');
+    // Request microphone permission for video recording
+    if (!micPermission?.granted) {
+      const result = await requestMicPermission();
+      if (!result.granted) {
+        Alert.alert(
+          'Microphone Permission Required',
+          'Please grant microphone access to record the liveness video. This is required for identity verification.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
 
-      // Start recording
+    try {
+      // Set initial state before recording starts
+      setRecordingDuration(0);
+      setCurrentInstruction('Starting recording...');
+
+      // Start recording first
       const videoPromise = cameraRef.current.recordAsync({
         maxDuration: 8, // 8 seconds max
         quality: '720p',
       });
 
-      // Show instructions during recording
-      const instructions = [
-        { time: 0, text: 'Look at the camera' },
-        { time: 2000, text: 'Blink your eyes' },
-        { time: 4000, text: 'Smile naturally' },
-        { time: 6000, text: 'Turn your head slightly' },
-      ];
+      // Small delay to ensure recording has actually started
+      await new Promise(resolve => setTimeout(resolve, 200));
 
-      for (const instruction of instructions) {
-        await new Promise(resolve => setTimeout(resolve, instruction.time - recordingDuration));
-        setCurrentInstruction(instruction.text);
-      }
+      // Now mark as recording and start showing instructions
+      setIsRecording(true);
+      setCurrentInstruction('Look at the camera');
 
-      // Update duration counter
+      // Start duration counter
+      let elapsedTime = 0;
       recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration(prev => {
-          if (prev >= 8) {
-            stopLivenessRecording();
-            return prev;
-          }
-          return prev + 0.1;
-        });
+        elapsedTime += 0.1;
+        setRecordingDuration(elapsedTime);
+
+        // Show instructions at specific times
+        if (elapsedTime >= 6 && elapsedTime < 6.1) {
+          setCurrentInstruction('Turn your head slightly');
+        } else if (elapsedTime >= 4 && elapsedTime < 4.1) {
+          setCurrentInstruction('Smile naturally');
+        } else if (elapsedTime >= 2 && elapsedTime < 2.1) {
+          setCurrentInstruction('Blink your eyes');
+        }
+
+        if (elapsedTime >= 8) {
+          stopLivenessRecording();
+        }
       }, 100);
 
       // Wait for recording to complete
@@ -212,15 +234,52 @@ const FaceVerificationScreen = ({ navigation }) => {
         throw new Error('Missing liveness video');
       }
 
-      // Upload face capture
-      await applicationService.uploadFaceCapture(state.applicationId, faceImage);
+      // Upload face capture and get verification result
+      const faceResult = await applicationService.uploadFaceCapture(state.applicationId, faceImage);
 
       // Upload liveness video
-      await applicationService.uploadLivenessVideo(
+      const livenessResult = await applicationService.uploadLivenessVideo(
         state.applicationId,
         livenessVideoUri
       );
 
+      // Check if face verification actually passed
+      const faceVerified = faceResult.verification_status === 'Verified' && faceResult.is_match === true;
+      const livenessVerified = livenessResult.check_status === 'Verified';
+
+      if (!faceVerified) {
+        // Face verification failed - don't mark as complete
+        dispatch({
+          type: 'SET_FACE_VERIFICATION',
+          payload: { completed: false, imageUri: faceImage, verified: false },
+        });
+
+        const errorMsg = faceResult.error_message ||
+          `Face verification failed. Similarity: ${faceResult.similarity_score?.toFixed(1) || 0}%`;
+        Alert.alert(
+          'Face Verification Failed',
+          errorMsg + '\n\nPlease retake the verification with better lighting and ensure your face matches your ID photo.',
+          [{ text: 'Retry', onPress: () => retakeVerification() }]
+        );
+        return;
+      }
+
+      if (!livenessVerified) {
+        // Liveness check failed
+        dispatch({
+          type: 'SET_LIVENESS_CHECK',
+          payload: { completed: false, verified: false },
+        });
+
+        Alert.alert(
+          'Liveness Check Failed',
+          'We could not verify that you are a real person. Please try again and follow the on-screen instructions.',
+          [{ text: 'Retry', onPress: () => retakeVerification() }]
+        );
+        return;
+      }
+
+      // Both checks passed
       dispatch({
         type: 'SET_FACE_VERIFICATION',
         payload: { completed: true, imageUri: faceImage, verified: true },
@@ -234,9 +293,21 @@ const FaceVerificationScreen = ({ navigation }) => {
       Alert.alert('Success', 'Face verification completed successfully!');
     } catch (error) {
       console.error('Verification error:', error);
+
+      // Reset state to indicate verification failed
+      dispatch({
+        type: 'SET_FACE_VERIFICATION',
+        payload: { completed: false, imageUri: null, verified: false },
+      });
+      dispatch({
+        type: 'SET_LIVENESS_CHECK',
+        payload: { completed: false, verified: false },
+      });
+
       Alert.alert(
         'Verification Failed',
-        error.response?.data?.error || error.response?.data?.message || 'Please try again with better lighting.'
+        error.response?.data?.error || error.response?.data?.message || 'Please try again with better lighting.',
+        [{ text: 'Retry', onPress: () => retakeVerification() }]
       );
       // Reset to try again
       setStep('intro');
@@ -248,8 +319,16 @@ const FaceVerificationScreen = ({ navigation }) => {
   };
 
   const handleContinue = () => {
-    if (step !== 'complete') {
-      Alert.alert('Verification Required', 'Please complete face verification to continue.');
+    // Check both local step state AND context state for verification
+    const isVerified = step === 'complete' &&
+      state.faceVerification?.completed &&
+      state.faceVerification?.verified;
+
+    if (!isVerified) {
+      Alert.alert(
+        'Verification Required',
+        'Please complete face verification successfully to continue. Your face must match your ID photo.'
+      );
       return;
     }
 
@@ -257,11 +336,19 @@ const FaceVerificationScreen = ({ navigation }) => {
     navigation.navigate('ReviewSubmit');
   };
 
-  const retakeVerification = () => {
+  const retakeVerification = async () => {
     setCapturedImage(null);
     setLivenessVideo(null);
     setRecordingDuration(0);
     setCurrentInstruction('');
+    setCameraReady(false);
+
+    // Show transitioning state while camera resets
+    setStep('transitioning');
+
+    // Wait briefly for camera to fully unmount before switching to face_capture
+    await new Promise(resolve => setTimeout(resolve, 400));
+
     setStep('face_capture');
   };
 
@@ -322,9 +409,11 @@ const FaceVerificationScreen = ({ navigation }) => {
 
       <View style={styles.cameraWrapper}>
         <CameraView
+          key="camera-photo"
           ref={cameraRef}
           style={styles.camera}
           facing="front"
+          mode="picture"
           onCameraReady={handleCameraReady}
         >
           <View style={styles.cameraOverlay}>
@@ -390,6 +479,7 @@ const FaceVerificationScreen = ({ navigation }) => {
 
         <View style={styles.cameraWrapper}>
           <CameraView
+            key="camera-video"
             ref={cameraRef}
             style={styles.camera}
             facing="front"
@@ -440,6 +530,13 @@ const FaceVerificationScreen = ({ navigation }) => {
     );
   };
 
+  const renderTransitioning = () => (
+    <View style={styles.transitionContainer}>
+      <ActivityIndicator size="large" color="#0d6efd" />
+      <Text style={styles.transitionText}>Preparing camera...</Text>
+    </View>
+  );
+
   const renderComplete = () => (
     <View style={styles.completeContainer}>
       <View style={styles.successIcon}>
@@ -476,6 +573,7 @@ const FaceVerificationScreen = ({ navigation }) => {
 
       {step === 'intro' && renderIntro()}
       {step === 'face_capture' && renderFaceCapture()}
+      {step === 'transitioning' && renderTransitioning()}
       {step === 'liveness_video' && renderLivenessVideo()}
       {step === 'complete' && renderComplete()}
 
@@ -846,6 +944,18 @@ const styles = StyleSheet.create({
   },
   recordingSubtext: {
     fontSize: 14,
+    color: '#6c757d',
+  },
+  // Transition styles
+  transitionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  transitionText: {
+    marginTop: 16,
+    fontSize: 16,
     color: '#6c757d',
   },
   // Complete styles

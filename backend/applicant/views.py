@@ -28,7 +28,7 @@ from .throttles import (
 )
 
 from shared.services.pdf_service import LoanApplicationPDFService
-from loans.models import AuditLog
+from loans.models import AuditLog, FaceVerification
 
 from .services import (
     ApplicantDashboardService,
@@ -782,6 +782,16 @@ class FaceCaptureView(ApplicantBaseView):
             for chunk in image.chunks():
                 destination.write(chunk)
 
+        # Debug logging
+        import logging
+        logger = logging.getLogger('face_verification')
+        logger.info(f"[FaceCaptureView] Saved face image:")
+        logger.info(f"  - file_path (relative): {file_path}")
+        logger.info(f"  - full_path: {full_path}")
+        logger.info(f"  - File exists: {os.path.exists(full_path)}")
+        if os.path.exists(full_path):
+            logger.info(f"  - File size: {os.path.getsize(full_path)} bytes")
+
         # Save face capture (creates or updates FaceVerification record)
         verification = FaceVerificationService.save_face_capture(
             application,
@@ -792,7 +802,7 @@ class FaceCaptureView(ApplicantBaseView):
 
         # Perform face comparison using DeepFace
         try:
-            verification = FaceComparisonService.verify_faces_for_application(application.id)
+            verification = FaceComparisonService.verify_faces_for_application(application.id, captured_image_path=file_path)
 
             # Encrypt face image after processing
             from .encryption_utils import FileEncryptionService
@@ -844,9 +854,22 @@ class RetryFaceVerificationView(ApplicantBaseView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # Get existing captured image path before retry
+        existing_verification = FaceVerification.objects.filter(
+            loan_application=application
+        ).order_by('-created_at').first()
+
+        captured_image_path = existing_verification.captured_image_path if existing_verification else None
+
+        if not captured_image_path:
+            return Response(
+                {'error': 'No previous face capture found. Please upload a new selfie.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Perform face comparison
         try:
-            verification = FaceComparisonService.verify_faces_for_application(application.id)
+            verification = FaceComparisonService.verify_faces_for_application(application.id, captured_image_path=captured_image_path)
 
             # Build response
             response_data = {

@@ -654,7 +654,7 @@ class LivenessVerificationService:
             from loans.models import AuditLog
             if check_status == 'Verified':
                 AuditLog.objects.create(
-                    user=application.applicant,
+                    user=application.user,
                     action=f"Liveness check successful for application #{application.id}",
                     action_type='LIVENESS_SUCCESS',
                     severity='INFO',
@@ -663,7 +663,7 @@ class LivenessVerificationService:
                 )
             else:
                 AuditLog.objects.create(
-                    user=application.applicant,
+                    user=application.user,
                     action=f"Liveness check failed for application #{application.id}",
                     action_type='LIVENESS_FAIL',
                     severity='WARNING',
@@ -675,7 +675,7 @@ class LivenessVerificationService:
                 # Check for repeated failures and alert
                 from applicant.security_alerts import SecurityAlertService
                 SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.applicant,
+                    user=application.user,
                     application=application,
                     failure_type='LIVENESS_FAIL'
                 )
