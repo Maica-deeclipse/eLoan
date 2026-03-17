@@ -24,14 +24,17 @@
       "edgeToEdgeEnabled": true,
       "package": "com.eloan.applicant",
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "RECORD_AUDIO"
       ]
     },
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow eLoan to access your camera for face verification."
+          "cameraPermission": "Allow eLoan to access your camera for face verification.",
+          "microphonePermission": "Allow eLoan to access your microphone for video recording.",
+          "recordAudioAndroid": true
         }
       ]
     ],

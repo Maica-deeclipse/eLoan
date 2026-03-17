@@ -167,31 +167,7 @@ class ApplicationService {
   }
 
   /**
-   * Upload liveness photos for verification
-   */
-  async uploadLivenessPhotos(applicationId, photoUris) {
-    const formData = new FormData();
-
-    photoUris.forEach((uri, index) => {
-      formData.append('photos', {
-        uri: uri,
-        type: 'image/jpeg',
-        name: `liveness_${index}_${Date.now()}.jpg`,
-      });
-    });
-
-    const response = await apiService.post(
-      `/applicant/applications/${applicationId}/liveness-photos/`,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }
-    );
-    return response.data;
-  }
-
-  /**
-   * Upload liveness video for verification (legacy)
+   * Upload liveness video for verification
    */
   async uploadLivenessVideo(applicationId, videoUri) {
     const formData = new FormData();
