@@ -344,7 +344,9 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
           loanDetails: payload.loanDetails,
         });
 
-        navigation.navigate(getRouteFromStep(currentStep, selectedLoanType.required_comakers || 0));
+        // Always start from PersonalDetails so user can review their data
+        // Data is pre-loaded, they just need to click Continue through each step
+        navigation.navigate('PersonalDetails');
         return;
       }
 

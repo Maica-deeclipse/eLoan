@@ -18,8 +18,8 @@ import applicationService from '../../services/applicationService';
 const REQUIRED_DOCUMENTS = [
   {
     key: 'buksu_id',
-    label: 'BukSu ID',
-    description: 'Your Bukidnon State University ID card (both front and back)',
+    label: 'BukSu ID (Front)',
+    description: 'Front side of your BukSU ID showing your photo',
     required: true,
     acceptedTypes: ['image'],
   },
