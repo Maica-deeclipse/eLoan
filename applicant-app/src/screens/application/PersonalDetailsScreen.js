@@ -35,8 +35,6 @@ export default function PersonalDetailsScreen({ navigation }) {
   const [employerName, setEmployerName] = useState('');
   const [position, setPosition] = useState('');
   const [monthlyIncome, setMonthlyIncome] = useState('');
-  const [emergencyContactName, setEmergencyContactName] = useState('');
-  const [emergencyContactNumber, setEmergencyContactNumber] = useState('');
 
   useEffect(() => {
     loadAutofillData();
@@ -58,8 +56,6 @@ export default function PersonalDetailsScreen({ navigation }) {
           employerName,
           position,
           monthlyIncome,
-          emergencyContactName,
-          emergencyContactNumber,
         },
       });
     }, 350);
@@ -76,8 +72,6 @@ export default function PersonalDetailsScreen({ navigation }) {
     employerName,
     position,
     monthlyIncome,
-    emergencyContactName,
-    emergencyContactNumber,
   ]);
 
   const loadAutofillData = async () => {
@@ -92,8 +86,6 @@ export default function PersonalDetailsScreen({ navigation }) {
       setEmployerName(data.employer_name || '');
       setPosition(data.position || '');
       setMonthlyIncome(data.monthly_income || '');
-      setEmergencyContactName(data.emergency_contact_name || '');
-      setEmergencyContactNumber(data.emergency_contact_number || '');
 
       if (state.loanType?.id && state.applicationId) {
         const localDraft = await getLoanTypeDraft(state.loanType.id);
@@ -110,12 +102,6 @@ export default function PersonalDetailsScreen({ navigation }) {
         setEmployerName(localPersonalDetails.employerName ?? data.employer_name ?? '');
         setPosition(localPersonalDetails.position ?? data.position ?? '');
         setMonthlyIncome(localPersonalDetails.monthlyIncome ?? data.monthly_income ?? '');
-        setEmergencyContactName(
-          localPersonalDetails.emergencyContactName ?? data.emergency_contact_name ?? ''
-        );
-        setEmergencyContactNumber(
-          localPersonalDetails.emergencyContactNumber ?? data.emergency_contact_number ?? ''
-        );
       }
     } catch (error) {
       console.error('Load autofill error:', error);
@@ -155,8 +141,6 @@ export default function PersonalDetailsScreen({ navigation }) {
         employer_name: employerName,
         position: position,
         monthly_income: monthlyIncome || null,
-        emergency_contact_name: emergencyContactName,
-        emergency_contact_number: emergencyContactNumber,
       });
 
       // Update context
@@ -169,8 +153,6 @@ export default function PersonalDetailsScreen({ navigation }) {
         employerName,
         position,
         monthlyIncome,
-        emergencyContactName,
-        emergencyContactNumber,
       });
 
       dispatch({ type: 'VALIDATE_PERSONAL_DETAILS', payload: true });
@@ -189,8 +171,6 @@ export default function PersonalDetailsScreen({ navigation }) {
             employerName,
             position,
             monthlyIncome,
-            emergencyContactName,
-            emergencyContactNumber,
           },
         });
       }
@@ -324,30 +304,6 @@ export default function PersonalDetailsScreen({ navigation }) {
                 onChangeText={setMonthlyIncome}
                 placeholder="₱0.00"
                 keyboardType="numeric"
-              />
-            </View>
-          </View>
-
-          {/* Emergency Contact */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Emergency Contact</Text>
-            <View style={styles.field}>
-              <Text style={styles.label}>Contact Name</Text>
-              <TextInput
-                style={styles.input}
-                value={emergencyContactName}
-                onChangeText={setEmergencyContactName}
-                placeholder="Full Name"
-              />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Contact Number</Text>
-              <TextInput
-                style={styles.input}
-                value={emergencyContactNumber}
-                onChangeText={setEmergencyContactNumber}
-                placeholder="09XX XXX XXXX"
-                keyboardType="phone-pad"
               />
             </View>
           </View>

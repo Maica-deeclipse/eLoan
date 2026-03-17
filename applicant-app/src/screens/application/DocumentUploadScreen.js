@@ -17,9 +17,9 @@ import applicationService from '../../services/applicationService';
 
 const REQUIRED_DOCUMENTS = [
   {
-    key: 'valid_id',
-    label: 'Valid Government ID',
-    description: 'e.g., Driver\'s License, Passport, SSS ID, Voter\'s ID',
+    key: 'buksu_id',
+    label: 'BukSu ID',
+    description: 'Your Bukidnon State University ID card (both front and back)',
     required: true,
     acceptedTypes: ['image'],
   },

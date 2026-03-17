@@ -14,7 +14,6 @@ import LoanDetailsScreen from '../screens/application/LoanDetailsScreen';
 import CoMakerScreen from '../screens/application/CoMakerScreen';
 import DocumentUploadScreen from '../screens/application/DocumentUploadScreen';
 import FaceVerificationScreen from '../screens/application/FaceVerificationScreen';
-import ESignatureScreen from '../screens/application/ESignatureScreen';
 import ReviewSubmitScreen from '../screens/application/ReviewSubmitScreen';
 
 const Stack = createStackNavigator();
@@ -67,11 +66,6 @@ function ApplicationStackNavigator() {
         name="FaceVerification"
         component={FaceVerificationScreen}
         options={{ title: 'Identity Verification' }}
-      />
-      <Stack.Screen
-        name="ESignature"
-        component={ESignatureScreen}
-        options={{ title: 'E-Signature' }}
       />
       <Stack.Screen
         name="ReviewSubmit"

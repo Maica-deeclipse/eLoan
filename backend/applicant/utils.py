@@ -176,7 +176,7 @@ def get_client_ip(request):
 
 # Document type constants
 class DocumentTypes:
-    VALID_ID = 'valid_id'
+    BUKSU_ID = 'buksu_id'
     PROOF_OF_INCOME = 'proof_of_income'
     PROOF_OF_ADDRESS = 'proof_of_address'
     EMPLOYMENT_CERTIFICATE = 'employment_certificate'
@@ -187,7 +187,7 @@ class DocumentTypes:
     COMAKER_ID = 'comaker_id'
     COMAKER_SIGNATURE = 'comaker_signature'
 
-    REQUIRED_DOCUMENTS = [VALID_ID, PROOF_OF_INCOME]
+    REQUIRED_DOCUMENTS = [BUKSU_ID, PROOF_OF_INCOME]
     OPTIONAL_DOCUMENTS = [
         PROOF_OF_ADDRESS,
         EMPLOYMENT_CERTIFICATE,
@@ -200,7 +200,7 @@ class DocumentTypes:
     ALL_TYPES = REQUIRED_DOCUMENTS + OPTIONAL_DOCUMENTS + [COMAKER_ID, COMAKER_SIGNATURE]
 
     DISPLAY_NAMES = {
-        VALID_ID: 'Valid ID',
+        BUKSU_ID: 'BukSu ID',
         PROOF_OF_INCOME: 'Proof of Income',
         PROOF_OF_ADDRESS: 'Proof of Address',
         EMPLOYMENT_CERTIFICATE: 'Employment Certificate',

@@ -14,7 +14,7 @@ import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
 import { clearLoanTypeDraft } from '../../utils/applicationDraftStorage';
 
-const REQUIRED_DOCUMENT_KEYS = ['valid_id', 'proof_of_income', 'membership_certificate'];
+const REQUIRED_DOCUMENT_KEYS = ['buksu_id', 'proof_of_income', 'membership_certificate'];
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -137,9 +137,23 @@ const ReviewSubmitScreen = ({ navigation }) => {
               );
             } catch (error) {
               console.error('Submit error:', error);
+
+              // Handle validation errors from backend
+              let errorMessage = 'Failed to submit application. Please try again.';
+
+              if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+                // Backend returns array of validation errors
+                errorMessage = error.response.data.errors.join('\n\n');
+              } else if (error.response?.data?.error) {
+                // Backend returns single error message
+                errorMessage = error.response.data.error;
+              } else if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+              }
+
               Alert.alert(
                 'Submission Failed',
-                error.response?.data?.error || 'Failed to submit application. Please try again.'
+                errorMessage
               );
             } finally {
               setLoading(false);
@@ -251,7 +265,7 @@ const ReviewSubmitScreen = ({ navigation }) => {
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: '100%' }]} />
         </View>
-        <Text style={styles.progressText}>Step 8 of 8</Text>
+        <Text style={styles.progressText}>Step 7 of 7</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -419,11 +433,11 @@ const ReviewSubmitScreen = ({ navigation }) => {
             </View>
             <View style={styles.verificationItem}>
               <Ionicons
-                name={state.eSignature?.completed ? 'checkmark-circle' : 'close-circle'}
+                name={state.faceVerification?.completed ? 'checkmark-circle' : 'close-circle'}
                 size={24}
-                color={state.eSignature?.completed ? '#28a745' : '#dc3545'}
+                color={state.faceVerification?.completed ? '#28a745' : '#dc3545'}
               />
-              <Text style={styles.verificationLabel}>E-Signature</Text>
+              <Text style={styles.verificationLabel}>Liveness Check</Text>
             </View>
           </View>
         </View>

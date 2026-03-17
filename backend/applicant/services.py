@@ -433,13 +433,7 @@ class LoanApplicationService:
         if not liveness_check:
             errors.append("Liveness check is required.")
 
-        # Check e-signature
-        try:
-            esig = application.esignature
-            if not esig.terms_accepted:
-                errors.append("E-signature with terms acceptance is required.")
-        except ESignature.DoesNotExist:
-            errors.append("E-signature is required.")
+        # E-signature removed - client will handle physical signatures
 
         # Check co-makers
         required_comakers = get_comaker_requirement(application.loan_type)

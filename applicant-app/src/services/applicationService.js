@@ -145,7 +145,7 @@ class ApplicationService {
   }
 
   /**
-   * Perform liveness check
+   * Perform liveness check (legacy - for image-based liveness)
    */
   async performLivenessCheck(applicationId, imageUri, method) {
     const formData = new FormData();
@@ -161,6 +161,28 @@ class ApplicationService {
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data;
+  }
+
+  /**
+   * Upload liveness video for verification
+   */
+  async uploadLivenessVideo(applicationId, videoUri) {
+    const formData = new FormData();
+    formData.append('video', {
+      uri: videoUri,
+      type: 'video/mp4',
+      name: `liveness_${Date.now()}.mp4`,
+    });
+
+    const response = await apiService.post(
+      `/applicant/applications/${applicationId}/liveness-video/`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000, // 60 second timeout for video upload
       }
     );
     return response.data;
