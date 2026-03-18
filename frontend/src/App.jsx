@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import RoleSelection from './pages/RoleSelection';
 import Login from './pages/Login';
+import StaffRegister from './pages/StaffRegister';
 import ForgotPassword from './pages/ForgotPassword';
 import SetPassword from './pages/SetPassword';
 
@@ -34,6 +35,17 @@ import CreditCommitteeReports from './pages/credit-committee/Reports';
 import CreditCommitteeNotifications from './pages/credit-committee/Notifications';
 import CreditCommitteeSettings from './pages/credit-committee/Settings';
 
+// Account Member Officer Module
+import AMOLayout from './components/account-member-officer/AMOLayout';
+import AMODashboard from './pages/account-member-officer/Dashboard';
+import AMOMemberApplications from './pages/account-member-officer/MemberApplications';
+import AMOMembers from './pages/account-member-officer/Members';
+import AMOSavingsCapital from './pages/account-member-officer/SavingsCapital';
+import AMOReports from './pages/account-member-officer/Reports';
+import AMOActivityLogs from './pages/account-member-officer/ActivityLogs';
+import AMONotifications from './pages/account-member-officer/Notifications';
+import AMOSettings from './pages/account-member-officer/Settings';
+
 function App() {
   return (
     <Router>
@@ -43,6 +55,8 @@ function App() {
 
         {/* Authentication Routes */}
         <Route path="/login/:role" element={<Login />} />
+        <Route path="/staff/register" element={<StaffRegister />} />
+        <Route path="/staff/register/:role" element={<StaffRegister />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/set-password/:uid/:token" element={<SetPassword />} />
 
@@ -80,6 +94,19 @@ function App() {
           <Route path="reports" element={<CreditCommitteeReports />} />
           <Route path="notifications" element={<CreditCommitteeNotifications />} />
           <Route path="settings" element={<CreditCommitteeSettings />} />
+        </Route>
+
+        {/* Account Member Officer Module */}
+        <Route path="/amo" element={<AMOLayout />}>
+          <Route index element={<Navigate to="/amo/dashboard" replace />} />
+          <Route path="dashboard" element={<AMODashboard />} />
+          <Route path="applications" element={<AMOMemberApplications />} />
+          <Route path="members" element={<AMOMembers />} />
+          <Route path="savings-capital" element={<AMOSavingsCapital />} />
+          <Route path="reports" element={<AMOReports />} />
+          <Route path="activity-logs" element={<AMOActivityLogs />} />
+          <Route path="notifications" element={<AMONotifications />} />
+          <Route path="settings" element={<AMOSettings />} />
         </Route>
 
         {/* Super Admin - Django admin dashboard at /admindashboard */}

@@ -22,7 +22,7 @@ from django.views.generic import RedirectView
 from django.http import HttpResponse
 
 from authentication.login import StaffLoginView, ApplicantLoginView
-from authentication.registration import ApplicantRegistrationView
+from authentication.registration import ApplicantRegistrationView, StaffRegistrationView
 from authentication.password_reset import (
     SetPasswordView,
     ValidateTokenView,
@@ -47,6 +47,7 @@ urlpatterns = [
     path('api/bookkeeper/', include('bookkeeper.urls', namespace='bookkeeper')),
     path('api/treasurer/', include('treasurer.urls', namespace='treasurer')),
     path('api/credit-committee/', include('credit_committee.urls', namespace='credit_committee')),
+    path('api/amo/', include('account_member_officer.urls', namespace='account_member_officer')),
 
     # Applicant Mobile App API
     path('api/applicant/', include('applicant.urls', namespace='applicant')),
@@ -64,6 +65,10 @@ urlpatterns = [
     # Applicant self-registration (public endpoint)
     # Creates account with 'pending' status - requires Super Admin approval to login
     path('api/auth/register/', ApplicantRegistrationView.as_view(), name='applicant_register'),
+
+    # Staff self-registration (public endpoint)
+    # Creates staff account with 'pending' status - requires Super Admin approval
+    path('api/auth/staff/register/', StaffRegistrationView.as_view(), name='staff_register'),
 ]
 
 # Serve media files in development

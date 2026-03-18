@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'treasurer',
     'credit_committee',
     'applicant',
+    'account_member_officer',
     # 'members',  # Disabled: duplicate models with applicant app
 ]
 

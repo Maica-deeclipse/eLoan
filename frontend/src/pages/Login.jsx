@@ -14,6 +14,7 @@ function Login() {
       'Bookkeeper': 'Bookkeeper',
       'Treasurer': 'Treasurer',
       'Credit Committee': 'Credit Committee',
+      'Account Member Officer': 'Account Member Officer',
     };
     return roleMap[urlRole] || urlRole || '';
   };
@@ -68,6 +69,9 @@ function Login() {
           break;
         case 'Credit Committee':
           navigate('/credit-committee/dashboard');
+          break;
+        case 'Account Member Officer':
+          navigate('/amo/dashboard');
           break;
         case 'Super Administrator':
           navigate('/admin/dashboard');
@@ -157,6 +161,18 @@ function Login() {
           <Link to="/" className="back-to-login">
             ← Back to Role Selection
           </Link>
+
+          {urlRole !== 'admin' && (
+            <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+              Don't have an account?{' '}
+              <Link
+                to={urlRole ? `/staff/register/${urlRole}` : '/staff/register'}
+                style={{ color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}
+              >
+                Register here
+              </Link>
+            </p>
+          )}
         </form>
 
         <div className="login-footer">

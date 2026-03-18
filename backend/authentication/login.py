@@ -40,8 +40,19 @@ class StaffLoginSerializer(serializers.Serializer):
                 'error': 'Your account has been suspended. Please contact the administrator.'
             })
 
+        # Check account_status for self-registered staff (pending approval / rejected)
+        if not user.is_superuser:
+            if user.account_status == 'pending':
+                raise serializers.ValidationError({
+                    'error': 'Your account is pending Super Admin approval. Please wait for verification.'
+                })
+            if user.account_status == 'rejected':
+                raise serializers.ValidationError({
+                    'error': 'Your registration was rejected. Please contact the administrator.'
+                })
+
         # Validate that user has an authorized staff role
-        authorized_roles = ['Bookkeeper', 'Treasurer', 'Credit Committee']
+        authorized_roles = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Officer']
 
         if user.is_superuser:
             # Super admin must select "Super Administrator"

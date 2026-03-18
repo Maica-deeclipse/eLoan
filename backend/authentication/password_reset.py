@@ -154,7 +154,7 @@ class ForgotPasswordView(APIView):
             # Check if user is super admin or has an authorized role (staff or applicant)
             is_authorized = (
                 user.is_superuser or
-                (user.role and user.role.name in ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Applicant'])
+                (user.role and user.role.name in ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Officer', 'Applicant'])
             )
 
             if is_authorized:

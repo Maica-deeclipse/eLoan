@@ -134,11 +134,11 @@ class SecurityAlertService:
             # Log the alert creation to AuditLog
             AuditLog.objects.create(
                 user=user,
-                action=f"Security alert triggered: {count} {failure_name} failures",
+                action=f"Security alert triggered: {count} {failure_type} failures",
                 action_type='SUSPICIOUS_ACTIVITY',
                 severity='CRITICAL',
                 success=False,
-                failure_reason=f"{count} consecutive {failure_name} failures within {time_window}",
+                failure_reason=f"{count} consecutive {failure_type} failures within {time_window}",
                 related_application=application
             )
 

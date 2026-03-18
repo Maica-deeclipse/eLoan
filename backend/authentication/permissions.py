@@ -129,6 +129,28 @@ class IsBookkeeperOrTreasurer(permissions.BasePermission):
         return request.user.role.name in ['Bookkeeper', 'Treasurer']
 
 
+class IsAccountMemberOfficer(permissions.BasePermission):
+    """
+    Permission class for Account Member Officer-only access.
+    AMOs manage member registrations, savings, and capital.
+    """
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        if request.user.is_superuser:
+            return True
+
+        if not request.user.is_active or request.user.status != 'active':
+            return False
+
+        if not request.user.role:
+            return False
+
+        return request.user.role.name == 'Account Member Officer'
+
+
 class IsSuperAdministrator(permissions.BasePermission):
     """
     Permission class for Super Administrator-only access.
