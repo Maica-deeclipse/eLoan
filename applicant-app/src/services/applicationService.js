@@ -127,21 +127,35 @@ class ApplicationService {
    * Upload face capture
    */
   async uploadFaceCapture(applicationId, imageUri) {
+    console.log('[ApplicationService] uploadFaceCapture called. applicationId:', applicationId, 'imageUri:', imageUri);
     const formData = new FormData();
+    const filename = `face_${Date.now()}.jpg`;
     formData.append('image', {
       uri: imageUri,
       type: 'image/jpeg',
-      name: `face_${Date.now()}.jpg`,
+      name: filename,
     });
 
-    const response = await apiService.post(
-      `/applicant/applications/${applicationId}/face-capture/`,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }
-    );
-    return response.data;
+    try {
+      console.log('[ApplicationService] Posting face capture. filename:', filename);
+      const response = await apiService.post(
+        `/applicant/applications/${applicationId}/face-capture/`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 180000, // 3 minutes — DeepFace/TensorFlow model loading can be slow
+        }
+      );
+      console.log('[ApplicationService] uploadFaceCapture response status:', response.status);
+      console.log('[ApplicationService] uploadFaceCapture response data:', JSON.stringify(response.data));
+      return response.data;
+    } catch (error) {
+      console.error('[ApplicationService] uploadFaceCapture FAILED');
+      console.error('[ApplicationService] Error message:', error?.message);
+      console.error('[ApplicationService] Response status:', error?.response?.status);
+      console.error('[ApplicationService] Response data:', JSON.stringify(error?.response?.data));
+      throw error;
+    }
   }
 
   /**
@@ -170,22 +184,47 @@ class ApplicationService {
    * Upload liveness video for verification
    */
   async uploadLivenessVideo(applicationId, videoUri) {
+    console.log('[ApplicationService] uploadLivenessVideo called');
+    console.log('[ApplicationService] applicationId:', applicationId);
+    console.log('[ApplicationService] videoUri:', videoUri);
+
+    if (!videoUri) {
+      console.error('[ApplicationService] videoUri is null/undefined!');
+      throw new Error('videoUri is required for liveness video upload');
+    }
+
+    const filename = `liveness_${Date.now()}.mp4`;
     const formData = new FormData();
     formData.append('video', {
       uri: videoUri,
       type: 'video/mp4',
-      name: `liveness_${Date.now()}.mp4`,
+      name: filename,
     });
 
-    const response = await apiService.post(
-      `/applicant/applications/${applicationId}/liveness-video/`,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000, // 60 second timeout for video upload
-      }
-    );
-    return response.data;
+    console.log('[ApplicationService] FormData prepared. filename:', filename, 'type: video/mp4');
+
+    try {
+      console.log('[ApplicationService] Posting to liveness-video endpoint...');
+      const response = await apiService.post(
+        `/applicant/applications/${applicationId}/liveness-video/`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 60000, // 60 second timeout for video upload
+        }
+      );
+      console.log('[ApplicationService] uploadLivenessVideo response status:', response.status);
+      console.log('[ApplicationService] uploadLivenessVideo response data:', JSON.stringify(response.data));
+      return response.data;
+    } catch (error) {
+      console.error('[ApplicationService] uploadLivenessVideo FAILED');
+      console.error('[ApplicationService] Error message:', error?.message);
+      console.error('[ApplicationService] Response status:', error?.response?.status);
+      console.error('[ApplicationService] Response data:', JSON.stringify(error?.response?.data));
+      console.error('[ApplicationService] Is timeout?', error?.code === 'ECONNABORTED');
+      console.error('[ApplicationService] Full error:', error);
+      throw error;
+    }
   }
 
   /**

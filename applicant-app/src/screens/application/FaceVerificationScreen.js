@@ -65,6 +65,7 @@ const FaceVerificationScreen = ({ navigation }) => {
   }, []);
 
   const handleCameraReady = () => {
+    console.log('[FaceVerification] Camera ready. Step:', step);
     setCameraReady(true);
   };
 
@@ -132,16 +133,35 @@ const FaceVerificationScreen = ({ navigation }) => {
   };
 
   const startLivenessRecording = async () => {
-    if (!cameraRef.current || isRecording) return;
-    if (!cameraReady || typeof cameraRef.current.recordAsync !== 'function') {
+    console.log('[LivenessRecording] startLivenessRecording called');
+    console.log('[LivenessRecording] cameraRef.current:', !!cameraRef.current);
+    console.log('[LivenessRecording] isRecording:', isRecording);
+    console.log('[LivenessRecording] cameraReady:', cameraReady);
+    console.log('[LivenessRecording] micPermission:', JSON.stringify(micPermission));
+    console.log('[LivenessRecording] cameraPermission:', JSON.stringify(permission));
+
+    if (!cameraRef.current || isRecording) {
+      console.warn('[LivenessRecording] Aborting: cameraRef.current is null or already recording');
+      return;
+    }
+    if (!cameraReady) {
+      console.warn('[LivenessRecording] Aborting: camera not ready yet');
+      Alert.alert('Camera', 'Camera is still initializing. Please try again.');
+      return;
+    }
+    if (typeof cameraRef.current.recordAsync !== 'function') {
+      console.warn('[LivenessRecording] Aborting: recordAsync is not a function on cameraRef. Available methods:', Object.keys(cameraRef.current));
       Alert.alert('Camera', 'Camera is still initializing. Please try again.');
       return;
     }
 
     // Request microphone permission for video recording
     if (!micPermission?.granted) {
+      console.log('[LivenessRecording] Microphone not yet granted, requesting...');
       const result = await requestMicPermission();
+      console.log('[LivenessRecording] Microphone permission result:', JSON.stringify(result));
       if (!result.granted) {
+        console.warn('[LivenessRecording] Microphone permission denied');
         Alert.alert(
           'Microphone Permission Required',
           'Please grant microphone access to record the liveness video. This is required for identity verification.',
@@ -149,6 +169,8 @@ const FaceVerificationScreen = ({ navigation }) => {
         );
         return;
       }
+    } else {
+      console.log('[LivenessRecording] Microphone already granted');
     }
 
     try {
@@ -156,18 +178,29 @@ const FaceVerificationScreen = ({ navigation }) => {
       setRecordingDuration(0);
       setCurrentInstruction('Starting recording...');
 
+      console.log('[LivenessRecording] Calling cameraRef.current.recordAsync with maxDuration=8, quality=720p');
+
       // Start recording first
-      const videoPromise = cameraRef.current.recordAsync({
-        maxDuration: 8, // 8 seconds max
-        quality: '720p',
-      });
+      let videoPromise;
+      try {
+        videoPromise = cameraRef.current.recordAsync({
+          maxDuration: 8, // 8 seconds max
+          quality: '720p',
+        });
+        console.log('[LivenessRecording] recordAsync() called successfully, awaiting promise...');
+      } catch (recordStartError) {
+        console.error('[LivenessRecording] recordAsync() threw synchronously:', recordStartError);
+        throw recordStartError;
+      }
 
       // Small delay to ensure recording has actually started
       await new Promise(resolve => setTimeout(resolve, 200));
+      console.log('[LivenessRecording] 200ms delay passed — assuming recording started');
 
       // Now mark as recording and start showing instructions
       setIsRecording(true);
       setCurrentInstruction('Look at the camera');
+      console.log('[LivenessRecording] isRecording set to true');
 
       // Start duration counter
       let elapsedTime = 0;
@@ -177,75 +210,117 @@ const FaceVerificationScreen = ({ navigation }) => {
 
         // Show instructions at specific times
         if (elapsedTime >= 6 && elapsedTime < 6.1) {
+          console.log('[LivenessRecording] Instruction at 6s: Turn your head slightly');
           setCurrentInstruction('Turn your head slightly');
         } else if (elapsedTime >= 4 && elapsedTime < 4.1) {
+          console.log('[LivenessRecording] Instruction at 4s: Smile naturally');
           setCurrentInstruction('Smile naturally');
         } else if (elapsedTime >= 2 && elapsedTime < 2.1) {
+          console.log('[LivenessRecording] Instruction at 2s: Blink your eyes');
           setCurrentInstruction('Blink your eyes');
         }
 
         if (elapsedTime >= 8) {
+          console.log('[LivenessRecording] 8s elapsed — calling stopLivenessRecording()');
           stopLivenessRecording();
         }
       }, 100);
 
+      console.log('[LivenessRecording] Waiting for videoPromise to resolve...');
       // Wait for recording to complete
       const video = await videoPromise;
 
+      console.log('[LivenessRecording] videoPromise resolved. video object:', JSON.stringify(video));
+      console.log('[LivenessRecording] video.uri:', video?.uri);
+
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
+        console.log('[LivenessRecording] Recording timer cleared');
+      }
+
+      if (!video?.uri) {
+        console.error('[LivenessRecording] video.uri is null/undefined after recording!');
+        throw new Error('Recording produced no video URI');
       }
 
       setLivenessVideo(video.uri);
       setIsRecording(false);
+      console.log('[LivenessRecording] Recording complete. URI:', video.uri);
 
       // Submit verification
+      console.log('[LivenessRecording] Proceeding to submitVerification. capturedImage:', capturedImage);
       await submitVerification(capturedImage, video.uri);
     } catch (error) {
-      console.error('Recording error:', error);
+      console.error('[LivenessRecording] Recording error:', error);
+      console.error('[LivenessRecording] Error message:', error?.message);
+      console.error('[LivenessRecording] Error stack:', error?.stack);
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
       }
       setIsRecording(false);
-      Alert.alert('Error', 'Failed to record video. Please try again.');
+      Alert.alert('Error', `Failed to record video: ${error?.message || 'Unknown error'}. Please try again.`);
     }
   };
 
   const stopLivenessRecording = async () => {
+    console.log('[LivenessRecording] stopLivenessRecording called. cameraRef.current:', !!cameraRef.current, 'isRecording:', isRecording);
     if (cameraRef.current && isRecording) {
       try {
+        console.log('[LivenessRecording] Calling cameraRef.current.stopRecording()');
         await cameraRef.current.stopRecording();
+        console.log('[LivenessRecording] stopRecording() completed');
         if (recordingTimerRef.current) {
           clearInterval(recordingTimerRef.current);
+          console.log('[LivenessRecording] Timer cleared after stop');
         }
       } catch (error) {
-        console.error('Stop recording error:', error);
+        console.error('[LivenessRecording] stopRecording() error:', error);
+        console.error('[LivenessRecording] stopRecording() error message:', error?.message);
       }
+    } else {
+      console.warn('[LivenessRecording] stopLivenessRecording skipped — cameraRef.current:', !!cameraRef.current, 'isRecording:', isRecording);
     }
   };
 
   const submitVerification = async (faceImage, livenessVideoUri) => {
+    console.log('[SubmitVerification] submitVerification called');
+    console.log('[SubmitVerification] faceImage:', faceImage);
+    console.log('[SubmitVerification] livenessVideoUri:', livenessVideoUri);
+    console.log('[SubmitVerification] applicationId:', state.applicationId);
     setLoading(true);
     try {
       if (!faceImage) {
+        console.error('[SubmitVerification] Missing face image!');
         throw new Error('Missing face image');
       }
       if (!livenessVideoUri) {
+        console.error('[SubmitVerification] Missing liveness video URI!');
         throw new Error('Missing liveness video');
       }
 
       // Upload face capture and get verification result
+      console.log('[SubmitVerification] Uploading face capture...');
       const faceResult = await applicationService.uploadFaceCapture(state.applicationId, faceImage);
+      console.log('[SubmitVerification] Face capture result:', JSON.stringify(faceResult));
 
       // Upload liveness video
+      console.log('[SubmitVerification] Uploading liveness video...');
       const livenessResult = await applicationService.uploadLivenessVideo(
         state.applicationId,
         livenessVideoUri
       );
+      console.log('[SubmitVerification] Liveness video result:', JSON.stringify(livenessResult));
 
-      // Check if face verification actually passed
-      const faceVerified = faceResult.verification_status === 'Verified' && faceResult.is_match === true;
-      const livenessVerified = livenessResult.check_status === 'Verified';
+      // Check if face verification passed (Verified = auto-approved, Needs Review = borderline/manual review)
+      const faceStatus = faceResult.verification_status;
+      const faceVerified = (faceStatus === 'Verified' || faceStatus === 'Needs Review') && faceResult.is_match === true;
+      const faceNeedsReview = faceStatus === 'Needs Review';
+      // Video endpoint returns `status`; image endpoint returns `check_status`
+      const livenessVerified =
+        livenessResult.is_live === true ||
+        livenessResult.status === 'Verified' ||
+        livenessResult.check_status === 'Verified';
+      console.log('[SubmitVerification] faceStatus:', faceStatus, '| faceVerified:', faceVerified, '| livenessVerified:', livenessVerified);
 
       if (!faceVerified) {
         // Face verification failed - don't mark as complete
@@ -262,6 +337,15 @@ const FaceVerificationScreen = ({ navigation }) => {
           [{ text: 'Retry', onPress: () => retakeVerification() }]
         );
         return;
+      }
+
+      if (faceNeedsReview) {
+        // Borderline match — user can proceed but a bookkeeper will review
+        Alert.alert(
+          'Manual Review Required',
+          `Your face similarity score (${faceResult.similarity_score?.toFixed(1) || 0}%) requires a bookkeeper to review your application before it can be approved. You may still proceed.`,
+          [{ text: 'OK' }]
+        );
       }
 
       if (!livenessVerified) {
@@ -292,7 +376,11 @@ const FaceVerificationScreen = ({ navigation }) => {
       setStep('complete');
       Alert.alert('Success', 'Face verification completed successfully!');
     } catch (error) {
-      console.error('Verification error:', error);
+      console.error('[SubmitVerification] Verification error:', error);
+      console.error('[SubmitVerification] Error message:', error?.message);
+      console.error('[SubmitVerification] Error stack:', error?.stack);
+      console.error('[SubmitVerification] Response status:', error?.response?.status);
+      console.error('[SubmitVerification] Response data:', JSON.stringify(error?.response?.data));
 
       // Reset state to indicate verification failed
       dispatch({

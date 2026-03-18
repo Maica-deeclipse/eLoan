@@ -827,6 +827,13 @@ class FaceCaptureView(ApplicantBaseView):
             if verification.verification_status == 'Verified':
                 response_data['message'] = f'Face verification successful! Similarity: {verification.similarity_score}%'
                 return Response(response_data, status=status.HTTP_201_CREATED)
+            elif verification.verification_status == 'Needs Review':
+                response_data['message'] = (
+                    f'Face verification requires manual review. '
+                    f'Similarity score: {verification.similarity_score}%. '
+                    f'A bookkeeper will review your application.'
+                )
+                return Response(response_data, status=status.HTTP_200_OK)
             else:
                 response_data['message'] = verification.error_message or 'Face verification failed'
                 return Response(response_data, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -1053,6 +1060,9 @@ class LivenessVideoView(ApplicantBaseView):
                 destination.write(chunk)
 
         try:
+            import logging as _logging
+            _lv_logger = _logging.getLogger('liveness_detection')
+
             # Extract frames from video for analysis
             cap = cv2.VideoCapture(full_path)
 
@@ -1065,6 +1075,12 @@ class LivenessVideoView(ApplicantBaseView):
             # Get video properties
             fps = cap.get(cv2.CAP_PROP_FPS)
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+            # Detect video rotation metadata (mobile phones encode portrait video with a rotation tag)
+            rotation = int(cap.get(cv2.CAP_PROP_ORIENTATION_META) or 0)
+            _lv_logger.info(f"[LivenessVideo] Video: {total_frames} frames @ {fps}fps, {width}x{height}, rotation={rotation}")
 
             # Extract frames at regular intervals (analyze 5-8 frames throughout the video)
             num_frames_to_analyze = min(8, max(5, total_frames // 10))
@@ -1079,18 +1095,38 @@ class LivenessVideoView(ApplicantBaseView):
                 ret, frame = cap.read()
 
                 if not ret:
+                    _lv_logger.warning(f"[LivenessVideo] Could not read frame at index {frame_idx}")
                     continue
 
-                # Save frame temporarily
+                # Correct for mobile video rotation so MediaPipe sees an upright face
+                if rotation == 90:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                elif rotation == 180:
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+                elif rotation == 270:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+
+                # Save frame temporarily — close before imwrite (NamedTemporaryFile stays open
+                # on Windows which prevents cv2.imwrite from writing to the same path)
                 temp_frame = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg', dir=full_dir)
-                cv2.imwrite(temp_frame.name, frame)
-                temp_frame_files.append(temp_frame.name)
+                temp_frame_path = temp_frame.name
+                temp_frame.close()
+                write_ok = cv2.imwrite(temp_frame_path, frame)
+                _lv_logger.info(f"[LivenessVideo] Frame {frame_idx}: saved to {temp_frame_path}, write_ok={write_ok}, shape={frame.shape}")
+                temp_frame_files.append(temp_frame_path)
 
                 # Analyze this frame for liveness
                 result = LivenessVerificationService.verify_liveness_for_application(
                     application_id=application.id,
-                    image_path=temp_frame.name,
+                    image_path=temp_frame_path,
                     method='combined'
+                )
+
+                _lv_logger.info(
+                    f"[LivenessVideo] Frame {frame_idx}: is_live={result.get('is_live')}, "
+                    f"confidence={result.get('confidence'):.1f}%, "
+                    f"error={result.get('error_message')}, "
+                    f"details={result.get('details', {}).get('checks_summary')}"
                 )
 
                 liveness_results.append(result)
@@ -1114,6 +1150,8 @@ class LivenessVideoView(ApplicantBaseView):
             # Aggregate results - require majority of frames to pass
             passed_frames = sum(1 for r in liveness_results if r.get('is_live', False))
             avg_confidence = sum(r.get('confidence', 0) for r in liveness_results) / len(liveness_results)
+
+            _lv_logger.info(f"[LivenessVideo] Summary: {passed_frames}/{frames_analyzed} frames passed, avg_confidence={avg_confidence:.1f}%")
 
             overall_passed = passed_frames >= (frames_analyzed * 0.6)  # 60% must pass
 

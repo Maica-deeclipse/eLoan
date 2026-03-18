@@ -421,7 +421,7 @@ class LoanApplicationService:
 
         # Check face verification
         face_verification = application.face_verifications.filter(
-            verification_status='Verified'
+            verification_status__in=['Verified', 'Needs Review']
         ).first()
         if not face_verification:
             errors.append("Face verification is required.")
@@ -714,7 +714,7 @@ class FaceVerificationService:
         return {
             'face_capture': {
                 'completed': face_verifications.exists(),
-                'verified': face_verifications.filter(verification_status='Verified').exists(),
+                'verified': face_verifications.filter(verification_status__in=['Verified', 'Needs Review']).exists(),
                 'latest': face_verifications.order_by('-created_at').first()
             },
             'liveness_check': {

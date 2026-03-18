@@ -180,7 +180,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Face Verification Settings
 FACE_VERIFICATION = {
     'ENABLED': True,
-    'AUTO_APPROVE_THRESHOLD': 80,  # Similarity % for auto-approval (≥80% = pass)
+    'AUTO_APPROVE_THRESHOLD': 80,  # Similarity % for auto-approval (>=80% = Verified)
+    'REVIEW_THRESHOLD': 55,        # Similarity % floor for manual review (55-79% = Needs Review, <55% = Failed)
     'MODEL': 'ArcFace',  # Face comparison model (ArcFace, Facenet, VGG-Face, etc.)
     'DISTANCE_METRIC': 'cosine',  # Distance metric (cosine, euclidean, euclidean_l2)
     'DETECTOR_BACKEND': 'opencv',  # Face detector (opencv, ssd, dlib, mtcnn, retinaface)

@@ -4,6 +4,7 @@ Handles face detection and comparison using OpenCV and DeepFace
 """
 
 import os
+import tempfile
 import cv2
 import logging
 from decimal import Decimal
@@ -47,6 +48,42 @@ class FaceComparisonService:
     def get_threshold(cls):
         """Get threshold for current model and distance metric"""
         return cls.SIMILARITY_THRESHOLDS.get(cls.MODEL_NAME, {}).get(cls.DISTANCE_METRIC, 0.68)
+
+    @classmethod
+    def _decrypt_to_temp(cls, encrypted_path):
+        """
+        Decrypt an encrypted file to a temporary file for processing.
+
+        Args:
+            encrypted_path (str): Path to the encrypted file
+
+        Returns:
+            tuple: (temp_path, error_message) — temp_path is None on failure.
+                   Caller is responsible for deleting the temp file when done.
+        """
+        from .encryption_utils import FileEncryptionService
+
+        logger.info(f"Attempting to decrypt file to temp: {encrypted_path}")
+        success, data, error = FileEncryptionService.decrypt_file(encrypted_path)
+
+        if not success:
+            logger.warning(f"Decryption returned failure for {encrypted_path}: {error}")
+            return None, error
+
+        # Preserve the original extension so OpenCV/Pillow can identify the format
+        ext = os.path.splitext(encrypted_path)[1] or '.jpg'
+        tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+        try:
+            tmp.write(data)
+            tmp.flush()
+            tmp.close()
+            logger.info(f"Decrypted {encrypted_path} to temp file: {tmp.name} ({len(data)} bytes)")
+            return tmp.name, None
+        except Exception as e:
+            tmp.close()
+            os.unlink(tmp.name)
+            logger.error(f"Failed to write decrypted data to temp file: {e}")
+            return None, str(e)
 
     @classmethod
     def _load_image(cls, image_path):
@@ -453,174 +490,218 @@ class FaceComparisonService:
             # Create faces directory for extracted faces
             faces_dir = os.path.join(settings.MEDIA_ROOT, f'applicant/faces/{application_id}')
 
-            # Step 1: Extract face from ID document
-            logger.info("Extracting face from ID document...")
-            id_face_result = cls.extract_face_from_document(id_document_path, faces_dir)
+            # Decrypt the ID document to a temp file if it is encrypted.
+            # Documents are encrypted at rest immediately after upload, so the
+            # file on disk is Fernet-encrypted and cannot be read by OpenCV/Pillow.
+            temp_id_path = None
+            id_path_for_processing = id_document_path
 
-            if not id_face_result['success']:
-                face_verification.error_message = id_face_result['message']
-                face_verification.face_detected_in_id = False
-                face_verification.verification_status = 'Failed'
-                face_verification.processed_at = timezone.now()
-                face_verification.save()
-                logger.error(f"Failed to extract face from ID: {id_face_result['message']}")
-
-                # Audit log: Failed to extract face from ID
-                from loans.models import AuditLog
-                AuditLog.objects.create(
-                    user=application.user,
-                    action=f"Face verification failed for application #{application.id}: Cannot extract face from ID",
-                    action_type='FACE_VERIFY_FAIL',
-                    severity='WARNING',
-                    success=False,
-                    failure_reason=id_face_result['message'],
-                    related_application=application
-                )
-
-                # Check for repeated failures and alert
-                from .security_alerts import SecurityAlertService
-                SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.user,
-                    application=application,
-                    failure_type='FACE_VERIFY_FAIL'
-                )
-
-                return face_verification
-
-            face_verification.face_detected_in_id = True
-            # Store relative path from MEDIA_ROOT
-            id_face_relative_path = os.path.relpath(id_face_result['face_path'], settings.MEDIA_ROOT)
-            face_verification.id_photo_path = id_face_relative_path
-
-            # Step 2: Detect face in selfie
-            logger.info("Detecting face in selfie...")
-            selfie_detection = cls.detect_face(selfie_path)
-
-            if not selfie_detection['success']:
-                face_verification.error_message = f"Selfie: {selfie_detection['message']}"
-                face_verification.face_detected_in_selfie = False
-                face_verification.verification_status = 'Failed'
-                face_verification.processed_at = timezone.now()
-                face_verification.save()
-                logger.error(f"No face detected in selfie: {selfie_detection['message']}")
-
-                # Audit log: No face detected in selfie
-                from loans.models import AuditLog
-                AuditLog.objects.create(
-                    user=application.user,
-                    action=f"Face verification failed for application #{application.id}: No face detected in selfie",
-                    action_type='FACE_VERIFY_FAIL',
-                    severity='WARNING',
-                    success=False,
-                    failure_reason=selfie_detection['message'],
-                    related_application=application
-                )
-
-                # Check for repeated failures and alert
-                from .security_alerts import SecurityAlertService
-                SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.user,
-                    application=application,
-                    failure_type='FACE_VERIFY_FAIL'
-                )
-
-                return face_verification
-
-            face_verification.face_detected_in_selfie = True
-
-            # Step 3: Compare faces using DeepFace
-            logger.info("Comparing faces with DeepFace...")
-            comparison_result = cls.compare_faces(id_face_result['face_path'], selfie_path)
-
-            if not comparison_result['success']:
-                face_verification.error_message = comparison_result['message']
-                face_verification.verification_status = 'Failed'
-                face_verification.processed_at = timezone.now()
-                face_verification.save()
-                logger.error(f"Face comparison failed: {comparison_result['message']}")
-
-                # Audit log: Face comparison failed
-                from loans.models import AuditLog
-                AuditLog.objects.create(
-                    user=application.user,
-                    action=f"Face verification failed for application #{application.id}: Comparison error",
-                    action_type='FACE_VERIFY_FAIL',
-                    severity='WARNING',
-                    success=False,
-                    failure_reason=comparison_result['message'],
-                    related_application=application
-                )
-
-                # Check for repeated failures and alert
-                from .security_alerts import SecurityAlertService
-                SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.user,
-                    application=application,
-                    failure_type='FACE_VERIFY_FAIL'
-                )
-
-                return face_verification
-
-            # Store comparison results
-            face_verification.similarity_score = Decimal(str(comparison_result['similarity_percentage']))
-            face_verification.comparison_model = comparison_result['model']
-            face_verification.comparison_distance = Decimal(str(comparison_result['distance'])) if comparison_result['distance'] is not None else None
-            face_verification.comparison_threshold = Decimal(str(comparison_result['threshold'])) if comparison_result['threshold'] is not None else None
-
-            # Determine if faces match based on threshold (80% similarity)
-            auto_approve_threshold = getattr(settings, 'FACE_VERIFICATION', {}).get('AUTO_APPROVE_THRESHOLD', 80)
-            is_match = comparison_result['similarity_percentage'] >= auto_approve_threshold
-            face_verification.is_match = is_match
-
-            # Set verification status
-            if is_match:
-                face_verification.verification_status = 'Verified'
-                face_verification.verified_at = timezone.now()
-                face_verification.error_message = None
-                logger.info(f"Face verification PASSED: {comparison_result['similarity_percentage']}% similarity")
-
-                # Audit log: Success
-                from loans.models import AuditLog
-                AuditLog.objects.create(
-                    user=application.user,
-                    action=f"Face verification successful for application #{application.id}",
-                    action_type='FACE_VERIFY_SUCCESS',
-                    severity='INFO',
-                    success=True,
-                    related_application=application
-                )
+            logger.info(f"Checking if ID document is encrypted: {id_document_path}")
+            temp_id_path, decrypt_error = cls._decrypt_to_temp(id_document_path)
+            if temp_id_path:
+                logger.info(f"Using decrypted temp file for face processing: {temp_id_path}")
+                id_path_for_processing = temp_id_path
             else:
-                face_verification.verification_status = 'Failed'
-                face_verification.error_message = (
-                    f"Face verification failed. Similarity score ({comparison_result['similarity_percentage']:.1f}%) "
-                    f"is below the required threshold ({auto_approve_threshold}%)."
-                )
-                logger.warning(f"Face verification FAILED: {comparison_result['similarity_percentage']}% similarity")
+                # File was not encrypted (or decryption key mismatch) — try using original
+                logger.warning(f"Could not decrypt ID document ({decrypt_error}), attempting to use original path directly")
+                id_path_for_processing = id_document_path
 
-                # Audit log: Similarity below threshold
-                from loans.models import AuditLog
-                AuditLog.objects.create(
-                    user=application.user,
-                    action=f"Face verification failed for application #{application.id}: Similarity below threshold",
-                    action_type='FACE_VERIFY_FAIL',
-                    severity='WARNING',
-                    success=False,
-                    failure_reason=f"Similarity {comparison_result['similarity_percentage']:.1f}% below threshold {auto_approve_threshold}%",
-                    related_application=application
-                )
+            try:
+                # Step 1: Extract face from ID document
+                logger.info("Extracting face from ID document...")
+                id_face_result = cls.extract_face_from_document(id_path_for_processing, faces_dir)
 
-                # Check for repeated failures and alert
-                from .security_alerts import SecurityAlertService
-                SecurityAlertService.check_and_alert_repeated_failures(
-                    user=application.user,
-                    application=application,
-                    failure_type='FACE_VERIFY_FAIL'
-                )
+                if not id_face_result['success']:
+                    face_verification.error_message = id_face_result['message']
+                    face_verification.face_detected_in_id = False
+                    face_verification.verification_status = 'Failed'
+                    face_verification.processed_at = timezone.now()
+                    face_verification.save()
+                    logger.error(f"Failed to extract face from ID: {id_face_result['message']}")
 
-            face_verification.processed_at = timezone.now()
-            face_verification.save()
+                    # Audit log: Failed to extract face from ID
+                    from loans.models import AuditLog
+                    AuditLog.objects.create(
+                        user=application.user,
+                        action=f"Face verification failed for application #{application.id}: Cannot extract face from ID",
+                        action_type='FACE_VERIFY_FAIL',
+                        severity='WARNING',
+                        success=False,
+                        failure_reason=id_face_result['message'],
+                        related_application=application
+                    )
 
-            return face_verification
+                    # Check for repeated failures and alert
+                    from .security_alerts import SecurityAlertService
+                    SecurityAlertService.check_and_alert_repeated_failures(
+                        user=application.user,
+                        application=application,
+                        failure_type='FACE_VERIFY_FAIL'
+                    )
+
+                    return face_verification
+
+                face_verification.face_detected_in_id = True
+                # Store relative path from MEDIA_ROOT
+                id_face_relative_path = os.path.relpath(id_face_result['face_path'], settings.MEDIA_ROOT)
+                face_verification.id_photo_path = id_face_relative_path
+
+                # Step 2: Detect face in selfie
+                logger.info("Detecting face in selfie...")
+                selfie_detection = cls.detect_face(selfie_path)
+
+                if not selfie_detection['success']:
+                    face_verification.error_message = f"Selfie: {selfie_detection['message']}"
+                    face_verification.face_detected_in_selfie = False
+                    face_verification.verification_status = 'Failed'
+                    face_verification.processed_at = timezone.now()
+                    face_verification.save()
+                    logger.error(f"No face detected in selfie: {selfie_detection['message']}")
+
+                    # Audit log: No face detected in selfie
+                    from loans.models import AuditLog
+                    AuditLog.objects.create(
+                        user=application.user,
+                        action=f"Face verification failed for application #{application.id}: No face detected in selfie",
+                        action_type='FACE_VERIFY_FAIL',
+                        severity='WARNING',
+                        success=False,
+                        failure_reason=selfie_detection['message'],
+                        related_application=application
+                    )
+
+                    # Check for repeated failures and alert
+                    from .security_alerts import SecurityAlertService
+                    SecurityAlertService.check_and_alert_repeated_failures(
+                        user=application.user,
+                        application=application,
+                        failure_type='FACE_VERIFY_FAIL'
+                    )
+
+                    return face_verification
+
+                face_verification.face_detected_in_selfie = True
+
+                # Step 3: Compare faces using DeepFace
+                logger.info("Comparing faces with DeepFace...")
+                comparison_result = cls.compare_faces(id_face_result['face_path'], selfie_path)
+
+                if not comparison_result['success']:
+                    face_verification.error_message = comparison_result['message']
+                    face_verification.verification_status = 'Failed'
+                    face_verification.processed_at = timezone.now()
+                    face_verification.save()
+                    logger.error(f"Face comparison failed: {comparison_result['message']}")
+
+                    # Audit log: Face comparison failed
+                    from loans.models import AuditLog
+                    AuditLog.objects.create(
+                        user=application.user,
+                        action=f"Face verification failed for application #{application.id}: Comparison error",
+                        action_type='FACE_VERIFY_FAIL',
+                        severity='WARNING',
+                        success=False,
+                        failure_reason=comparison_result['message'],
+                        related_application=application
+                    )
+
+                    # Check for repeated failures and alert
+                    from .security_alerts import SecurityAlertService
+                    SecurityAlertService.check_and_alert_repeated_failures(
+                        user=application.user,
+                        application=application,
+                        failure_type='FACE_VERIFY_FAIL'
+                    )
+
+                    return face_verification
+
+                # Store comparison results
+                face_verification.similarity_score = Decimal(str(comparison_result['similarity_percentage']))
+                face_verification.comparison_model = comparison_result['model']
+                face_verification.comparison_distance = Decimal(str(comparison_result['distance'])) if comparison_result['distance'] is not None else None
+                face_verification.comparison_threshold = Decimal(str(comparison_result['threshold'])) if comparison_result['threshold'] is not None else None
+
+                # Determine verification outcome using tiered thresholds
+                face_config = getattr(settings, 'FACE_VERIFICATION', {})
+                auto_approve_threshold = face_config.get('AUTO_APPROVE_THRESHOLD', 80)
+                review_threshold = face_config.get('REVIEW_THRESHOLD', 55)
+                similarity = comparison_result['similarity_percentage']
+
+                if similarity >= auto_approve_threshold:
+                    # Auto-approved: face matches ID clearly
+                    face_verification.is_match = True
+                    face_verification.verification_status = 'Verified'
+                    face_verification.verified_at = timezone.now()
+                    face_verification.error_message = None
+                    logger.info(f"Face verification PASSED: {similarity:.1f}% similarity (>= {auto_approve_threshold}%)")
+
+                    from loans.models import AuditLog
+                    AuditLog.objects.create(
+                        user=application.user,
+                        action=f"Face verification successful for application #{application.id}",
+                        action_type='FACE_VERIFY_SUCCESS',
+                        severity='INFO',
+                        success=True,
+                        related_application=application
+                    )
+
+                elif similarity >= review_threshold:
+                    # Borderline: allow to proceed but flag for bookkeeper review
+                    face_verification.is_match = True
+                    face_verification.verification_status = 'Needs Review'
+                    face_verification.verified_at = timezone.now()
+                    face_verification.error_message = None
+                    logger.info(f"Face verification NEEDS REVIEW: {similarity:.1f}% similarity ({review_threshold}%-{auto_approve_threshold - 1}% range)")
+
+                    from loans.models import AuditLog
+                    AuditLog.objects.create(
+                        user=application.user,
+                        action=f"Face verification flagged for review for application #{application.id}: {similarity:.1f}% similarity",
+                        action_type='FACE_VERIFY_REVIEW',
+                        severity='WARNING',
+                        success=True,
+                        failure_reason=f"Similarity {similarity:.1f}% is in manual review range ({review_threshold}%-{auto_approve_threshold - 1}%)",
+                        related_application=application
+                    )
+
+                else:
+                    # Below minimum — rejected
+                    face_verification.is_match = False
+                    face_verification.verification_status = 'Failed'
+                    face_verification.error_message = (
+                        f"Face verification failed. Similarity score ({similarity:.1f}%) "
+                        f"is below the minimum threshold ({review_threshold}%)."
+                    )
+                    logger.warning(f"Face verification FAILED: {similarity:.1f}% similarity (< {review_threshold}%)")
+
+                    from loans.models import AuditLog
+                    AuditLog.objects.create(
+                        user=application.user,
+                        action=f"Face verification failed for application #{application.id}: Similarity below threshold",
+                        action_type='FACE_VERIFY_FAIL',
+                        severity='WARNING',
+                        success=False,
+                        failure_reason=f"Similarity {similarity:.1f}% below minimum threshold {review_threshold}%",
+                        related_application=application
+                    )
+
+                    from .security_alerts import SecurityAlertService
+                    SecurityAlertService.check_and_alert_repeated_failures(
+                        user=application.user,
+                        application=application,
+                        failure_type='FACE_VERIFY_FAIL'
+                    )
+
+                face_verification.processed_at = timezone.now()
+                face_verification.save()
+
+                return face_verification
+
+            finally:
+                # Always clean up the decrypted temp file
+                if temp_id_path and os.path.exists(temp_id_path):
+                    os.unlink(temp_id_path)
+                    logger.info(f"Cleaned up temp decrypted ID file: {temp_id_path}")
 
         except LoanApplication.DoesNotExist:
             logger.error(f"LoanApplication {application_id} not found")

@@ -22,9 +22,9 @@ class FaceVerificationThrottle(UserRateThrottle):
     - Server resource exhaustion from DeepFace processing
     - Excessive retry attempts
 
-    Default: 5 attempts per hour per user
+    Default: 20 attempts per hour per user
     """
-    rate = '5/hour'
+    rate = '20/hour'
     scope = 'face_verification'
 
 
@@ -37,9 +37,9 @@ class LivenessCheckThrottle(UserRateThrottle):
     - Large file uploads (videos can be 20-50MB)
     - Multiple frames analyzed per video (5-8 frames)
 
-    Default: 3 attempts per hour per user
+    Default: 20 attempts per hour per user
     """
-    rate = '3/hour'
+    rate = '20/hour'
     scope = 'liveness_check'
 
 
