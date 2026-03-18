@@ -50,6 +50,7 @@ class Notification(models.Model):
         ('info', 'Information'),
         ('approval', 'Approval'),
         ('rejection', 'Rejection'),
+        ('security_alert', 'Security Alert'),
     ]
 
     user = models.ForeignKey(

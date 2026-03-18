@@ -13,6 +13,7 @@ export default function EvaluateApplication() {
 
   // Form state
   const [netSalary, setNetSalary] = useState('');
+  const [salaryPrefilled, setSalaryPrefilled] = useState(false);
   const [recommendation, setRecommendation] = useState('');
   const [remarks, setRemarks] = useState('');
 
@@ -25,9 +26,14 @@ export default function EvaluateApplication() {
       setLoading(true);
       const result = await treasurerService.getApplication(id);
       setData(result);
-      // Pre-fill net_salary if available
       if (result.application?.net_salary) {
+        // Previously saved treasurer-verified salary (re-evaluation)
         setNetSalary(result.application.net_salary);
+        setSalaryPrefilled(false);
+      } else if (result.application?.applicant_monthly_income) {
+        // First evaluation — pre-fill with applicant's declared income
+        setNetSalary(result.application.applicant_monthly_income);
+        setSalaryPrefilled(true);
       }
     } catch (err) {
       setError('Failed to load application');
@@ -253,7 +259,7 @@ export default function EvaluateApplication() {
                     <input
                       type="number"
                       value={netSalary}
-                      onChange={(e) => setNetSalary(e.target.value)}
+                      onChange={(e) => { setNetSalary(e.target.value); setSalaryPrefilled(false); }}
                       placeholder="Enter net salary from payslip"
                       style={{ ...inputStyle, paddingLeft: '1.75rem' }}
                       required
@@ -261,9 +267,15 @@ export default function EvaluateApplication() {
                       step="0.01"
                     />
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                    Enter the net monthly salary as shown on the payslip
-                  </div>
+                  {salaryPrefilled ? (
+                    <div style={{ fontSize: '0.75rem', color: '#d97706', marginTop: '0.25rem' }}>
+                      ⚠ Pre-filled from applicant's declared income. Verify against the uploaded payslip and correct if needed.
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                      Enter the net monthly salary as shown on the payslip
+                    </div>
+                  )}
                 </div>
 
                 {/* DTI Calculation */}

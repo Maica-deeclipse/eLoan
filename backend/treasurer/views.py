@@ -142,6 +142,15 @@ class ApplicationDetailView(TreasurerBaseView):
             application.current_status.status_name == 'Verified by Bookkeeper'
         )
 
+        # Pull the applicant's self-declared monthly income to pre-populate
+        # the net_salary field in the evaluation form (treasurer still verifies
+        # against the uploaded payslip and can override the value).
+        try:
+            profile = application.user.applicant_profile
+            applicant_monthly_income = str(profile.monthly_income) if profile.monthly_income else None
+        except Exception:
+            applicant_monthly_income = None
+
         return Response({
             'application': {
                 'id': application.id,
@@ -152,6 +161,7 @@ class ApplicationDetailView(TreasurerBaseView):
                     'status': application.user.status,
                     'date_joined': application.user.date_joined.isoformat(),
                 },
+                'applicant_monthly_income': applicant_monthly_income,
                 'loan_type': {
                     'name': application.loan_type.loan_name,
                     'interest_rate': str(application.loan_type.interest_rate),

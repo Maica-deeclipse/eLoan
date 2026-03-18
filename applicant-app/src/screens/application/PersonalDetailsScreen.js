@@ -123,6 +123,10 @@ export default function PersonalDetailsScreen({ navigation }) {
       Alert.alert('Validation Error', 'Office is required');
       return false;
     }
+    if (!monthlyIncome || isNaN(parseFloat(monthlyIncome)) || parseFloat(monthlyIncome) <= 0) {
+      Alert.alert('Validation Error', 'Monthly income is required');
+      return false;
+    }
     return true;
   };
 

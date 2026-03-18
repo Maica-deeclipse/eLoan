@@ -147,7 +147,7 @@ export default function Notifications() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      {notification.related_application_id && (
+                      {notification.related_application_id && notification.notification_type !== 'security_alert' && (
                         <Link
                           to={`/bookkeeper/applications/${notification.related_application_id}`}
                           style={{
@@ -211,6 +211,7 @@ function NotificationIcon({ type }) {
     action_required: { bg: '#fee2e2', color: '#dc2626', icon: '&#9888;' },
     approval: { bg: '#d1fae5', color: '#059669', icon: '&#10004;' },
     rejection: { bg: '#fee2e2', color: '#dc2626', icon: '&#10006;' },
+    security_alert: { bg: '#fef3c7', color: '#b45309', icon: '&#128274;' },
     info: { bg: '#e5e7eb', color: '#4b5563', icon: '&#8505;' },
   };
 

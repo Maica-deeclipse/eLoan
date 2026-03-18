@@ -111,16 +111,12 @@ class SecurityAlertService:
             from bookkeeper.models import Notification
             from loans.models import AuditLog
 
-            # Get administrative users
+            # Security alerts go to Super Administrators only
             admin_users = User.objects.filter(role__name='Super Administrator')
-            bookkeeper_users = User.objects.filter(role__name='Bookkeeper')
 
-            # Prepare alert messages
-            failure_name = failure_type.replace('_', ' ').title()
             alert_title = f"Security Alert: Suspicious Activity Detected"
             alert_message = cls._format_alert_message(user, application, failure_type, count, time_window)
 
-            # Create notifications for admins
             notifications_created = 0
             for admin in admin_users:
                 try:
@@ -128,26 +124,12 @@ class SecurityAlertService:
                         user=admin,
                         title=alert_title,
                         message=alert_message,
-                        notification_type='action_required',
-                        related_application=application
+                        notification_type='security_alert',
+                        # No related_application — application may not be submitted yet
                     )
                     notifications_created += 1
                 except Exception as e:
                     logger.error(f"Failed to create notification for admin {admin.id}: {str(e)}")
-
-            # Create notifications for bookkeepers
-            for bookkeeper in bookkeeper_users:
-                try:
-                    Notification.objects.create(
-                        user=bookkeeper,
-                        title=alert_title,
-                        message=alert_message,
-                        notification_type='action_required',
-                        related_application=application
-                    )
-                    notifications_created += 1
-                except Exception as e:
-                    logger.error(f"Failed to create notification for bookkeeper {bookkeeper.id}: {str(e)}")
 
             # Log the alert creation to AuditLog
             AuditLog.objects.create(
