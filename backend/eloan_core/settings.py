@@ -31,7 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '10.255.14.161',
+    '192.168.0.148',
     '10.0.0.52',
 ]
 
@@ -72,6 +72,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -258,7 +259,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',       # Web frontend
     'http://10.255.14.161:3000',   # Web frontend (network access)
     'http://localhost:8081',       # Expo dev server (default)
-    'http://127.0.0.1:8081',       # Expo dev server
+    'http://192.168.0.148:8081',       # Expo dev server
     'http://localhost:19000',      # Expo dev server (alternative port)
     'http://localhost:19006',      # Expo web
 ]

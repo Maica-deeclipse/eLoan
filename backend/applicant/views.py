@@ -11,6 +11,7 @@ import uuid
 import logging
 
 from django.conf import settings
+from django.core.cache import cache
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import status
@@ -41,7 +42,6 @@ from .services import (
     NotificationService
 )
 from .face_verification_service import FaceComparisonService
-from .models import ESignature
 from .utils import get_client_ip, DocumentTypes, ApplicationStatuses
 
 logger = logging.getLogger(__name__)
@@ -119,8 +119,14 @@ class LoanTypeListView(ApplicantBaseView):
     """GET /api/applicant/loan-types/"""
 
     def get(self, request):
-        # Pass user to get membership-adjusted max amounts
-        loan_types = LoanApplicationService.get_active_loan_types(user=request.user)
+        # Cache per membership type — loan types change rarely
+        member = getattr(request.user, 'member_profile', None)
+        membership = getattr(member, 'membership_type', 'none')
+        cache_key = f'loan_types_{membership}'
+        loan_types = cache.get(cache_key)
+        if loan_types is None:
+            loan_types = LoanApplicationService.get_active_loan_types(user=request.user)
+            cache.set(cache_key, loan_types, 300)  # cache for 5 minutes
         return Response({'loan_types': loan_types})
 
 
@@ -275,17 +281,6 @@ class ApplicationDetailView(ApplicantBaseView):
         # Get verification status
         verification_status = FaceVerificationService.get_verification_status(application)
 
-        # Get e-signature status
-        esignature = None
-        try:
-            esig = application.esignature
-            esignature = {
-                'signed_at': esig.signed_at.isoformat(),
-                'terms_accepted': esig.terms_accepted,
-            }
-        except ESignature.DoesNotExist:
-            pass
-
         return Response({
             'id': application.id,
             'loan_type': {
@@ -312,7 +307,6 @@ class ApplicationDetailView(ApplicantBaseView):
                 'completed': verification_status['liveness_check']['completed'],
                 'verified': verification_status['liveness_check']['verified'],
             },
-            'esignature': esignature,
         })
 
 
@@ -1329,71 +1323,6 @@ class CombinedVerificationView(ApplicantBaseView):
 
 
 # =============================================================================
-# E-Signature API
-# =============================================================================
-class ESignatureView(ApplicantBaseView):
-    """POST /api/applicant/applications/<app_id>/esignature/"""
-
-    def post(self, request, app_id):
-        application = LoanApplicationService.get_application_by_id(app_id, request.user)
-        if not application:
-            return Response(
-                {'error': 'Application not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        signature = request.data.get('signature')
-        terms_accepted = request.data.get('terms_accepted', False)
-
-        if not signature:
-            return Response(
-                {'error': 'Signature is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not terms_accepted:
-            return Response(
-                {'error': 'You must accept the terms and conditions'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Save signature image (base64)
-        filename = f"signature_{uuid.uuid4().hex[:12]}.png"
-        file_path = f"applicant/signatures/{application.id}/{filename}"
-
-        full_dir = os.path.join(settings.MEDIA_ROOT, f"applicant/signatures/{application.id}")
-        os.makedirs(full_dir, exist_ok=True)
-
-        # If signature is base64, decode and save
-        import base64
-        if signature.startswith('data:image'):
-            signature = signature.split(',')[1]
-
-        signature_bytes = base64.b64decode(signature)
-        full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-        with open(full_path, 'wb') as f:
-            f.write(signature_bytes)
-
-        # Create or update e-signature
-        esig, created = ESignature.objects.update_or_create(
-            loan_application=application,
-            defaults={
-                'signature_image_path': file_path,
-                'signed_at': timezone.now(),
-                'ip_address': get_client_ip(request),
-                'device_info': request.META.get('HTTP_USER_AGENT', ''),
-                'terms_accepted': True,
-            }
-        )
-
-        return Response({
-            'id': esig.id,
-            'signed_at': esig.signed_at.isoformat(),
-            'message': 'Signature saved successfully',
-        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
-
-# =============================================================================
 # Co-Maker API
 # =============================================================================
 class SearchUsersView(ApplicantBaseView):
@@ -1734,6 +1663,7 @@ class MarkNotificationReadView(ApplicantBaseView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        cache.delete(f'notif_unread_{request.user.id}')
         return Response({'message': 'Notification marked as read'})
 
 
@@ -1742,6 +1672,7 @@ class MarkAllNotificationsReadView(ApplicantBaseView):
 
     def post(self, request):
         NotificationService.mark_all_as_read(request.user)
+        cache.delete(f'notif_unread_{request.user.id}')
         return Response({'message': 'All notifications marked as read'})
 
 
@@ -1749,5 +1680,9 @@ class UnreadCountView(ApplicantBaseView):
     """GET /api/applicant/notifications/unread-count/"""
 
     def get(self, request):
-        count = NotificationService.get_unread_count(request.user)
+        cache_key = f'notif_unread_{request.user.id}'
+        count = cache.get(cache_key)
+        if count is None:
+            count = NotificationService.get_unread_count(request.user)
+            cache.set(cache_key, count, 60)  # cache for 1 minute
         return Response({'unread_count': count})

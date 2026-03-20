@@ -33,8 +33,6 @@ class AMOBaseView(APIView):
     def check_permissions(self, request):
         super().check_permissions(request)
         user = request.user
-        if user.is_superuser:
-            return
         if not user.role or user.role.name != 'Account Member Officer':
             self.permission_denied(
                 request,

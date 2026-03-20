@@ -174,7 +174,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
         return f"{obj.firstname} {obj.lastname}"
     get_full_name.short_description = 'Full Name'
 
-    actions = ['approve_registrations', 'reject_registrations', 'resend_invitation', 'activate_users', 'suspend_users', 'send_test_email']
+    actions = ['approve_registrations', 'reject_registrations', 'activate_users', 'suspend_users']
 
     def approve_registrations(self, request, queryset):
         """Approve pending user registrations."""
@@ -236,15 +236,6 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
         self.message_user(request, f"{count} registration(s) rejected.")
     reject_registrations.short_description = "Reject selected registrations"
 
-    def resend_invitation(self, request, queryset):
-        """Admin action to resend invitation emails."""
-        for user in queryset:
-            if not user.has_usable_password():
-                form = UserCreationForm(instance=user)
-                form.send_invitation_email(user)
-        self.message_user(request, f"Invitation emails sent to {queryset.count()} user(s).")
-    resend_invitation.short_description = "Resend invitation email"
-
     def activate_users(self, request, queryset):
         """Admin action to activate users."""
         updated = queryset.update(status='active', is_active=True)
@@ -256,37 +247,6 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
         updated = queryset.update(status='suspended', is_active=False)
         self.message_user(request, f"{updated} user(s) suspended.")
     suspend_users.short_description = "Suspend selected users"
-
-    def send_test_email(self, request, queryset):
-        """Send test email to verify email configuration."""
-        print("\n" + "="*80)
-        print("📧 SENDING TEST EMAIL")
-        print("="*80)
-        print("This is a test to verify your email configuration.")
-        print("="*80 + "\n")
-
-        try:
-            send_mail(
-                'Test Email from eLoan System',
-                'This is a test email. If you see this in your terminal, email configuration is working!',
-                settings.DEFAULT_FROM_EMAIL,
-                ['test@example.com'],
-                fail_silently=False,
-            )
-            print("✅ Test email sent successfully! Check console output above.\n")
-            self.message_user(
-                request,
-                "Test email sent! Check your Django terminal/console for the email output.",
-                level='SUCCESS'
-            )
-        except Exception as e:
-            print(f"❌ Test email failed: {str(e)}\n")
-            self.message_user(
-                request,
-                f"Test email failed: {str(e)}. Check console for details.",
-                level='ERROR'
-            )
-    send_test_email.short_description = "📧 Send test email (check console)"
 
 
 @admin.register(Role)

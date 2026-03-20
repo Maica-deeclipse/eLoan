@@ -24,8 +24,7 @@ const STEP_TO_ROUTE = {
   4: 'CoMaker',
   5: 'DocumentUpload',
   6: 'FaceVerification',
-  7: 'ESignature',
-  8: 'ReviewSubmit',
+  7: 'ReviewSubmit',
 };
 
 const toPositiveNumber = (value) => {
@@ -81,7 +80,6 @@ const inferResumeStep = ({
   coMakerCount,
   hasDocuments,
   hasVerification,
-  hasESignature,
   localStep,
 }) => {
   let inferredStep = 2;
@@ -93,10 +91,8 @@ const inferResumeStep = ({
       inferredStep = 5;
     } else if (!hasVerification) {
       inferredStep = 6;
-    } else if (!hasESignature) {
-      inferredStep = 7;
     } else {
-      inferredStep = 8;
+      inferredStep = 7;
     }
   } else if ((localStep || 0) >= 3) {
     inferredStep = 3;
@@ -106,7 +102,7 @@ const inferResumeStep = ({
   if (mergedStep === 4 && coMakerRequirement === 0) {
     return 5;
   }
-  return Math.min(8, mergedStep);
+  return Math.min(7, mergedStep);
 };
 
 const getRouteFromStep = (step, coMakerRequirement) => {
@@ -152,7 +148,6 @@ const buildResumeState = (loanType, applicationDetail, localDraft, currentPerson
     applicationDetail.face_verification?.verified &&
       applicationDetail.liveness_check?.verified
   );
-  const hasESignature = Boolean(applicationDetail.esignature?.terms_accepted);
   const localStep = Number(localDraft?.currentStep) || 0;
 
   const currentStep = inferResumeStep({
@@ -161,7 +156,6 @@ const buildResumeState = (loanType, applicationDetail, localDraft, currentPerson
     coMakerCount: coMakers.length,
     hasDocuments,
     hasVerification,
-    hasESignature,
     localStep,
   });
 
@@ -172,8 +166,7 @@ const buildResumeState = (loanType, applicationDetail, localDraft, currentPerson
     4: coMakerRequirement > 0 ? coMakers.length >= coMakerRequirement : null,
     5: hasDocuments,
     6: hasVerification,
-    7: hasESignature,
-    8: false,
+    7: false,
   };
 
   return {
@@ -195,11 +188,6 @@ const buildResumeState = (loanType, applicationDetail, localDraft, currentPerson
         completed: Boolean(applicationDetail.liveness_check?.completed),
         method: null,
         verified: Boolean(applicationDetail.liveness_check?.verified),
-      },
-      eSignature: {
-        completed: hasESignature,
-        signatureUri: null,
-        termsAccepted: hasESignature,
       },
       stepValidation,
       errors: {},

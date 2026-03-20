@@ -285,15 +285,6 @@ export default function ApplicationDetailScreen({ route, navigation }) {
               {application.liveness_check?.completed ? (application.liveness_check?.verified ? 'Verified' : 'Pending') : 'Not Done'}
             </Text>
           </View>
-          <View style={styles.verificationRow}>
-            <Text style={styles.verificationLabel}>E-Signature</Text>
-            <Text style={[
-              styles.verificationStatus,
-              { color: application.esignature?.terms_accepted ? '#059669' : '#9ca3af' }
-            ]}>
-              {application.esignature ? 'Signed' : 'Not Signed'}
-            </Text>
-          </View>
         </SectionCard>
 
         {/* Actions */}

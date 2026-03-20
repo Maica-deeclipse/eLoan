@@ -17,7 +17,6 @@ API Structure:
     /api/applicant/applications/<id>/face-capture/
     /api/applicant/applications/<id>/liveness-check/
     /api/applicant/applications/<id>/verification-status/
-    /api/applicant/applications/<id>/esignature/
     /api/applicant/applications/<id>/comakers/
     /api/applicant/documents/<id>/
     /api/applicant/documents/<id>/replace/
@@ -72,8 +71,6 @@ urlpatterns = [
     path('applications/<int:app_id>/liveness-video/', views.LivenessVideoView.as_view(), name='liveness_video'),
     path('applications/<int:app_id>/combined-verification/', views.CombinedVerificationView.as_view(), name='combined_verification'),
     path('applications/<int:app_id>/verification-status/', views.VerificationStatusView.as_view(), name='verification_status'),
-    path('applications/<int:app_id>/esignature/', views.ESignatureView.as_view(), name='esignature'),
-
     # Co-Makers
     path('search-users/', views.SearchUsersView.as_view(), name='search_users'),
     path('applications/<int:app_id>/comakers/', views.CoMakerListView.as_view(), name='comakers'),

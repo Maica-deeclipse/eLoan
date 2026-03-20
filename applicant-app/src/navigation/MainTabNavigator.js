@@ -43,7 +43,7 @@ export default function MainTabNavigator({ navigation }) {
 
   useEffect(() => {
     loadUnreadCount();
-    const interval = setInterval(loadUnreadCount, 30000); // Refresh every 30s
+    const interval = setInterval(loadUnreadCount, 120000); // Refresh every 2 minutes
     return () => clearInterval(interval);
   }, []);
 

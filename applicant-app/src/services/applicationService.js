@@ -238,20 +238,6 @@ class ApplicationService {
   }
 
   /**
-   * Upload e-signature
-   */
-  async uploadESignature(applicationId, signatureBase64, termsAccepted) {
-    const response = await apiService.post(
-      `/applicant/applications/${applicationId}/esignature/`,
-      {
-        signature: signatureBase64,
-        terms_accepted: termsAccepted,
-      }
-    );
-    return response.data;
-  }
-
-  /**
    * Submit application for review
    */
   async submitApplication(applicationId) {

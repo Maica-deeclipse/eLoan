@@ -112,7 +112,7 @@ const FaceVerificationScreen = ({ navigation }) => {
       }
 
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
+        quality: 0.5,
         base64: false,
         skipProcessing: true,
       });
@@ -184,8 +184,8 @@ const FaceVerificationScreen = ({ navigation }) => {
       let videoPromise;
       try {
         videoPromise = cameraRef.current.recordAsync({
-          maxDuration: 8, // 8 seconds max
-          quality: '720p',
+          maxDuration: 6, // 6 seconds — enough frames for liveness detection
+          quality: '480p',
         });
         console.log('[LivenessRecording] recordAsync() called successfully, awaiting promise...');
       } catch (recordStartError) {
@@ -209,19 +209,19 @@ const FaceVerificationScreen = ({ navigation }) => {
         setRecordingDuration(elapsedTime);
 
         // Show instructions at specific times
-        if (elapsedTime >= 6 && elapsedTime < 6.1) {
-          console.log('[LivenessRecording] Instruction at 6s: Turn your head slightly');
+        if (elapsedTime >= 5 && elapsedTime < 5.1) {
+          console.log('[LivenessRecording] Instruction at 5s: Turn your head slightly');
           setCurrentInstruction('Turn your head slightly');
-        } else if (elapsedTime >= 4 && elapsedTime < 4.1) {
-          console.log('[LivenessRecording] Instruction at 4s: Smile naturally');
+        } else if (elapsedTime >= 3 && elapsedTime < 3.1) {
+          console.log('[LivenessRecording] Instruction at 3s: Smile naturally');
           setCurrentInstruction('Smile naturally');
-        } else if (elapsedTime >= 2 && elapsedTime < 2.1) {
-          console.log('[LivenessRecording] Instruction at 2s: Blink your eyes');
+        } else if (elapsedTime >= 1.5 && elapsedTime < 1.6) {
+          console.log('[LivenessRecording] Instruction at 1.5s: Blink your eyes');
           setCurrentInstruction('Blink your eyes');
         }
 
-        if (elapsedTime >= 8) {
-          console.log('[LivenessRecording] 8s elapsed — calling stopLivenessRecording()');
+        if (elapsedTime >= 6) {
+          console.log('[LivenessRecording] 6s elapsed — calling stopLivenessRecording()');
           stopLivenessRecording();
         }
       }, 100);

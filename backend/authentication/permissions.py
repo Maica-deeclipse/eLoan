@@ -8,23 +8,15 @@ class IsStaffMember(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        # Check if user is authenticated
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Super admin always has access
-        if request.user.is_superuser:
-            return True
-
-        # Check if user account is active
         if not request.user.is_active or request.user.status != 'active':
             return False
 
-        # Check if user has a role
         if not request.user.role:
             return False
 
-        # Check if role is authorized
         authorized_roles = ['Bookkeeper', 'Treasurer', 'Credit Committee']
         return request.user.role.name in authorized_roles
 
@@ -39,15 +31,9 @@ class IsBookkeeper(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Super admin always has access
-        if request.user.is_superuser:
-            return True
-
-        # Check if user is active
         if not request.user.is_active or request.user.status != 'active':
             return False
 
-        # Check role
         if not request.user.role:
             return False
 
@@ -64,15 +50,9 @@ class IsTreasurer(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Super admin always has access
-        if request.user.is_superuser:
-            return True
-
-        # Check if user is active
         if not request.user.is_active or request.user.status != 'active':
             return False
 
-        # Check role
         if not request.user.role:
             return False
 
@@ -89,15 +69,9 @@ class IsCreditCommittee(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Super admin always has access
-        if request.user.is_superuser:
-            return True
-
-        # Check if user is active
         if not request.user.is_active or request.user.status != 'active':
             return False
 
-        # Check role
         if not request.user.role:
             return False
 
@@ -114,15 +88,9 @@ class IsBookkeeperOrTreasurer(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Super admin always has access
-        if request.user.is_superuser:
-            return True
-
-        # Check if user is active
         if not request.user.is_active or request.user.status != 'active':
             return False
 
-        # Check role
         if not request.user.role:
             return False
 
@@ -139,9 +107,6 @@ class IsAccountMemberOfficer(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        if request.user.is_superuser:
-            return True
-
         if not request.user.is_active or request.user.status != 'active':
             return False
 
@@ -154,7 +119,9 @@ class IsAccountMemberOfficer(permissions.BasePermission):
 class IsSuperAdministrator(permissions.BasePermission):
     """
     Permission class for Super Administrator-only access.
-    Only Super Admins can create users and assign roles.
+    Super Admin responsibilities: approve admin registrations, loan type management,
+    system oversight, and user visibility. Super Admin does NOT access operational
+    endpoints belonging to other roles.
     """
 
     def has_permission(self, request, view):

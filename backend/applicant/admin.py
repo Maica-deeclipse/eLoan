@@ -4,7 +4,6 @@ Applicant Module Admin Configuration
 Includes:
 - ApplicantProfile management
 - Co-maker information
-- E-signatures
 - Loan type co-maker requirements
 - Member management (membership classification)
 - Savings and Shared Capital records
@@ -14,7 +13,7 @@ from django.contrib import admin
 from unfold.admin import ModelAdmin
 from unfold.decorators import display
 from .models import (
-    ApplicantProfile, CoMakerInfo, ESignature, LoanTypeCoMakerRequirement,
+    ApplicantProfile, CoMakerInfo, LoanTypeCoMakerRequirement,
     Member, Savings, SharedCapital, MembershipApprovalLog
 )
 
@@ -78,14 +77,6 @@ class CoMakerInfoAdmin(ModelAdmin):
     )
 
 
-@admin.register(ESignature)
-class ESignatureAdmin(ModelAdmin):
-    list_display = ('loan_application', 'terms_accepted', 'signed_at', 'ip_address')
-    list_filter = ('terms_accepted', 'terms_version', 'signed_at')
-    search_fields = ('loan_application__user__email',)
-    readonly_fields = ('signed_at',)
-
-
 @admin.register(LoanTypeCoMakerRequirement)
 class LoanTypeCoMakerRequirementAdmin(ModelAdmin):
     list_display = ('loan_type', 'required_comakers')
@@ -99,7 +90,7 @@ class LoanTypeCoMakerRequirementAdmin(ModelAdmin):
 
 @admin.register(Member)
 class MemberAdmin(ModelAdmin):
-    """Admin interface for managing cooperative members."""
+    """Read-only view of cooperative members. Management is handled by Account Member Officer."""
 
     list_display = (
         'user_name',
@@ -180,10 +171,19 @@ class MemberAdmin(ModelAdmin):
         return "Per Loan Type Config"
     max_loan_amount_display.short_description = 'Max Loan Amount'
 
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 @admin.register(Savings)
 class SavingsAdmin(ModelAdmin):
-    """Admin interface for recording member savings."""
+    """Read-only view of savings records. Management is handled by Account Member Officer."""
 
     list_display = (
         'member_name',
@@ -238,15 +238,19 @@ class SavingsAdmin(ModelAdmin):
         return '-'
     recorded_by_name.short_description = 'Recorded By'
 
-    def save_model(self, request, obj, form, change):
-        if not change:  # Only set on create
-            obj.recorded_by = request.user
-        super().save_model(request, obj, form, change)
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(SharedCapital)
 class SharedCapitalAdmin(ModelAdmin):
-    """Admin interface for recording member shared capital."""
+    """Read-only view of shared capital records. Management is handled by Account Member Officer."""
 
     list_display = (
         'member_name',
@@ -301,10 +305,14 @@ class SharedCapitalAdmin(ModelAdmin):
         return '-'
     recorded_by_name.short_description = 'Recorded By'
 
-    def save_model(self, request, obj, form, change):
-        if not change:  # Only set on create
-            obj.recorded_by = request.user
-        super().save_model(request, obj, form, change)
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(MembershipApprovalLog)

@@ -4,7 +4,6 @@ Applicant Module Models
 Models:
 - ApplicantProfile: Extended profile information for applicants
 - CoMakerInfo: Detailed co-maker information for loan applications
-- ESignature: Electronic signature for loan applications
 - LoanTypeCoMakerRequirement: Co-maker requirements per loan type
 - Member: Membership profile linked to User (Applicant is a Member with pending status)
 - Savings: Savings records for members
@@ -143,34 +142,6 @@ class CoMakerInfo(models.Model):
 
     def __str__(self):
         return f"CoMaker: {self.full_name}"
-
-
-class ESignature(models.Model):
-    """
-    Electronic signature for loan applications.
-    Stores signature image and metadata for legal compliance.
-    """
-    loan_application = models.OneToOneField(
-        'loans.LoanApplication',
-        on_delete=models.CASCADE,
-        related_name='esignature'
-    )
-
-    signature_image_path = models.CharField(max_length=255)
-    signed_at = models.DateTimeField(default=timezone.now)
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    device_info = models.TextField(blank=True, null=True)
-
-    # Terms acceptance
-    terms_accepted = models.BooleanField(default=False)
-    terms_version = models.CharField(max_length=20, default='1.0')
-
-    class Meta:
-        verbose_name = 'E-Signature'
-        verbose_name_plural = 'E-Signatures'
-
-    def __str__(self):
-        return f"Signature for Application #{self.loan_application.id}"
 
 
 class LoanTypeCoMakerRequirement(models.Model):

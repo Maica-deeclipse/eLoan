@@ -20,7 +20,7 @@ from loans.models import LoanApplication, LoanType, LoanCoMaker, LoanDocument, A
 from bookkeeper.models import Notification
 from users.models import User
 
-from .models import ApplicantProfile, CoMakerInfo, ESignature, LoanTypeCoMakerRequirement
+from .models import ApplicantProfile, CoMakerInfo, LoanTypeCoMakerRequirement
 from .utils import (
     calculate_monthly_amortization,
     validate_loan_amount,
@@ -338,7 +338,7 @@ class LoanApplicationService:
         4 - Co-Makers (handled separately)
         5 - Documents (handled separately)
         6 - Face Verification (handled separately)
-        7 - E-Signature (handled separately)
+        7 - Review & Submit
         """
         if application.current_status.status_name not in [
             ApplicationStatuses.DRAFT,
@@ -401,7 +401,6 @@ class LoanApplicationService:
         - All required data is present
         - Required documents uploaded
         - Face verification completed
-        - E-signature completed
         - Required co-makers added
         """
         errors = []
@@ -432,8 +431,6 @@ class LoanApplicationService:
         ).first()
         if not liveness_check:
             errors.append("Liveness check is required.")
-
-        # E-signature removed - client will handle physical signatures
 
         # Check co-makers
         required_comakers = get_comaker_requirement(application.loan_type)

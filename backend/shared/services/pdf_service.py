@@ -93,9 +93,6 @@ class LoanApplicationPDFService:
         # Approval Information
         story.extend(cls._build_approval_info(application, styles))
 
-        # E-Signature
-        story.extend(cls._build_signature_section(application, styles))
-
         # Footer
         story.extend(cls._build_footer(styles))
 
@@ -370,36 +367,6 @@ class LoanApplicationPDFService:
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ]))
         elements.append(approval_table)
-        elements.append(Spacer(1, 0.2*inch))
-
-        return elements
-
-    @classmethod
-    def _build_signature_section(cls, application, styles):
-        """Build e-signature section."""
-        elements = []
-
-        elements.append(Paragraph("Digital Signature", styles['SectionTitle']))
-
-        try:
-            esig = application.esignature
-            sig_data = [
-                ['Signed At', esig.signed_at.strftime('%B %d, %Y %I:%M %p')],
-                ['Terms Accepted', 'Yes' if esig.terms_accepted else 'No'],
-            ]
-
-            sig_table = Table(sig_data, colWidths=[2*inch, 4*inch])
-            sig_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f7fafc')),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-                ('PADDING', (0, 0), (-1, -1), 8),
-            ]))
-            elements.append(sig_table)
-
-        except Exception:
-            elements.append(Paragraph("No digital signature on record.", styles['FieldValue']))
-
         elements.append(Spacer(1, 0.2*inch))
 
         return elements

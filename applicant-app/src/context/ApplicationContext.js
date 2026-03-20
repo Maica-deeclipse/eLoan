@@ -64,13 +64,6 @@ const initialState = {
     verified: false,
   },
 
-  // Step 7: E-Signature
-  eSignature: {
-    completed: false,
-    signatureUri: null,
-    termsAccepted: false,
-  },
-
   // Validation state
   stepValidation: {
     1: false,
@@ -80,7 +73,6 @@ const initialState = {
     5: false,
     6: false,
     7: false,
-    8: false,
   },
 
   // Error state
@@ -213,14 +205,6 @@ function applicationReducer(state, action) {
         },
       };
 
-    case 'SET_ESIGNATURE':
-      const sigValid = action.payload.completed && action.payload.termsAccepted;
-      return {
-        ...state,
-        eSignature: { ...state.eSignature, ...action.payload },
-        stepValidation: { ...state.stepValidation, 7: sigValid },
-      };
-
     case 'SET_STEP_VALID':
       return {
         ...state,
@@ -299,10 +283,6 @@ export function ApplicationProvider({ children }) {
     dispatch({ type: 'SET_LIVENESS_CHECK', payload: data });
   };
 
-  const setESignature = (data) => {
-    dispatch({ type: 'SET_ESIGNATURE', payload: data });
-  };
-
   const resetApplication = () => {
     dispatch({ type: 'RESET' });
   };
@@ -348,7 +328,6 @@ export function ApplicationProvider({ children }) {
         removeDocument,
         setFaceVerification,
         setLivenessCheck,
-        setESignature,
         resetApplication,
         canProceedToStep,
         getNextStep,

@@ -79,7 +79,7 @@ class LoanApplicationAdmin(ModelAdmin):
     ordering = ('-application_date',)
     date_hierarchy = 'application_date'
 
-    inlines = [LoanCoMakerInline, LoanDocumentInline, StatusChangeLogInline]
+    inlines = [LoanCoMakerInline, StatusChangeLogInline]
 
     fieldsets = (
         ('Applicant Information', {
@@ -146,25 +146,6 @@ class LoanApplicationAdmin(ModelAdmin):
         )
     payment_progress.short_description = 'Payment Progress'
 
-    actions = ['approve_applications', 'reject_applications']
-
-    def approve_applications(self, request, queryset):
-        try:
-            approved_status = ApplicationStatus.objects.get(status_name__iexact='Approved')
-            updated = queryset.update(current_status=approved_status)
-            self.message_user(request, f'{updated} application(s) approved successfully.', level='SUCCESS')
-        except ApplicationStatus.DoesNotExist:
-            self.message_user(request, 'Approved status not found. Please create it first.', level='ERROR')
-    approve_applications.short_description = '✅ Approve selected applications'
-
-    def reject_applications(self, request, queryset):
-        try:
-            rejected_status = ApplicationStatus.objects.get(status_name__iexact='Rejected')
-            updated = queryset.update(current_status=rejected_status)
-            self.message_user(request, f'{updated} application(s) rejected.', level='WARNING')
-        except ApplicationStatus.DoesNotExist:
-            self.message_user(request, 'Rejected status not found. Please create it first.', level='ERROR')
-    reject_applications.short_description = '❌ Reject selected applications'
 
 
 @admin.register(LoanCoMaker)
@@ -178,6 +159,10 @@ class LoanCoMakerAdmin(ModelAdmin):
 
 @admin.register(LoanDocument)
 class LoanDocumentAdmin(ModelAdmin):
+    """
+    Applicant documents are restricted to the four admin roles (Bookkeeper, Treasurer,
+    Credit Committee, Account Member Officer). Super Admin cannot view or verify documents.
+    """
     list_display = ('loan_application', 'document_type', 'verification_badge', 'uploaded_at', 'verified_by')
     list_filter = ('verified', 'document_type', 'uploaded_at')
     search_fields = ('loan_application__id', 'document_type')
@@ -194,17 +179,20 @@ class LoanDocumentAdmin(ModelAdmin):
             '<span class="status-badge pending">⏳ Pending</span>'
         )
 
-    actions = ['verify_documents']
+    def has_module_perms(self, request):
+        return False
 
-    def verify_documents(self, request, queryset):
-        from django.utils import timezone
-        updated = queryset.update(
-            verified=True,
-            verified_by=request.user,
-            verified_at=timezone.now()
-        )
-        self.message_user(request, f'{updated} document(s) verified.', level='SUCCESS')
-    verify_documents.short_description = '✅ Verify selected documents'
+    def has_view_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(FaceVerification)
