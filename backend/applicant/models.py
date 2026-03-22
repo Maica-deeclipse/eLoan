@@ -92,6 +92,20 @@ class ApplicantProfile(models.Model):
     emergency_contact_number = models.CharField(max_length=20, blank=True, null=True)
     emergency_contact_relationship = models.CharField(max_length=50, blank=True, null=True)
 
+    # Membership Documents (uploaded during registration)
+    coe_document = models.FileField(
+        upload_to='membership_documents/coe/',
+        blank=True,
+        null=True,
+        help_text='Certificate of Employment or proof of employment status'
+    )
+    membership_form = models.FileField(
+        upload_to='membership_documents/forms/',
+        blank=True,
+        null=True,
+        help_text='Accomplished membership application form'
+    )
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -238,15 +252,23 @@ class LoanTypeCoMakerRequirement(models.Model):
 # Membership Models
 # =============================================================================
 
+# Employment statuses that can NEVER become Regular Member (regardless of deposit)
+ASSOCIATE_ONLY_STATUSES = {'part_time', 'job_order'}
+# Employment statuses eligible for Regular membership (if fixed deposit >= 20k)
+REGULAR_ELIGIBLE_STATUSES = {'permanent', 'temporary', 'casual'}
+
+
 class Member(models.Model):
     """
     Member profile linked to User.
     An Applicant is essentially a Member - the User's account_status determines
     if they're pending, approved, or rejected.
 
-    Membership Classification (auto-calculated based on shared capital):
-    - Shared Capital < 20,000: Associate Member (max loan 20k)
-    - Shared Capital >= 20,000: Regular Member (per loan type config)
+    Membership Classification (by-laws based):
+    - part_time / job_order → ALWAYS Associate Member
+    - permanent / temporary / casual + fixed_deposit >= 20,000 → Regular Member
+    - permanent / temporary / casual + fixed_deposit < 20,000 OR no deposit → Associate Member
+    - No verified employment status yet → Associate by default
     """
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -262,6 +284,55 @@ class Member(models.Model):
         max_length=20,
         choices=MEMBERSHIP_CHOICES,
         default='associate'
+    )
+
+    # Fixed deposit amount (entered by Account Member Officer after approval)
+    fixed_deposit = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Fixed deposit in PHP. >= 20,000 qualifies for Regular membership (if employment status allows).'
+    )
+
+    # Verified employment status (set by AMO after reviewing COE/proof)
+    EMPLOYMENT_STATUS_CHOICES = [
+        ('permanent', 'Permanent'),
+        ('temporary', 'Temporary'),
+        ('casual', 'Casual'),
+        ('part_time', 'Part-Time / Contract of Service'),
+        ('job_order', 'Job Order'),
+    ]
+    verified_employment_status = models.CharField(
+        max_length=20,
+        choices=EMPLOYMENT_STATUS_CHOICES,
+        null=True,
+        blank=True,
+        help_text='Employment status verified by Account Member Officer after reviewing COE/proof.'
+    )
+    employment_status_verified_at = models.DateTimeField(null=True, blank=True)
+    employment_status_verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='employment_verifications_done'
+    )
+
+    # Membership lifecycle status
+    MEMBERSHIP_STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('under_review', 'Under Review'),
+        ('warned', 'Warned'),
+        ('suspended', 'Suspended'),
+        ('terminated', 'Terminated'),
+        ('voluntary_withdrawal', 'Voluntary Withdrawal'),
+        ('deceased', 'Deceased'),
+    ]
+    membership_status = models.CharField(
+        max_length=25,
+        choices=MEMBERSHIP_STATUS_CHOICES,
+        default='active'
     )
 
     # Timestamps
@@ -292,9 +363,28 @@ class Member(models.Model):
 
     @property
     def calculated_membership_type(self):
-        """Auto-calculate membership based on shared capital."""
-        if self.total_shared_capital >= Decimal('20000.00'):
-            return 'regular'
+        """
+        Auto-calculate membership type based on by-laws:
+
+        Rules (Article II):
+        1. part_time / job_order → ALWAYS associate (contract of service / part-timers)
+        2. permanent / temporary / casual:
+           - fixed_deposit >= 20,000 → regular
+           - fixed_deposit < 20,000 OR no deposit yet → associate
+        3. No verified employment status → associate by default
+        """
+        emp_status = self.verified_employment_status
+
+        if not emp_status:
+            return 'associate'
+
+        if emp_status in ASSOCIATE_ONLY_STATUSES:
+            return 'associate'
+
+        if emp_status in REGULAR_ELIGIBLE_STATUSES:
+            if self.fixed_deposit is not None and self.fixed_deposit >= Decimal('20000.00'):
+                return 'regular'
+
         return 'associate'
 
     @property
@@ -304,8 +394,13 @@ class Member(models.Model):
             return Decimal('20000.00')
         return None  # Regular members use LoanType config
 
+    @property
+    def is_in_good_standing(self):
+        """Member can access loans only if active or warned."""
+        return self.membership_status in ('active', 'warned')
+
     def update_membership_classification(self):
-        """Recalculate and update membership type based on shared capital."""
+        """Recalculate and update membership type based on employment status + fixed deposit."""
         new_type = self.calculated_membership_type
         if self.membership_type != new_type:
             self.membership_type = new_type
@@ -415,7 +510,7 @@ class SharedCapital(models.Model):
 
 class MembershipApprovalLog(models.Model):
     """
-    Audit trail for membership approvals/rejections by Super Admin.
+    Audit trail for membership approvals/rejections by Account Member Officer.
     """
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -427,6 +522,9 @@ class MembershipApprovalLog(models.Model):
         choices=[
             ('approved', 'Approved'),
             ('rejected', 'Rejected'),
+            ('appeal_submitted', 'Appeal Submitted'),
+            ('appeal_approved', 'Appeal Approved'),
+            ('appeal_rejected', 'Appeal Rejected'),
         ]
     )
     performed_by = models.ForeignKey(
@@ -446,3 +544,41 @@ class MembershipApprovalLog(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.get_action_display()} by {self.performed_by}"
+
+
+class MembershipAppeal(models.Model):
+    """
+    Appeal submitted by a rejected applicant.
+    AMO reviews and decides to approve or reject the appeal.
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='membership_appeal'
+    )
+    reason = models.TextField(help_text='Reason for appeal submitted by the applicant.')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='appeals_reviewed'
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Membership Appeal'
+        verbose_name_plural = 'Membership Appeals'
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"Appeal by {self.user.email} - {self.get_status_display()}"

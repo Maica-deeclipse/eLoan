@@ -8,7 +8,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from users.models import User
-from applicant.models import Member, Savings, SharedCapital, MembershipApprovalLog
+from applicant.models import Member, Savings, SharedCapital, MembershipApprovalLog, MembershipAppeal
 from loans.models import AuditLog
 from .models import AMONotification
 
@@ -89,6 +89,141 @@ class MemberService:
         user.status = new_status
         user.save(update_fields=['status'])
         return user
+
+    @staticmethod
+    def set_employment_status(member_id, employment_status, performed_by):
+        """AMO verifies and sets the employment status after reviewing COE documents."""
+        member = Member.objects.select_related('user').get(pk=member_id)
+        member.verified_employment_status = employment_status
+        member.employment_status_verified_at = timezone.now()
+        member.employment_status_verified_by = performed_by
+        member.save(update_fields=[
+            'verified_employment_status',
+            'employment_status_verified_at',
+            'employment_status_verified_by',
+            'updated_at',
+        ])
+        # Recalculate membership type after employment status update
+        member.update_membership_classification()
+        return member
+
+    @staticmethod
+    def set_fixed_deposit(member_id, fixed_deposit_amount, performed_by):
+        """AMO enters the fixed deposit amount for a member."""
+        from decimal import Decimal
+        member = Member.objects.select_related('user').get(pk=member_id)
+        member.fixed_deposit = Decimal(str(fixed_deposit_amount))
+        member.save(update_fields=['fixed_deposit', 'updated_at'])
+        # Recalculate membership type after deposit update
+        member.update_membership_classification()
+        return member
+
+    @staticmethod
+    def get_pending_with_deadline():
+        """Return pending applications with days remaining for 30-day decision rule."""
+        from datetime import date, timedelta
+        deadline_days = 30
+        applicants = User.objects.filter(
+            account_status='pending',
+            role__name='Applicant',
+        ).select_related('role').order_by('date_joined')
+
+        result = []
+        today = date.today()
+        for u in applicants:
+            days_since = (today - u.date_joined.date()).days
+            days_remaining = deadline_days - days_since
+            result.append({
+                'user': u,
+                'days_since_applied': days_since,
+                'days_remaining': max(0, days_remaining),
+                'deadline_reached': days_remaining <= 0,
+                'deadline_date': (u.date_joined.date() + timedelta(days=deadline_days)).isoformat(),
+            })
+        return result
+
+
+class AppealService:
+    """Handles membership appeal workflow."""
+
+    @staticmethod
+    def get_pending_appeals():
+        return MembershipAppeal.objects.filter(status='pending').select_related('user').order_by('-submitted_at')
+
+    @staticmethod
+    def get_all_appeals():
+        return MembershipAppeal.objects.select_related('user', 'reviewed_by').order_by('-submitted_at')
+
+    @staticmethod
+    def submit_appeal(user_id, reason):
+        """Applicant submits appeal after rejection."""
+        user = User.objects.get(pk=user_id, role__name='Applicant', account_status='rejected')
+        appeal, created = MembershipAppeal.objects.get_or_create(
+            user=user,
+            defaults={'reason': reason, 'status': 'pending'}
+        )
+        if not created:
+            appeal.reason = reason
+            appeal.status = 'pending'
+            appeal.reviewed_by = None
+            appeal.reviewed_at = None
+            appeal.review_notes = None
+            appeal.save()
+
+        MembershipApprovalLog.objects.create(
+            user=user,
+            action='appeal_submitted',
+            performed_by=user,
+        )
+        return appeal
+
+    @staticmethod
+    def approve_appeal(appeal_id, performed_by, notes='', ip_address=None):
+        """AMO approves an appeal — re-activates the applicant's account."""
+        appeal = MembershipAppeal.objects.select_related('user').get(pk=appeal_id)
+        user = appeal.user
+
+        appeal.status = 'approved'
+        appeal.reviewed_by = performed_by
+        appeal.reviewed_at = timezone.now()
+        appeal.review_notes = notes
+        appeal.save()
+
+        # Re-approve the user account
+        user.account_status = 'approved'
+        user.approved_by = performed_by
+        user.approved_at = timezone.now()
+        user.rejection_reason = None
+        user.save()
+
+        Member.objects.get_or_create(user=user)
+
+        MembershipApprovalLog.objects.create(
+            user=user,
+            action='appeal_approved',
+            performed_by=performed_by,
+            ip_address=ip_address,
+        )
+        return appeal
+
+    @staticmethod
+    def reject_appeal(appeal_id, performed_by, notes='', ip_address=None):
+        """AMO rejects an appeal."""
+        appeal = MembershipAppeal.objects.select_related('user').get(pk=appeal_id)
+        appeal.status = 'rejected'
+        appeal.reviewed_by = performed_by
+        appeal.reviewed_at = timezone.now()
+        appeal.review_notes = notes
+        appeal.save()
+
+        MembershipApprovalLog.objects.create(
+            user=appeal.user,
+            action='appeal_rejected',
+            performed_by=performed_by,
+            rejection_reason=notes,
+            ip_address=ip_address,
+        )
+        return appeal
 
 
 class SavingsCapitalService:

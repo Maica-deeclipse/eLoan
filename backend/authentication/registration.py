@@ -75,7 +75,12 @@ class ApplicantRegistrationSerializer(serializers.Serializer):
     lastname = serializers.CharField(max_length=50)
 
     def validate_email(self, value):
-        """Check if email is already registered."""
+        """Validate @buksu.edu.ph domain and check uniqueness."""
+        value = value.lower().strip()
+        if not value.endswith('@buksu.edu.ph'):
+            raise serializers.ValidationError(
+                'Only @buksu.edu.ph email addresses are allowed to register.'
+            )
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError('An account with this email already exists.')
         return value
@@ -83,22 +88,20 @@ class ApplicantRegistrationSerializer(serializers.Serializer):
     def create(self, validated_data):
         """Create a new applicant user with pending status."""
         try:
-            # Get the Applicant role
             applicant_role = Role.objects.get(name='Applicant')
         except Role.DoesNotExist:
             raise serializers.ValidationError({
                 'error': 'System configuration error: Applicant role not found.'
             })
 
-        # Create user with pending account status
         user = User.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password'],
             firstname=validated_data['firstname'],
             lastname=validated_data['lastname'],
             role=applicant_role,
-            account_status='pending',  # Requires admin approval
-            status='active'  # Active but account_status is pending
+            account_status='pending',
+            status='active'
         )
         return user
 
@@ -106,9 +109,10 @@ class ApplicantRegistrationSerializer(serializers.Serializer):
 class ApplicantRegistrationView(APIView):
     """
     Public endpoint for applicant self-registration.
-    Creates a new account with 'pending' status that requires Super Admin approval.
+    Requires @buksu.edu.ph email. Creates account with 'pending' status.
+    AMO reviews COE document and approves/rejects.
     """
-    permission_classes = []  # No authentication required
+    permission_classes = []
 
     def post(self, request):
         serializer = ApplicantRegistrationSerializer(data=request.data)
@@ -116,8 +120,20 @@ class ApplicantRegistrationView(APIView):
         if serializer.is_valid():
             user = serializer.save()
 
+            # Save COE document and membership form if provided
+            coe_document = request.FILES.get('coe_document')
+            membership_form_file = request.FILES.get('membership_form')
+            if coe_document or membership_form_file:
+                from applicant.models import ApplicantProfile
+                profile, _ = ApplicantProfile.objects.get_or_create(user=user)
+                if coe_document:
+                    profile.coe_document = coe_document
+                if membership_form_file:
+                    profile.membership_form = membership_form_file
+                profile.save()
+
             return Response({
-                'message': 'Registration successful. Your account is pending approval.',
+                'message': 'Registration successful. Your account is pending approval by the Account Member Officer.',
                 'user': {
                     'id': user.id,
                     'email': user.email,

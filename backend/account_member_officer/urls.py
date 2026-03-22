@@ -3,7 +3,7 @@ Account Member Officer Module URL Configuration
 
 API Structure:
     /api/amo/dashboard/
-    /api/amo/applications/
+    /api/amo/applications/                          - GET (supports ?status=pending&include_deadline=true)
     /api/amo/applications/<id>/
     /api/amo/applications/<id>/approve/
     /api/amo/applications/<id>/reject/
@@ -12,6 +12,11 @@ API Structure:
     /api/amo/members/<id>/status/
     /api/amo/members/<id>/savings/
     /api/amo/members/<id>/capital/
+    /api/amo/members/<id>/employment-status/        - POST: AMO sets verified employment status
+    /api/amo/members/<id>/fixed-deposit/            - POST: AMO enters fixed deposit amount
+    /api/amo/appeals/                               - GET pending/all appeals
+    /api/amo/appeals/<id>/approve/                  - POST: approve appeal
+    /api/amo/appeals/<id>/reject/                   - POST: reject appeal
     /api/amo/reports/
     /api/amo/activity-logs/
     /api/amo/notifications/
@@ -43,6 +48,13 @@ urlpatterns = [
     path('members/<int:pk>/status/', views.MemberStatusView.as_view(), name='member_status'),
     path('members/<int:pk>/savings/', views.MemberSavingsView.as_view(), name='member_savings'),
     path('members/<int:pk>/capital/', views.MemberCapitalView.as_view(), name='member_capital'),
+    path('members/<int:pk>/employment-status/', views.MemberEmploymentStatusView.as_view(), name='member_employment_status'),
+    path('members/<int:pk>/fixed-deposit/', views.MemberFixedDepositView.as_view(), name='member_fixed_deposit'),
+
+    # Appeals
+    path('appeals/', views.AppealListView.as_view(), name='appeals'),
+    path('appeals/<int:pk>/approve/', views.AppealApproveView.as_view(), name='appeal_approve'),
+    path('appeals/<int:pk>/reject/', views.AppealRejectView.as_view(), name='appeal_reject'),
 
     # Reports
     path('reports/', views.ReportsView.as_view(), name='reports'),

@@ -137,10 +137,20 @@ class LoanApplicationService:
                 member = user.member_profile
                 membership_info = {
                     'membership_type': member.membership_type,
+                    'membership_status': member.membership_status,
                     'total_savings': str(member.total_savings),
                     'total_shared_capital': str(member.total_shared_capital),
                     'max_loan_amount': str(member.max_loan_amount) if member.max_loan_amount else None,
                 }
+
+                # Check membership standing (terminated/suspended members cannot apply)
+                if not member.is_in_good_standing:
+                    status_display = member.get_membership_status_display()
+                    return {
+                        'can_apply': False,
+                        'reason': f'Your membership is currently {status_display}. Loan applications are not allowed.',
+                        'membership_info': membership_info,
+                    }
 
                 # Check minimum savings requirement
                 if member.total_savings < MembershipService.MIN_SAVINGS:
@@ -1054,6 +1064,15 @@ class MembershipService:
         Returns:
             dict: {eligible: bool, reason: str, max_amount: Decimal}
         """
+        # Check membership standing (terminated/suspended cannot apply)
+        if not member.is_in_good_standing:
+            status_display = member.get_membership_status_display()
+            return {
+                'eligible': False,
+                'reason': f'Membership is currently {status_display}. Loan applications are not allowed.',
+                'max_amount': Decimal('0.00')
+            }
+
         # Check minimum savings requirement
         if member.total_savings < cls.MIN_SAVINGS:
             return {

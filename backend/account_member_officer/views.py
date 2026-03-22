@@ -17,9 +17,10 @@ from .services import (
     ActivityLogService,
     ReportService,
     NotificationService,
+    AppealService,
 )
 from users.models import User
-from applicant.models import Member, Savings, SharedCapital
+from applicant.models import Member, Savings, SharedCapital, MembershipAppeal
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +82,27 @@ class DashboardView(AMOBaseView):
 class MemberApplicationListView(AMOBaseView):
     def get(self, request):
         filter_status = request.query_params.get('status', 'pending')
+        include_deadline = request.query_params.get('include_deadline', 'false').lower() == 'true'
+
+        if filter_status == 'pending' and include_deadline:
+            # Include 30-day decision tracker info
+            items = MemberApplicationService.get_pending_with_deadline()
+            return Response([
+                {
+                    'id': item['user'].id,
+                    'name': f"{item['user'].firstname} {item['user'].lastname}",
+                    'email': item['user'].email,
+                    'employee_id': item['user'].employee_id,
+                    'account_status': item['user'].account_status,
+                    'date_joined': item['user'].date_joined.isoformat(),
+                    'days_since_applied': item['days_since_applied'],
+                    'days_remaining': item['days_remaining'],
+                    'deadline_reached': item['deadline_reached'],
+                    'decision_deadline': item['deadline_date'],
+                }
+                for item in items
+            ])
+
         if filter_status == 'pending':
             applicants = MemberApplicationService.get_pending_applicants()
         else:
@@ -110,6 +132,23 @@ class MemberApplicationDetailView(AMOBaseView):
         except User.DoesNotExist:
             return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Get COE/membership documents if available
+        coe_document_url = None
+        membership_form_url = None
+        try:
+            profile = u.applicant_profile
+            if profile.coe_document:
+                coe_document_url = request.build_absolute_uri(profile.coe_document.url)
+            if profile.membership_form:
+                membership_form_url = request.build_absolute_uri(profile.membership_form.url)
+        except Exception:
+            pass
+
+        # Calculate 30-day deadline
+        from datetime import date, timedelta
+        days_since = (date.today() - u.date_joined.date()).days
+        days_remaining = max(0, 30 - days_since)
+
         return Response({
             'id': u.id,
             'firstname': u.firstname,
@@ -121,6 +160,11 @@ class MemberApplicationDetailView(AMOBaseView):
             'approved_at': u.approved_at.isoformat() if u.approved_at else None,
             'approved_by': f"{u.approved_by.firstname} {u.approved_by.lastname}" if u.approved_by else None,
             'rejection_reason': u.rejection_reason,
+            'coe_document': coe_document_url,
+            'membership_form': membership_form_url,
+            'days_since_applied': days_since,
+            'days_remaining': days_remaining,
+            'decision_deadline': (u.date_joined.date() + timedelta(days=30)).isoformat(),
         })
 
 
@@ -196,6 +240,10 @@ class MemberDetailView(AMOBaseView):
         except Member.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        verified_by = None
+        if m.employment_status_verified_by:
+            verified_by = f"{m.employment_status_verified_by.firstname} {m.employment_status_verified_by.lastname}"
+
         return Response({
             'id': m.id,
             'user_id': m.user.id,
@@ -204,10 +252,16 @@ class MemberDetailView(AMOBaseView):
             'email': m.user.email,
             'employee_id': m.user.employee_id,
             'membership_type': m.membership_type,
+            'membership_status': m.membership_status,
             'status': m.user.status,
             'total_savings': str(m.total_savings),
             'total_shared_capital': str(m.total_shared_capital),
+            'fixed_deposit': str(m.fixed_deposit) if m.fixed_deposit is not None else None,
+            'verified_employment_status': m.verified_employment_status,
+            'employment_status_verified_at': m.employment_status_verified_at.isoformat() if m.employment_status_verified_at else None,
+            'employment_status_verified_by': verified_by,
             'member_since': m.member_since.isoformat(),
+            'calculated_membership_type': m.calculated_membership_type,
         })
 
 
@@ -223,6 +277,123 @@ class MemberStatusView(AMOBaseView):
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         return Response({'message': f"Member status set to {new_status}."})
+
+
+class MemberEmploymentStatusView(AMOBaseView):
+    """AMO verifies and sets the employment status after reviewing COE documents."""
+
+    VALID_STATUSES = ('permanent', 'temporary', 'casual', 'part_time', 'job_order')
+
+    def post(self, request, pk):
+        employment_status = request.data.get('employment_status', '').strip()
+        if employment_status not in self.VALID_STATUSES:
+            return Response({
+                'error': f"Invalid employment status. Choose from: {', '.join(self.VALID_STATUSES)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            member = MemberService.set_employment_status(pk, employment_status, request.user)
+        except Member.DoesNotExist:
+            return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'message': f"Employment status set to '{member.get_verified_employment_status_display()}'.",
+            'verified_employment_status': member.verified_employment_status,
+            'membership_type': member.membership_type,
+            'calculated_membership_type': member.calculated_membership_type,
+        })
+
+
+class MemberFixedDepositView(AMOBaseView):
+    """AMO enters or updates the fixed deposit amount for a member."""
+
+    def post(self, request, pk):
+        amount = request.data.get('fixed_deposit')
+        if amount is None:
+            return Response({'error': 'fixed_deposit is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from decimal import Decimal, InvalidOperation
+            amount = Decimal(str(amount))
+            if amount < 0:
+                return Response({'error': 'Fixed deposit cannot be negative.'}, status=status.HTTP_400_BAD_REQUEST)
+        except InvalidOperation:
+            return Response({'error': 'Invalid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            member = MemberService.set_fixed_deposit(pk, amount, request.user)
+        except Member.DoesNotExist:
+            return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'message': f"Fixed deposit set to ₱{member.fixed_deposit:,.2f}.",
+            'fixed_deposit': str(member.fixed_deposit),
+            'membership_type': member.membership_type,
+            'calculated_membership_type': member.calculated_membership_type,
+        })
+
+
+# ---------------------------------------------------------------------------
+# Appeals
+# ---------------------------------------------------------------------------
+
+class AppealListView(AMOBaseView):
+    def get(self, request):
+        filter_status = request.query_params.get('status', 'pending')
+        if filter_status == 'pending':
+            appeals = AppealService.get_pending_appeals()
+        else:
+            appeals = AppealService.get_all_appeals()
+
+        return Response([
+            {
+                'id': a.id,
+                'user_id': a.user.id,
+                'name': f"{a.user.firstname} {a.user.lastname}",
+                'email': a.user.email,
+                'reason': a.reason,
+                'status': a.status,
+                'submitted_at': a.submitted_at.isoformat(),
+                'reviewed_by': f"{a.reviewed_by.firstname} {a.reviewed_by.lastname}" if a.reviewed_by else None,
+                'reviewed_at': a.reviewed_at.isoformat() if a.reviewed_at else None,
+                'review_notes': a.review_notes,
+            }
+            for a in appeals
+        ])
+
+
+class AppealApproveView(AMOBaseView):
+    def post(self, request, pk):
+        notes = request.data.get('notes', '')
+        try:
+            appeal = AppealService.approve_appeal(
+                appeal_id=pk,
+                performed_by=request.user,
+                notes=notes,
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+        except MembershipAppeal.DoesNotExist:
+            return Response({'error': 'Appeal not found.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'message': 'Appeal approved. Member account has been activated.'})
+
+
+class AppealRejectView(AMOBaseView):
+    def post(self, request, pk):
+        notes = request.data.get('notes', '')
+        try:
+            appeal = AppealService.reject_appeal(
+                appeal_id=pk,
+                performed_by=request.user,
+                notes=notes,
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+        except MembershipAppeal.DoesNotExist:
+            return Response({'error': 'Appeal not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({'message': 'Appeal rejected.'})
 
 
 # ---------------------------------------------------------------------------

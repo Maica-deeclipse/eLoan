@@ -31,6 +31,7 @@ from authentication.password_reset import (
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 from reports.views import reports_dashboard
+from authentication.appeal import SubmitAppealView
 
 def favicon_view(request):
     """Avoid 404 for browser favicon requests."""
@@ -73,6 +74,12 @@ urlpatterns = [
     # Staff self-registration (public endpoint)
     # Creates staff account with 'pending' status - requires Super Admin approval
     path('api/auth/staff/register/', StaffRegistrationView.as_view(), name='staff_register'),
+
+    # Membership appeal (for rejected applicants)
+    path('api/auth/appeal/', SubmitAppealView.as_view(), name='submit_appeal'),
+
+    # Superadmin module
+    path('api/superadmin/', include('superadmin.urls', namespace='superadmin')),
 ]
 
 # Serve media files in development
