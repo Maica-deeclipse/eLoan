@@ -13,6 +13,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.hashers import check_password
+from django.utils import timezone
 from datetime import datetime
 
 from .services import (
@@ -22,8 +23,19 @@ from .services import (
     CreditCommitteeReportService,
     CreditCommitteeNotificationService
 )
-from loans.models import LoanApplication, LoanType
+from loans.models import LoanApplication, LoanType, StatusChangeLog
 from users.models import UserPreferences
+
+
+def _days_in_stage(application, status_name):
+    """Return the number of days this application has been in the given stage."""
+    log = StatusChangeLog.objects.filter(
+        application=application,
+        to_status__status_name=status_name,
+    ).order_by('-changed_at').first()
+    if log:
+        return (timezone.now() - log.changed_at).days
+    return (timezone.now() - application.application_date).days
 
 
 class CreditCommitteeBaseView(APIView):
@@ -126,6 +138,7 @@ class ApplicationListView(CreditCommitteeBaseView):
                          app.treasurer_evaluations.first().dti_ratio > 30 else 'Low'),
                     'bookkeeper_status': 'Verified',
                     'treasurer_status': 'Recommended',
+                    'days_in_stage': _days_in_stage(app, 'Pending Credit Committee'),
                 }
                 for app in applications
             ],

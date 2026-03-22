@@ -26,11 +26,18 @@ const initialState = {
     city: '',
     province: '',
     zipCode: '',
+    // Personal information
+    civilStatus: '',
+    dateOfBirth: '',
+    tin: '',
+    // Employment
+    employmentStatus: '',
     employerName: '',
     employerAddress: '',
     position: '',
     monthlyIncome: '',
     yearsEmployed: '',
+    // Emergency contact
     emergencyContactName: '',
     emergencyContactNumber: '',
     emergencyContactRelationship: '',
@@ -41,6 +48,7 @@ const initialState = {
     amount: '',
     termMonths: '',
     purpose: '',
+    installmentType: 'monthly',
     calculatedAmortization: null,
     calculatedTotal: null,
     calculatedInterest: null,

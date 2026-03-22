@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,64 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import Constants from 'expo-constants';
 import { useAuth } from '../context/AuthContext';
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function LoginScreen({ navigation }) {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: Constants.expoConfig?.extra?.googleClientId,
+    androidClientId: Constants.expoConfig?.extra?.googleAndroidClientId,
+    iosClientId: Constants.expoConfig?.extra?.googleIosClientId,
+    scopes: ['openid', 'profile', 'email'],
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { access_token } = response.params;
+      handleGoogleToken(access_token);
+    } else if (response?.type === 'error') {
+      setGoogleLoading(false);
+      setError('Google sign-in was cancelled or failed.');
+    } else if (response?.type === 'dismiss') {
+      setGoogleLoading(false);
+    }
+  }, [response]);
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+    await promptAsync();
+    // loading cleared in useEffect after response
+  };
+
+  const handleGoogleToken = async (accessToken) => {
+    try {
+      const result = await googleLogin(accessToken);
+      if (!result.success) {
+        if (result.isPending) {
+          setError(
+            result.isNew
+              ? 'Account created! Your account is pending admin approval. You will be notified once approved.'
+              : result.message || 'Your account is pending approval.'
+          );
+        } else {
+          setError(result.error || 'Google sign-in failed.');
+        }
+      }
+      // On success, AuthContext sets isAuthenticated → AppNavigator shows Main
+    } catch {
+      setError('Google sign-in failed. Please try again.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -116,7 +170,7 @@ export default function LoginScreen({ navigation }) {
           <TouchableOpacity
             style={[styles.loginButton, loading && styles.loginButtonDisabled]}
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || googleLoading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -124,16 +178,40 @@ export default function LoginScreen({ navigation }) {
               <Text style={styles.loginButtonText}>Login</Text>
             )}
           </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google Sign-In Button */}
+          <TouchableOpacity
+            style={[styles.googleButton, (loading || googleLoading || !request) && styles.googleButtonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={loading || googleLoading || !request}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color="#374151" />
+            ) : (
+              <>
+                <Text style={styles.googleIcon}>G</Text>
+                <Text style={styles.googleButtonText}>Sign in with Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.googleHint}>Only @buksu.edu.ph accounts are accepted</Text>
         </View>
 
         {/* Register Link */}
         <View style={styles.registerContainer}>
-          <Text style={styles.registerText}>Don't have an account? </Text>
+          <Text style={styles.registerText}>New BukSU member? </Text>
           <TouchableOpacity
             onPress={() => navigation.navigate('Register')}
-            disabled={loading}
+            disabled={loading || googleLoading}
           >
-            <Text style={styles.registerLink}>Register</Text>
+            <Text style={styles.registerLink}>Register with Google</Text>
           </TouchableOpacity>
         </View>
 
@@ -240,6 +318,52 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: '#9ca3af',
+    fontSize: 13,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 8,
+  },
+  googleButtonDisabled: {
+    opacity: 0.5,
+  },
+  googleIcon: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4285F4',
+    marginRight: 10,
+  },
+  googleButtonText: {
+    color: '#374151',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  googleHint: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#9ca3af',
+    marginBottom: 4,
   },
   registerContainer: {
     flexDirection: 'row',

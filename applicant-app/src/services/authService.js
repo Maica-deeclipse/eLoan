@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../config/api.config';
+import { setCachedToken, clearCachedToken } from './apiService';
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -24,11 +25,15 @@ class AuthService {
       );
 
       if (response.data.tokens) {
-        // Store tokens securely
-        await SecureStore.setItemAsync('accessToken', response.data.tokens.access);
-        await SecureStore.setItemAsync('refreshToken', response.data.tokens.refresh);
-        // Store user info (not sensitive, can use AsyncStorage if preferred)
-        await SecureStore.setItemAsync('user', JSON.stringify(response.data.user));
+        const { access, refresh } = response.data.tokens;
+        // Write all three entries in parallel — 3x faster than sequential awaits
+        await Promise.all([
+          SecureStore.setItemAsync('accessToken', access),
+          SecureStore.setItemAsync('refreshToken', refresh),
+          SecureStore.setItemAsync('user', JSON.stringify(response.data.user)),
+        ]);
+        // Warm up in-memory token cache so first API call after login skips SecureStore read
+        setCachedToken(access);
 
         return { success: true, user: response.data.user };
       }
@@ -112,9 +117,12 @@ class AuthService {
    */
   async logout() {
     try {
-      await SecureStore.deleteItemAsync('accessToken');
-      await SecureStore.deleteItemAsync('refreshToken');
-      await SecureStore.deleteItemAsync('user');
+      clearCachedToken();
+      await Promise.all([
+        SecureStore.deleteItemAsync('accessToken'),
+        SecureStore.deleteItemAsync('refreshToken'),
+        SecureStore.deleteItemAsync('user'),
+      ]);
     } catch (error) {
       console.error('Logout error:', error);
       // Continue even if deletion fails
@@ -220,6 +228,7 @@ class AuthService {
 
       if (response.data.access) {
         await SecureStore.setItemAsync('accessToken', response.data.access);
+        setCachedToken(response.data.access);
         return true;
       }
 
@@ -311,6 +320,66 @@ class AuthService {
   async isAuthenticated() {
     const token = await this.getAccessToken();
     return !!token;
+  }
+
+  /**
+   * Login / register applicant via Google OAuth.
+   * Sends the Google access token to the backend which verifies it
+   * and checks that the email ends with @buksu.edu.ph.
+   *
+   * @param {string} googleAccessToken - Access token from expo-auth-session Google provider
+   * @returns {Promise<Object>} { success, user?, error?, isPending?, isNew? }
+   */
+  async googleLogin(googleAccessToken) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/google/`,
+        { access_token: googleAccessToken },
+        { timeout: REQUEST_TIMEOUT_MS }
+      );
+
+      const data = response.data;
+
+      // New account created — pending approval
+      if (response.status === 201 && data.account_status === 'pending') {
+        return {
+          success: false,
+          isPending: true,
+          isNew: true,
+          message: data.message,
+        };
+      }
+
+      // Existing active user — tokens returned
+      if (data.tokens) {
+        const { access, refresh } = data.tokens;
+        await Promise.all([
+          SecureStore.setItemAsync('accessToken', access),
+          SecureStore.setItemAsync('refreshToken', refresh),
+          SecureStore.setItemAsync('user', JSON.stringify(data.user)),
+        ]);
+        setCachedToken(access);
+        return { success: true, user: data.user, isNew: data.is_new };
+      }
+
+      return { success: false, error: 'Unexpected response from server.' };
+    } catch (error) {
+      const errData = error.response?.data;
+
+      // Pending account
+      if (errData?.account_status === 'pending') {
+        return {
+          success: false,
+          isPending: true,
+          message: errData.error,
+        };
+      }
+
+      const errorMessage =
+        errData?.error ||
+        'Google sign-in failed. Please try again.';
+      return { success: false, error: errorMessage };
+    }
   }
 }
 

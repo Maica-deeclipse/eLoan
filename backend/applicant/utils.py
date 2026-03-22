@@ -176,40 +176,93 @@ def get_client_ip(request):
 
 # Document type constants
 class DocumentTypes:
+    # Universal (all loan types)
     BUKSU_ID = 'buksu_id'
     PROOF_OF_INCOME = 'proof_of_income'
-    PROOF_OF_ADDRESS = 'proof_of_address'
-    EMPLOYMENT_CERTIFICATE = 'employment_certificate'
-    BANK_STATEMENT = 'bank_statement'
-    SUPPORTING_DOC = 'supporting_document'
     MEMBERSHIP_CERTIFICATE = 'membership_certificate'
-    OTHER_DOCUMENTS = 'other_documents'
+
+    # Loan form & insurance (multiple loan types)
+    COMPLETED_LOAN_FORM = 'completed_loan_form'
+    CISP_INSURANCE_FORM = 'cisp_insurance_form'
+
+    # Payslip variants
+    PAYSLIP_1_MONTH = 'payslip_1_month'
+    PAYSLIP_2_MONTHS = 'payslip_2_months'
+    PAYSLIP_3_MONTHS = 'payslip_3_months'
+
+    # Employment / appointment
+    CERTIFICATE_OF_EMPLOYMENT = 'certificate_of_employment'
+    LETTER_OF_INTENT = 'letter_of_intent'
+
+    # Co-maker documents
     COMAKER_ID = 'comaker_id'
+    COMAKER_PAYSLIP = 'comaker_payslip'
     COMAKER_SIGNATURE = 'comaker_signature'
 
+    # Spouse
+    SPOUSE_VALID_ID = 'spouse_valid_id'
+
+    # ATM-specific
+    ATM_CARD = 'atm_card'
+    BANK_STATEMENT_3_MONTHS = 'bank_statement_3_months'
+    BALANCE_INQUIRY = 'balance_inquiry'
+    SIGNED_WAIVER = 'signed_waiver'
+
+    # Gadget/Appliance-specific
+    GADGET_QUOTATION = 'gadget_quotation'
+
+    # Generic optional
+    PROOF_OF_ADDRESS = 'proof_of_address'
+    BANK_STATEMENT = 'bank_statement'
+    SUPPORTING_DOC = 'supporting_document'
+    OTHER_DOCUMENTS = 'other_documents'
+
+    # Default required for all loan types (fallback if no LoanTypeRequiredDocument rows exist)
     REQUIRED_DOCUMENTS = [BUKSU_ID, PROOF_OF_INCOME]
     OPTIONAL_DOCUMENTS = [
         PROOF_OF_ADDRESS,
-        EMPLOYMENT_CERTIFICATE,
         BANK_STATEMENT,
         SUPPORTING_DOC,
         MEMBERSHIP_CERTIFICATE,
         OTHER_DOCUMENTS,
     ]
 
-    ALL_TYPES = REQUIRED_DOCUMENTS + OPTIONAL_DOCUMENTS + [COMAKER_ID, COMAKER_SIGNATURE]
+    ALL_TYPES = [
+        BUKSU_ID, PROOF_OF_INCOME, MEMBERSHIP_CERTIFICATE,
+        COMPLETED_LOAN_FORM, CISP_INSURANCE_FORM,
+        PAYSLIP_1_MONTH, PAYSLIP_2_MONTHS, PAYSLIP_3_MONTHS,
+        CERTIFICATE_OF_EMPLOYMENT, LETTER_OF_INTENT,
+        COMAKER_ID, COMAKER_PAYSLIP, COMAKER_SIGNATURE,
+        SPOUSE_VALID_ID,
+        ATM_CARD, BANK_STATEMENT_3_MONTHS, BALANCE_INQUIRY, SIGNED_WAIVER,
+        GADGET_QUOTATION,
+        PROOF_OF_ADDRESS, BANK_STATEMENT, SUPPORTING_DOC, OTHER_DOCUMENTS,
+    ]
 
     DISPLAY_NAMES = {
-        BUKSU_ID: 'BukSu ID',
-        PROOF_OF_INCOME: 'Proof of Income',
+        BUKSU_ID: 'BukSU ID (Front)',
+        PROOF_OF_INCOME: 'Proof of Income / Latest Payslip',
+        MEMBERSHIP_CERTIFICATE: 'Cooperative Membership Certificate',
+        COMPLETED_LOAN_FORM: 'Completed Loan Application Form',
+        CISP_INSURANCE_FORM: 'CISP Insurance Form',
+        PAYSLIP_1_MONTH: 'Latest 1-Month Payslip',
+        PAYSLIP_2_MONTHS: 'Latest 2 Months Payslips',
+        PAYSLIP_3_MONTHS: 'Latest 3 Consecutive Months Payslips',
+        CERTIFICATE_OF_EMPLOYMENT: 'Certificate of Employment / Appointment',
+        LETTER_OF_INTENT: 'Letter of Intent (Purpose of Loan)',
+        COMAKER_ID: 'Co-Maker BukSU ID',
+        COMAKER_PAYSLIP: 'Co-Maker Latest 1-Month Payslip',
+        COMAKER_SIGNATURE: 'Co-Maker Signature',
+        SPOUSE_VALID_ID: 'Spouse Valid ID Copy',
+        ATM_CARD: 'ATM Card (as Collateral)',
+        BANK_STATEMENT_3_MONTHS: 'Bank Statement (at least 3 months)',
+        BALANCE_INQUIRY: 'Updated Balance Inquiry',
+        SIGNED_WAIVER: 'Signed Waiver',
+        GADGET_QUOTATION: 'Gadget / Appliance Quotation',
         PROOF_OF_ADDRESS: 'Proof of Address',
-        EMPLOYMENT_CERTIFICATE: 'Employment Certificate',
         BANK_STATEMENT: 'Bank Statement',
         SUPPORTING_DOC: 'Supporting Document',
-        MEMBERSHIP_CERTIFICATE: 'Cooperative Membership Certificate',
         OTHER_DOCUMENTS: 'Other Supporting Documents',
-        COMAKER_ID: 'Co-Maker ID',
-        COMAKER_SIGNATURE: 'Co-Maker Signature',
     }
 
 

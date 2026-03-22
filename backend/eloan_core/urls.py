@@ -23,6 +23,7 @@ from django.http import HttpResponse
 
 from authentication.login import StaffLoginView, ApplicantLoginView
 from authentication.registration import ApplicantRegistrationView, StaffRegistrationView
+from authentication.google_auth import GoogleAuthView
 from authentication.password_reset import (
     SetPasswordView,
     ValidateTokenView,
@@ -61,6 +62,9 @@ urlpatterns = [
     path('api/auth/forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
     path('api/auth/set-password/', SetPasswordView.as_view(), name='set_password'),
     path('api/auth/validate-token/', ValidateTokenView.as_view(), name='validate_token'),
+
+    # Google OAuth for applicants (only @buksu.edu.ph emails)
+    path('api/auth/google/', GoogleAuthView.as_view(), name='google_auth'),
 
     # Applicant self-registration (public endpoint)
     # Creates account with 'pending' status - requires Super Admin approval to login

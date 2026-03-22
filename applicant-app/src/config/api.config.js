@@ -18,7 +18,7 @@ const getApiUrl = () => {
 
   if (__DEV__) {
     return isAndroid
-      ? 'http://10.255.14.161:8000/api/auth'
+      ? 'http://192.168.1.13:8000/api/auth'
       : 'http://localhost:8000/api/auth';
   }
 

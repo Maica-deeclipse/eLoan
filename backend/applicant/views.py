@@ -41,7 +41,6 @@ from .services import (
     CoMakerService,
     NotificationService
 )
-from .face_verification_service import FaceComparisonService
 from .utils import get_client_ip, DocumentTypes, ApplicationStatuses
 
 logger = logging.getLogger(__name__)
@@ -134,13 +133,81 @@ class LoanTypeDetailView(ApplicantBaseView):
     """GET /api/applicant/loan-types/<id>/"""
 
     def get(self, request, pk):
-        loan_type = LoanApplicationService.get_loan_type_detail(pk)
-        if not loan_type:
-            return Response(
-                {'error': 'Loan type not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        cache_key = f'loan_type_detail_{pk}'
+        loan_type = cache.get(cache_key)
+        if loan_type is None:
+            loan_type = LoanApplicationService.get_loan_type_detail(pk)
+            if not loan_type:
+                return Response(
+                    {'error': 'Loan type not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            cache.set(cache_key, loan_type, 300)  # cache 5 minutes
         return Response(loan_type)
+
+
+class LoanTypeRequiredDocumentsView(ApplicantBaseView):
+    """
+    GET /api/applicant/loan-types/<id>/required-documents/
+    Returns the document checklist for the given loan type.
+    Falls back to the universal required set if no rows are configured.
+    """
+
+    def get(self, request, pk):
+        from loans.models import LoanType, LoanTypeRequiredDocument
+        from .utils import DocumentTypes
+
+        # Required documents almost never change — cache for 10 minutes
+        cache_key = f'required_docs_{pk}'
+        cached_response = cache.get(cache_key)
+        if cached_response is not None:
+            return Response(cached_response)
+
+        try:
+            loan_type = LoanType.objects.get(pk=pk, is_active=True)
+        except LoanType.DoesNotExist:
+            return Response({'error': 'Loan type not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        qs = LoanTypeRequiredDocument.objects.filter(loan_type=loan_type).order_by('sort_order', 'document_label')
+
+        if qs.exists():
+            documents = [
+                {
+                    'key': doc.document_key,
+                    'label': doc.document_label,
+                    'description': doc.description or '',
+                    'required': doc.is_required,
+                    'multiple': doc.document_key == 'other_documents',
+                    'accepted_types': ['image'] if doc.document_key in ('buksu_id', 'atm_card') else ['image', 'pdf'],
+                }
+                for doc in qs
+            ]
+        else:
+            # Fallback: universal minimum set
+            documents = [
+                {
+                    'key': k,
+                    'label': DocumentTypes.DISPLAY_NAMES.get(k, k),
+                    'description': '',
+                    'required': True,
+                    'multiple': False,
+                    'accepted_types': ['image', 'pdf'],
+                }
+                for k in DocumentTypes.REQUIRED_DOCUMENTS
+            ] + [
+                {
+                    'key': 'other_documents',
+                    'label': 'Other Supporting Documents',
+                    'description': 'Any additional supporting documents',
+                    'required': False,
+                    'multiple': True,
+                    'accepted_types': ['image', 'pdf'],
+                }
+            ]
+
+        response_data = {'loan_type_id': pk, 'documents': documents}
+        cache.set(cache_key, response_data, 600)  # cache 10 minutes
+        return Response(response_data)
 
 
 # =============================================================================
@@ -795,7 +862,9 @@ class FaceCaptureView(ApplicantBaseView):
         )
 
         # Perform face comparison using DeepFace
+        # Lazy import — keeps TensorFlow out of Django's startup path so login/dashboard load instantly
         try:
+            from .face_verification_service import FaceComparisonService
             verification = FaceComparisonService.verify_faces_for_application(application.id, captured_image_path=file_path)
 
             # Encrypt face image after processing
@@ -868,8 +937,9 @@ class RetryFaceVerificationView(ApplicantBaseView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Perform face comparison
+        # Perform face comparison (lazy import — TensorFlow loads on first use, not at startup)
         try:
+            from .face_verification_service import FaceComparisonService
             verification = FaceComparisonService.verify_faces_for_application(application.id, captured_image_path=captured_image_path)
 
             # Build response

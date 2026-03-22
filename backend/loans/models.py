@@ -25,6 +25,36 @@ class LoanType(models.Model):
         ordering = ['loan_name']
 
 
+class LoanTypeRequiredDocument(models.Model):
+    """
+    Defines which documents are required per loan type.
+    Drives the dynamic document upload checklist in the applicant app.
+    """
+    loan_type = models.ForeignKey(
+        LoanType,
+        on_delete=models.CASCADE,
+        related_name='required_documents'
+    )
+    document_key = models.CharField(
+        max_length=60,
+        help_text='Matches DocumentTypes constant keys'
+    )
+    document_label = models.CharField(max_length=150)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    is_required = models.BooleanField(default=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'document_label']
+        unique_together = ('loan_type', 'document_key')
+        verbose_name = 'Loan Type Required Document'
+        verbose_name_plural = 'Loan Type Required Documents'
+
+    def __str__(self):
+        req = 'Required' if self.is_required else 'Optional'
+        return f"{self.loan_type.loan_name} — {self.document_label} ({req})"
+
+
 class ApplicationStatus(models.Model):
     status_name = models.CharField(max_length=50, unique=True)
 
@@ -44,6 +74,27 @@ class LoanApplication(models.Model):
     purpose = models.TextField(null=True, blank=True)
     application_date = models.DateTimeField(default=timezone.now)
     current_status = models.ForeignKey(ApplicationStatus, on_delete=models.SET_NULL, null=True, blank=True)
+
+    # Loan payment schedule
+    INSTALLMENT_TYPE_CHOICES = [
+        ('monthly', 'Monthly'),
+        ('semi_monthly', 'Semi-Monthly (Every 15 days)'),
+    ]
+    installment_type = models.CharField(
+        max_length=20,
+        choices=INSTALLMENT_TYPE_CHOICES,
+        default='monthly',
+        null=True,
+        blank=True
+    )
+    first_installment_date = models.DateField(null=True, blank=True)
+
+    # Loan-type-specific extra fields stored as JSON
+    loan_form_data = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Loan-type-specific form fields (e.g., share capital, ATM collateral details, LAD encumbered deposit)'
+    )
 
     # Treasurer evaluation fields
     net_salary = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,

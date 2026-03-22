@@ -14,26 +14,21 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
+import IDScannerModal from '../../components/IDScannerModal';
 
-const REQUIRED_DOCUMENTS = [
+// Fallback used while the API call is in flight
+const FALLBACK_DOCUMENTS = [
   {
     key: 'buksu_id',
-    label: 'BukSu ID (Front)',
+    label: 'BukSU ID (Front)',
     description: 'Front side of your BukSU ID showing your photo',
     required: true,
     acceptedTypes: ['image'],
   },
   {
     key: 'proof_of_income',
-    label: 'Proof of Income',
-    description: 'e.g., Pay slip, ITR, Certificate of Employment',
-    required: true,
-    acceptedTypes: ['image', 'pdf'],
-  },
-  {
-    key: 'membership_certificate',
-    label: 'Cooperative Membership Certificate',
-    description: 'Your cooperative membership proof',
+    label: 'Proof of Income / Latest Payslip',
+    description: 'e.g., Payslip, ITR, Certificate of Employment',
     required: true,
     acceptedTypes: ['image', 'pdf'],
   },
@@ -49,17 +44,36 @@ const REQUIRED_DOCUMENTS = [
 
 const DocumentUploadScreen = ({ navigation }) => {
   const { state, dispatch } = useApplication();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [requiredDocs, setRequiredDocs] = useState(FALLBACK_DOCUMENTS);
   const [documents, setDocuments] = useState({});
   const [uploading, setUploading] = useState(null);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [scannerDocKey, setScannerDocKey] = useState(null);
 
   useEffect(() => {
-    // Initialize from state if available
     if (state.documents) {
       setDocuments(state.documents);
     }
+    loadRequiredDocuments();
     loadExistingDocuments();
   }, []);
+
+  const loadRequiredDocuments = async () => {
+    const loanTypeId = state.loanType?.id;
+    if (!loanTypeId) return;
+    try {
+      const docs = await applicationService.getRequiredDocuments(loanTypeId);
+      if (docs && docs.length > 0) {
+        setRequiredDocs(docs);
+      }
+    } catch (error) {
+      console.error('Load required documents error:', error);
+      // Keep fallback list on error
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadExistingDocuments = async () => {
     try {
@@ -127,6 +141,13 @@ const DocumentUploadScreen = ({ navigation }) => {
   };
 
   const takePhoto = async (documentKey) => {
+    // BukSU ID gets the guided scanner; other docs use the regular camera
+    if (documentKey === 'buksu_id') {
+      setScannerDocKey(documentKey);
+      setScannerVisible(true);
+      return;
+    }
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission Required', 'Please grant camera access to take photos.');
@@ -146,6 +167,14 @@ const DocumentUploadScreen = ({ navigation }) => {
       console.error('Camera error:', error);
       Alert.alert('Error', 'Failed to take photo');
     }
+  };
+
+  const handleScanCapture = async (photo) => {
+    setScannerVisible(false);
+    if (scannerDocKey && photo?.uri) {
+      await uploadDocument(scannerDocKey, { uri: photo.uri, fileName: 'buksu_id.jpg' });
+    }
+    setScannerDocKey(null);
   };
 
   const pickDocument = async (documentKey) => {
@@ -245,7 +274,10 @@ const DocumentUploadScreen = ({ navigation }) => {
 
   const showUploadOptions = (docConfig) => {
     const options = [
-      { text: 'Take Photo', onPress: () => takePhoto(docConfig.key) },
+      {
+        text: docConfig.key === 'buksu_id' ? 'Scan ID (Camera Guide)' : 'Take Photo',
+        onPress: () => takePhoto(docConfig.key),
+      },
       { text: 'Choose from Gallery', onPress: () => pickImage(docConfig.key) },
     ];
 
@@ -266,15 +298,15 @@ const DocumentUploadScreen = ({ navigation }) => {
   };
 
   const getUploadedCount = () => {
-    return REQUIRED_DOCUMENTS.filter((doc) => doc.required && isDocumentUploaded(doc.key)).length;
+    return requiredDocs.filter((doc) => doc.required && isDocumentUploaded(doc.key)).length;
   };
 
   const getRequiredCount = () => {
-    return REQUIRED_DOCUMENTS.filter((doc) => doc.required).length;
+    return requiredDocs.filter((doc) => doc.required).length;
   };
 
   const allRequiredUploaded = () => {
-    return REQUIRED_DOCUMENTS.filter((doc) => doc.required).every((doc) =>
+    return requiredDocs.filter((doc) => doc.required).every((doc) =>
       isDocumentUploaded(doc.key)
     );
   };
@@ -397,6 +429,13 @@ const DocumentUploadScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* ID Scanner Modal */}
+      <IDScannerModal
+        visible={scannerVisible}
+        onCapture={handleScanCapture}
+        onClose={() => { setScannerVisible(false); setScannerDocKey(null); }}
+      />
+
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
@@ -430,7 +469,7 @@ const DocumentUploadScreen = ({ navigation }) => {
         </View>
 
         {/* Document List */}
-        {REQUIRED_DOCUMENTS.map(renderDocumentItem)}
+        {requiredDocs.map(renderDocumentItem)}
 
         {/* Info Box */}
         <View style={styles.infoBox}>

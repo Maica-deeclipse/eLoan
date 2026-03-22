@@ -71,6 +71,26 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const googleLogin = async (googleAccessToken) => {
+    try {
+      const result = await authService.googleLogin(googleAccessToken);
+      if (result.success) {
+        setUser(result.user);
+        setIsAuthenticated(true);
+        return { success: true };
+      }
+      return {
+        success: false,
+        error: result.error,
+        isPending: result.isPending,
+        isNew: result.isNew,
+        message: result.message,
+      };
+    } catch (error) {
+      return { success: false, error: 'Google login failed. Please try again.' };
+    }
+  };
+
   const logout = async () => {
     try {
       await authService.logout();
@@ -93,6 +113,7 @@ export function AuthProvider({ children }) {
         isAuthenticated,
         loading,
         login,
+        googleLogin,
         logout,
         updateUser,
         checkAuthStatus,

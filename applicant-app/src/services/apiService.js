@@ -14,12 +14,29 @@ export function setOnUnauthorized(callback) {
   onUnauthorized = callback;
 }
 
+/**
+ * In-memory token cache — avoids repeated SecureStore reads on every request.
+ * SecureStore is encrypted device storage and each read has I/O overhead.
+ * Cleared on logout or when a 401 forces token refresh.
+ */
+let _cachedAccessToken = null;
+
+export function setCachedToken(token) {
+  _cachedAccessToken = token;
+}
+
+export function clearCachedToken() {
+  _cachedAccessToken = null;
+}
+
 // Create axios instance
 const apiService = axios.create({
   baseURL: API_URL.replace('/auth', ''), // Remove /auth suffix for general API
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
+    // Tell Django's GZipMiddleware to compress responses — reduces payload 60-80%
+    'Accept-Encoding': 'gzip, deflate',
   },
 });
 
@@ -27,8 +44,10 @@ const apiService = axios.create({
 apiService.interceptors.request.use(
   async (config) => {
     try {
-      const token = await SecureStore.getItemAsync('accessToken');
+      // Use in-memory cache first; fall back to SecureStore only when necessary
+      const token = _cachedAccessToken ?? await SecureStore.getItemAsync('accessToken');
       if (token) {
+        _cachedAccessToken = token; // keep cache warm
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
@@ -50,6 +69,7 @@ apiService.interceptors.response.use(
     // If 401 and not already retrying
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+      clearCachedToken(); // stale token — force fresh read on next request
 
       try {
         const refreshToken = await SecureStore.getItemAsync('refreshToken');
@@ -64,17 +84,21 @@ apiService.interceptors.response.use(
 
         const { access } = response.data;
 
-        // Store new access token
+        // Store new access token and warm up cache
         await SecureStore.setItemAsync('accessToken', access);
+        setCachedToken(access);
 
         // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${access}`;
         return apiService(originalRequest);
       } catch (refreshError) {
         // Refresh failed - clear tokens and notify app to show login
-        await SecureStore.deleteItemAsync('accessToken');
-        await SecureStore.deleteItemAsync('refreshToken');
-        await SecureStore.deleteItemAsync('user');
+        clearCachedToken();
+        await Promise.all([
+          SecureStore.deleteItemAsync('accessToken'),
+          SecureStore.deleteItemAsync('refreshToken'),
+          SecureStore.deleteItemAsync('user'),
+        ]);
 
         if (typeof onUnauthorized === 'function') {
           onUnauthorized();

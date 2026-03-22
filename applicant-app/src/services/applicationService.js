@@ -5,6 +5,29 @@
 
 import apiService from './apiService';
 
+/**
+ * Simple in-memory TTL cache for data that rarely changes (loan types, required documents).
+ * Avoids redundant network calls when the user navigates back/forward through the wizard.
+ */
+const _cache = new Map();
+
+function getCached(key) {
+  const entry = _cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) {
+    _cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key, data, ttlMs) {
+  _cache.set(key, { data, expiry: Date.now() + ttlMs });
+}
+
+const FIVE_MIN = 5 * 60 * 1000;
+const TEN_MIN  = 10 * 60 * 1000;
+
 class ApplicationService {
   /**
    * Check if user can apply for a new loan
@@ -15,19 +38,40 @@ class ApplicationService {
   }
 
   /**
-   * Get all active loan types
+   * Get all active loan types (cached 5 min — loan types change rarely)
    */
   async getLoanTypes() {
+    const cached = getCached('loan_types');
+    if (cached) return cached;
     const response = await apiService.get('/applicant/loan-types/');
-    return response.data.loan_types;
+    const data = response.data.loan_types;
+    setCache('loan_types', data, FIVE_MIN);
+    return data;
   }
 
   /**
-   * Get loan type details including co-maker requirements
+   * Get loan type details including co-maker requirements (cached 5 min)
    */
   async getLoanTypeDetail(loanTypeId) {
+    const key = `loan_type_${loanTypeId}`;
+    const cached = getCached(key);
+    if (cached) return cached;
     const response = await apiService.get(`/applicant/loan-types/${loanTypeId}/`);
+    setCache(key, response.data, FIVE_MIN);
     return response.data;
+  }
+
+  /**
+   * Get required documents checklist for a loan type (cached 10 min — almost never changes)
+   */
+  async getRequiredDocuments(loanTypeId) {
+    const key = `required_docs_${loanTypeId}`;
+    const cached = getCached(key);
+    if (cached) return cached;
+    const response = await apiService.get(`/applicant/loan-types/${loanTypeId}/required-documents/`);
+    const data = response.data.documents;
+    setCache(key, data, TEN_MIN);
+    return data;
   }
 
   /**
@@ -127,7 +171,6 @@ class ApplicationService {
    * Upload face capture
    */
   async uploadFaceCapture(applicationId, imageUri) {
-    console.log('[ApplicationService] uploadFaceCapture called. applicationId:', applicationId, 'imageUri:', imageUri);
     const formData = new FormData();
     const filename = `face_${Date.now()}.jpg`;
     formData.append('image', {
@@ -137,7 +180,6 @@ class ApplicationService {
     });
 
     try {
-      console.log('[ApplicationService] Posting face capture. filename:', filename);
       const response = await apiService.post(
         `/applicant/applications/${applicationId}/face-capture/`,
         formData,
@@ -146,14 +188,9 @@ class ApplicationService {
           timeout: 180000, // 3 minutes — DeepFace/TensorFlow model loading can be slow
         }
       );
-      console.log('[ApplicationService] uploadFaceCapture response status:', response.status);
-      console.log('[ApplicationService] uploadFaceCapture response data:', JSON.stringify(response.data));
       return response.data;
     } catch (error) {
-      console.error('[ApplicationService] uploadFaceCapture FAILED');
-      console.error('[ApplicationService] Error message:', error?.message);
-      console.error('[ApplicationService] Response status:', error?.response?.status);
-      console.error('[ApplicationService] Response data:', JSON.stringify(error?.response?.data));
+      console.error('[FaceCapture] Failed:', error?.message, '| status:', error?.response?.status);
       throw error;
     }
   }
@@ -184,12 +221,7 @@ class ApplicationService {
    * Upload liveness video for verification
    */
   async uploadLivenessVideo(applicationId, videoUri) {
-    console.log('[ApplicationService] uploadLivenessVideo called');
-    console.log('[ApplicationService] applicationId:', applicationId);
-    console.log('[ApplicationService] videoUri:', videoUri);
-
     if (!videoUri) {
-      console.error('[ApplicationService] videoUri is null/undefined!');
       throw new Error('videoUri is required for liveness video upload');
     }
 
@@ -201,10 +233,7 @@ class ApplicationService {
       name: filename,
     });
 
-    console.log('[ApplicationService] FormData prepared. filename:', filename, 'type: video/mp4');
-
     try {
-      console.log('[ApplicationService] Posting to liveness-video endpoint...');
       const response = await apiService.post(
         `/applicant/applications/${applicationId}/liveness-video/`,
         formData,
@@ -213,16 +242,10 @@ class ApplicationService {
           timeout: 60000, // 60 second timeout for video upload
         }
       );
-      console.log('[ApplicationService] uploadLivenessVideo response status:', response.status);
-      console.log('[ApplicationService] uploadLivenessVideo response data:', JSON.stringify(response.data));
       return response.data;
     } catch (error) {
-      console.error('[ApplicationService] uploadLivenessVideo FAILED');
-      console.error('[ApplicationService] Error message:', error?.message);
-      console.error('[ApplicationService] Response status:', error?.response?.status);
-      console.error('[ApplicationService] Response data:', JSON.stringify(error?.response?.data));
-      console.error('[ApplicationService] Is timeout?', error?.code === 'ECONNABORTED');
-      console.error('[ApplicationService] Full error:', error);
+      const isTimeout = error?.code === 'ECONNABORTED';
+      console.error('[LivenessVideo] Failed:', error?.message, '| timeout:', isTimeout, '| status:', error?.response?.status);
       throw error;
     }
   }

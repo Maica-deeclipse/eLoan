@@ -39,7 +39,36 @@ class ApplicantProfile(models.Model):
     province = models.CharField(max_length=100, blank=True, null=True)
     zip_code = models.CharField(max_length=10, blank=True, null=True)
 
+    # Personal Information
+    CIVIL_STATUS_CHOICES = [
+        ('single', 'Single'),
+        ('married', 'Married'),
+        ('widowed', 'Widowed'),
+        ('separated', 'Separated'),
+    ]
+    civil_status = models.CharField(
+        max_length=20,
+        choices=CIVIL_STATUS_CHOICES,
+        blank=True,
+        null=True
+    )
+    date_of_birth = models.DateField(blank=True, null=True)
+    tin = models.CharField(max_length=20, blank=True, null=True, help_text='Tax Identification Number')
+
     # Employment Information
+    EMPLOYMENT_STATUS_CHOICES = [
+        ('permanent', 'Permanent'),
+        ('temporary', 'Temporary'),
+        ('casual', 'Casual'),
+        ('part_time', 'Part-Time'),
+        ('job_order', 'Job Order'),
+    ]
+    employment_status = models.CharField(
+        max_length=20,
+        choices=EMPLOYMENT_STATUS_CHOICES,
+        blank=True,
+        null=True
+    )
     employer_name = models.CharField(max_length=255, blank=True, null=True)
     employer_address = models.TextField(blank=True, null=True)
     position = models.CharField(max_length=100, blank=True, null=True)
@@ -48,6 +77,13 @@ class ApplicantProfile(models.Model):
         decimal_places=2,
         null=True,
         blank=True
+    )
+    net_take_home_pay = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Net take-home pay after deductions'
     )
     years_employed = models.IntegerField(null=True, blank=True)
 
@@ -99,6 +135,11 @@ class CoMakerInfo(models.Model):
 
     # Address
     address = models.TextField()
+    years_in_address = models.IntegerField(null=True, blank=True)
+
+    # Personal / Family
+    spouse_name = models.CharField(max_length=200, blank=True, null=True)
+    no_of_dependents = models.IntegerField(null=True, blank=True)
 
     # Employment
     employer_name = models.CharField(max_length=255, blank=True, null=True)
@@ -108,6 +149,21 @@ class CoMakerInfo(models.Model):
         decimal_places=2,
         null=True,
         blank=True
+    )
+    other_income_source = models.CharField(max_length=200, blank=True, null=True)
+    other_income_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    # Bank Reference
+    BANK_ACCOUNT_TYPE_CHOICES = [
+        ('checking', 'Checking'),
+        ('td_savings', 'TD/Savings'),
+    ]
+    bank_reference_name = models.CharField(max_length=200, blank=True, null=True)
+    bank_account_type = models.CharField(
+        max_length=20,
+        choices=BANK_ACCOUNT_TYPE_CHOICES,
+        blank=True,
+        null=True
     )
 
     # Identification

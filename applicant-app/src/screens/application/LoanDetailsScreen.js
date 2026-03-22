@@ -3,11 +3,10 @@
  * Collects loan amount, term, and purpose with real-time amortization calculation
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  TextInput,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -20,24 +19,91 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
 import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraftStorage';
+import DropdownPicker from '../../components/DropdownPicker';
+
+// Fixed loan purpose options
+const LOAN_PURPOSES = [
+  { label: 'Education / Tuition Fees', value: 'Education / Tuition Fees' },
+  { label: 'Medical / Health Expenses', value: 'Medical / Health Expenses' },
+  { label: 'Home Improvement / Repair', value: 'Home Improvement / Repair' },
+  { label: 'Business Capital', value: 'Business Capital' },
+  { label: 'Emergency / Calamity Relief', value: 'Emergency / Calamity Relief' },
+  { label: 'Personal / Consumer Needs', value: 'Personal / Consumer Needs' },
+  { label: 'Travel / Transportation', value: 'Travel / Transportation' },
+  { label: 'Others', value: 'Others' },
+];
+
+const INSTALLMENT_TYPE_OPTIONS = [
+  { label: 'Monthly', value: 'monthly' },
+  { label: 'Semi-Monthly (Every 15 days)', value: 'semi_monthly' },
+];
+
+// Loan types that support semi-monthly payment
+const SEMI_MONTHLY_LOAN_TYPES = ['ATM Loan', 'Enhanced Regular Loan', 'Regular Loan', 'Grace Loan', 'Gadget/Appliance Loan'];
+
+/**
+ * Generate stepped amount options between min and max.
+ * Produces at most ~10 steps for a clean dropdown.
+ */
+function generateAmountOptions(minAmount, maxAmount) {
+  const min = parseFloat(minAmount) || 0;
+  const max = parseFloat(maxAmount) || 0;
+  if (min >= max) return [{ label: `₱${min.toLocaleString()}`, value: min }];
+
+  const range = max - min;
+  // Pick a round step size that yields 6–12 options
+  const rawStep = range / 10;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const step = Math.ceil(rawStep / magnitude) * magnitude;
+
+  const options = [];
+  for (let v = min; v <= max + 0.01; v += step) {
+    const rounded = Math.round(v / magnitude) * magnitude;
+    if (rounded >= min && rounded <= max) {
+      options.push({
+        label: `₱${rounded.toLocaleString()}`,
+        value: rounded,
+      });
+    }
+  }
+  // Always include max
+  if (!options.find((o) => o.value === max)) {
+    options.push({ label: `₱${max.toLocaleString()}`, value: max });
+  }
+  return options;
+}
 
 export default function LoanDetailsScreen({ navigation }) {
   const { state, setLoanDetails, dispatch, getNextStep } = useApplication();
   const { loanType, applicationId, coMakerRequirement, loanDetails: savedLoanDetails } = state;
 
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(''); // stored as string for API; value from dropdown is a number
   const [termMonths, setTermMonths] = useState('');
   const [purpose, setPurpose] = useState('');
+  const [installmentType, setInstallmentType] = useState('monthly');
   const [calculation, setCalculation] = useState(null);
   const [calculating, setCalculating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Show installment type picker only for loan types that support semi-monthly
+  const showInstallmentType = useMemo(
+    () => loanType && SEMI_MONTHLY_LOAN_TYPES.includes(loanType.loan_name),
+    [loanType?.loan_name]
+  );
+
+  // Amount dropdown options derived from loan type constraints
+  const amountOptions = useMemo(() => {
+    if (!loanType) return [];
+    return generateAmountOptions(loanType.min_amount, loanType.max_amount);
+  }, [loanType?.min_amount, loanType?.max_amount]);
 
   useEffect(() => {
     if (savedLoanDetails) {
       setAmount(savedLoanDetails.amount ? String(savedLoanDetails.amount) : '');
       setTermMonths(savedLoanDetails.termMonths ? String(savedLoanDetails.termMonths) : '');
       setPurpose(savedLoanDetails.purpose || '');
+      setInstallmentType(savedLoanDetails.installmentType || 'monthly');
 
       if (
         savedLoanDetails.calculatedAmortization &&
@@ -74,6 +140,9 @@ export default function LoanDetailsScreen({ navigation }) {
       if (localLoanDetails.purpose !== undefined) {
         setPurpose(localLoanDetails.purpose || '');
       }
+      if (localLoanDetails.installmentType !== undefined) {
+        setInstallmentType(localLoanDetails.installmentType || 'monthly');
+      }
     };
 
     loadLocalDraft();
@@ -101,12 +170,13 @@ export default function LoanDetailsScreen({ navigation }) {
           amount,
           termMonths,
           purpose,
+          installmentType,
         },
       });
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [loanType?.id, applicationId, amount, termMonths, purpose]);
+  }, [loanType?.id, applicationId, amount, termMonths, purpose, installmentType]);
 
   const validateAmount = useCallback((value) => {
     if (!loanType) return null;
@@ -132,8 +202,10 @@ export default function LoanDetailsScreen({ navigation }) {
   }, [loanType]);
 
   const handleAmountChange = (value) => {
-    setAmount(value);
-    const error = validateAmount(value);
+    // value from dropdown is a number; convert to string for API compatibility
+    const strVal = String(value);
+    setAmount(strVal);
+    const error = validateAmount(strVal);
     setErrors((prev) => ({ ...prev, amount: error }));
     if (error) setCalculation(null);
   };
@@ -143,6 +215,11 @@ export default function LoanDetailsScreen({ navigation }) {
     const error = validateTerm(value);
     setErrors((prev) => ({ ...prev, term: error }));
     if (error) setCalculation(null);
+  };
+
+  const handlePurposeChange = (value) => {
+    setPurpose(value);
+    setErrors((prev) => ({ ...prev, purpose: null }));
   };
 
   const calculateAmortization = async () => {
@@ -186,6 +263,7 @@ export default function LoanDetailsScreen({ navigation }) {
         amount_requested: parseFloat(amount),
         term_months: parseInt(termMonths),
         purpose: purpose,
+        installment_type: installmentType,
       });
 
       // Update context
@@ -193,6 +271,7 @@ export default function LoanDetailsScreen({ navigation }) {
         amount,
         termMonths,
         purpose,
+        installmentType,
         calculatedAmortization: calculation?.monthly_amortization,
         calculatedTotal: calculation?.total_payable,
         calculatedInterest: calculation?.total_interest,
@@ -212,6 +291,7 @@ export default function LoanDetailsScreen({ navigation }) {
             amount,
             termMonths,
             purpose,
+            installmentType,
           },
         });
       }
@@ -274,43 +354,53 @@ export default function LoanDetailsScreen({ navigation }) {
           {/* Loan Amount */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Loan Details</Text>
-            <View style={styles.field}>
-              <Text style={styles.label}>Loan Amount (₱) *</Text>
-              <TextInput
-                style={[styles.input, errors.amount && styles.inputError]}
-                value={amount}
-                onChangeText={handleAmountChange}
-                placeholder="Enter amount"
-                keyboardType="numeric"
-              />
-              {errors.amount && <Text style={styles.errorText}>{errors.amount}</Text>}
-            </View>
+
+            <DropdownPicker
+              label="Loan Amount (₱) *"
+              placeholder={`Select amount (₱${parseFloat(loanType.min_amount).toLocaleString()} – ₱${parseFloat(loanType.max_amount).toLocaleString()})`}
+              value={amount ? parseFloat(amount) : null}
+              options={amountOptions}
+              onChange={handleAmountChange}
+              hasError={!!errors.amount}
+              errorMessage={errors.amount}
+            />
 
             <View style={styles.field}>
               <Text style={styles.label}>Term (Months) *</Text>
-              <TextInput
-                style={[styles.input, errors.term && styles.inputError]}
-                value={termMonths}
-                onChangeText={handleTermChange}
-                placeholder="Enter term in months"
-                keyboardType="numeric"
+              <DropdownPicker
+                placeholder={`Select term (max ${loanType.max_term_months} months)`}
+                value={termMonths ? parseInt(termMonths) : null}
+                options={Array.from({ length: loanType.max_term_months }, (_, i) => ({
+                  label: `${i + 1} month${i + 1 > 1 ? 's' : ''}`,
+                  value: i + 1,
+                }))}
+                onChange={(val) => handleTermChange(String(val))}
+                hasError={!!errors.term}
+                errorMessage={errors.term}
               />
-              {errors.term && <Text style={styles.errorText}>{errors.term}</Text>}
             </View>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Purpose of Loan *</Text>
-              <TextInput
-                style={[styles.input, styles.textArea, errors.purpose && styles.inputError]}
-                value={purpose}
-                onChangeText={setPurpose}
-                placeholder="Describe the purpose of this loan"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-              {errors.purpose && <Text style={styles.errorText}>{errors.purpose}</Text>}
-            </View>
+            <DropdownPicker
+              label="Purpose of Loan *"
+              placeholder="Select purpose"
+              value={purpose || null}
+              options={LOAN_PURPOSES}
+              onChange={handlePurposeChange}
+              hasError={!!errors.purpose}
+              errorMessage={errors.purpose}
+            />
+
+            {showInstallmentType && (
+              <View style={styles.field}>
+                <DropdownPicker
+                  label="Payment Schedule *"
+                  placeholder="Select payment schedule"
+                  value={installmentType}
+                  options={INSTALLMENT_TYPE_OPTIONS}
+                  onChange={(val) => setInstallmentType(val)}
+                />
+              </View>
+            )}
           </View>
 
           {/* Amortization Calculator */}

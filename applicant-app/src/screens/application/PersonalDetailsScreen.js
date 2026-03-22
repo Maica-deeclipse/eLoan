@@ -20,6 +20,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApplication } from '../../context/ApplicationContext';
 import profileService from '../../services/profileService';
 import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraftStorage';
+import DropdownPicker from '../../components/DropdownPicker';
+
+const EMPLOYMENT_STATUS_OPTIONS = [
+  { label: 'Permanent', value: 'permanent' },
+  { label: 'Temporary', value: 'temporary' },
+  { label: 'Casual', value: 'casual' },
+  { label: 'Part-Time', value: 'part_time' },
+  { label: 'Job Order', value: 'job_order' },
+];
+
+const CIVIL_STATUS_OPTIONS = [
+  { label: 'Single', value: 'single' },
+  { label: 'Married', value: 'married' },
+  { label: 'Widowed', value: 'widowed' },
+  { label: 'Separated', value: 'separated' },
+];
 
 export default function PersonalDetailsScreen({ navigation }) {
   const { state, setPersonalDetails, dispatch } = useApplication();
@@ -35,6 +51,11 @@ export default function PersonalDetailsScreen({ navigation }) {
   const [employerName, setEmployerName] = useState('');
   const [position, setPosition] = useState('');
   const [monthlyIncome, setMonthlyIncome] = useState('');
+  // New fields
+  const [employmentStatus, setEmploymentStatus] = useState('');
+  const [civilStatus, setCivilStatus] = useState('');
+  const [tin, setTin] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
 
   useEffect(() => {
     loadAutofillData();
@@ -56,6 +77,10 @@ export default function PersonalDetailsScreen({ navigation }) {
           employerName,
           position,
           monthlyIncome,
+          employmentStatus,
+          civilStatus,
+          tin,
+          dateOfBirth,
         },
       });
     }, 350);
@@ -72,12 +97,15 @@ export default function PersonalDetailsScreen({ navigation }) {
     employerName,
     position,
     monthlyIncome,
+    employmentStatus,
+    civilStatus,
+    tin,
+    dateOfBirth,
   ]);
 
   const loadAutofillData = async () => {
     try {
       const data = await profileService.getAutofillData();
-      // Pre-fill fields with existing data
       setContactNumber(data.contact_number || '');
       setAddressLine1(data.address_line1 || '');
       setCity(data.city || '');
@@ -85,23 +113,31 @@ export default function PersonalDetailsScreen({ navigation }) {
       setZipCode(data.zip_code || '');
       setEmployerName(data.employer_name || '');
       setPosition(data.position || '');
-      setMonthlyIncome(data.monthly_income || '');
+      setMonthlyIncome(data.monthly_income ? String(data.monthly_income) : '');
+      setEmploymentStatus(data.employment_status || '');
+      setCivilStatus(data.civil_status || '');
+      setTin(data.tin || '');
+      setDateOfBirth(data.date_of_birth || '');
 
       if (state.loanType?.id && state.applicationId) {
         const localDraft = await getLoanTypeDraft(state.loanType.id);
-        const localPersonalDetails =
+        const local =
           localDraft?.applicationId === state.applicationId
             ? localDraft.personalDetails || {}
             : {};
 
-        setContactNumber(localPersonalDetails.contactNumber ?? data.contact_number ?? '');
-        setAddressLine1(localPersonalDetails.addressLine1 ?? data.address_line1 ?? '');
-        setCity(localPersonalDetails.city ?? data.city ?? '');
-        setProvince(localPersonalDetails.province ?? data.province ?? '');
-        setZipCode(localPersonalDetails.zipCode ?? data.zip_code ?? '');
-        setEmployerName(localPersonalDetails.employerName ?? data.employer_name ?? '');
-        setPosition(localPersonalDetails.position ?? data.position ?? '');
-        setMonthlyIncome(localPersonalDetails.monthlyIncome ?? data.monthly_income ?? '');
+        setContactNumber(local.contactNumber ?? data.contact_number ?? '');
+        setAddressLine1(local.addressLine1 ?? data.address_line1 ?? '');
+        setCity(local.city ?? data.city ?? '');
+        setProvince(local.province ?? data.province ?? '');
+        setZipCode(local.zipCode ?? data.zip_code ?? '');
+        setEmployerName(local.employerName ?? data.employer_name ?? '');
+        setPosition(local.position ?? data.position ?? '');
+        setMonthlyIncome(local.monthlyIncome ?? (data.monthly_income ? String(data.monthly_income) : '') ?? '');
+        setEmploymentStatus(local.employmentStatus ?? data.employment_status ?? '');
+        setCivilStatus(local.civilStatus ?? data.civil_status ?? '');
+        setTin(local.tin ?? data.tin ?? '');
+        setDateOfBirth(local.dateOfBirth ?? data.date_of_birth ?? '');
       }
     } catch (error) {
       console.error('Load autofill error:', error);
@@ -127,6 +163,10 @@ export default function PersonalDetailsScreen({ navigation }) {
       Alert.alert('Validation Error', 'Monthly income is required');
       return false;
     }
+    if (!employmentStatus) {
+      Alert.alert('Validation Error', 'Employment status is required');
+      return false;
+    }
     return true;
   };
 
@@ -135,20 +175,22 @@ export default function PersonalDetailsScreen({ navigation }) {
 
     setSaving(true);
     try {
-      // Save to profile
       await profileService.updateProfile({
         contact_number: contactNumber,
         address_line1: addressLine1,
-        city: city,
-        province: province,
+        city,
+        province,
         zip_code: zipCode,
         employer_name: employerName,
-        position: position,
+        position,
         monthly_income: monthlyIncome || null,
+        employment_status: employmentStatus || null,
+        civil_status: civilStatus || null,
+        tin: tin || null,
+        date_of_birth: dateOfBirth || null,
       });
 
-      // Update context
-      setPersonalDetails({
+      const details = {
         contactNumber,
         addressLine1,
         city,
@@ -157,8 +199,13 @@ export default function PersonalDetailsScreen({ navigation }) {
         employerName,
         position,
         monthlyIncome,
-      });
+        employmentStatus,
+        civilStatus,
+        tin,
+        dateOfBirth,
+      };
 
+      setPersonalDetails(details);
       dispatch({ type: 'VALIDATE_PERSONAL_DETAILS', payload: true });
       dispatch({ type: 'SET_CURRENT_STEP', payload: 3 });
 
@@ -166,16 +213,7 @@ export default function PersonalDetailsScreen({ navigation }) {
         await saveLoanTypeDraft(state.loanType.id, {
           applicationId: state.applicationId,
           currentStep: 3,
-          personalDetails: {
-            contactNumber,
-            addressLine1,
-            city,
-            province,
-            zipCode,
-            employerName,
-            position,
-            monthlyIncome,
-          },
+          personalDetails: details,
         });
       }
 
@@ -212,7 +250,6 @@ export default function PersonalDetailsScreen({ navigation }) {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Instructions */}
           <View style={styles.instructions}>
             <Text style={styles.instructionTitle}>Personal Details</Text>
             <Text style={styles.instructionText}>
@@ -239,7 +276,7 @@ export default function PersonalDetailsScreen({ navigation }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Address</Text>
             <View style={styles.field}>
-              <Text style={styles.label}>Street Address *</Text>
+              <Text style={styles.label}>Complete Address *</Text>
               <TextInput
                 style={styles.input}
                 value={addressLine1}
@@ -279,9 +316,57 @@ export default function PersonalDetailsScreen({ navigation }) {
             </View>
           </View>
 
+          {/* Personal Information */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
+
+            <View style={styles.field}>
+              <DropdownPicker
+                label="Civil Status"
+                placeholder="Select civil status"
+                value={civilStatus || null}
+                options={CIVIL_STATUS_OPTIONS}
+                onChange={(val) => setCivilStatus(val)}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Date of Birth</Text>
+              <TextInput
+                style={styles.input}
+                value={dateOfBirth}
+                onChangeText={setDateOfBirth}
+                placeholder="YYYY-MM-DD"
+                keyboardType="numbers-and-punctuation"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>TIN (Tax Identification Number)</Text>
+              <TextInput
+                style={styles.input}
+                value={tin}
+                onChangeText={setTin}
+                placeholder="XXX-XXX-XXX"
+                keyboardType="numbers-and-punctuation"
+              />
+            </View>
+          </View>
+
           {/* Employment */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Employment Information</Text>
+
+            <View style={styles.field}>
+              <DropdownPicker
+                label="Employment Status *"
+                placeholder="Select employment status"
+                value={employmentStatus || null}
+                options={EMPLOYMENT_STATUS_OPTIONS}
+                onChange={(val) => setEmploymentStatus(val)}
+              />
+            </View>
+
             <View style={styles.field}>
               <Text style={styles.label}>Office *</Text>
               <TextInput

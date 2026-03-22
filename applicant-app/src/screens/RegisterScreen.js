@@ -1,99 +1,84 @@
-import React, { useState } from 'react';
+/**
+ * RegisterScreen
+ * Applicants register exclusively via Google OAuth (@buksu.edu.ph).
+ * Google verifies BukSU affiliation; admin still approves the cooperative account.
+ */
+
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import authService from '../services/authService';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import Constants from 'expo-constants';
+import { useAuth } from '../context/AuthContext';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function RegisterScreen({ navigation }) {
-  const [formData, setFormData] = useState({
-    employeeId: '',
-    firstname: '',
-    lastname: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
+  const { googleLogin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const updateField = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    setError(''); // Clear error on input
-  };
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: Constants.expoConfig?.extra?.googleClientId,
+    androidClientId: Constants.expoConfig?.extra?.googleAndroidClientId,
+    iosClientId: Constants.expoConfig?.extra?.googleIosClientId,
+    scopes: ['openid', 'profile', 'email'],
+  });
 
-  const validateForm = () => {
-    if (!formData.employeeId.trim()) {
-      setError('Employee ID is required');
-      return false;
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { access_token } = response.params;
+      handleGoogleToken(access_token);
+    } else if (response?.type === 'error') {
+      setLoading(false);
+      setError('Google sign-in was cancelled or failed. Please try again.');
+    } else if (response?.type === 'dismiss') {
+      setLoading(false);
     }
-    if (!formData.firstname.trim()) {
-      setError('First name is required');
-      return false;
-    }
-    if (!formData.lastname.trim()) {
-      setError('Last name is required');
-      return false;
-    }
-    if (!formData.email.trim()) {
-      setError('Email is required');
-      return false;
-    }
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
-      return false;
-    }
-    if (!formData.password) {
-      setError('Password is required');
-      return false;
-    }
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return false;
-    }
-    return true;
-  };
+  }, [response]);
 
-  const handleRegister = async () => {
-    if (!validateForm()) {
-      return;
-    }
-
+  const handleGoogleRegister = async () => {
     setError('');
     setLoading(true);
+    await promptAsync();
+  };
 
+  const handleGoogleToken = async (accessToken) => {
     try {
-      const result = await authService.register(
-        formData.employeeId,
-        formData.firstname,
-        formData.lastname,
-        formData.email,
-        formData.password,
-        formData.confirmPassword
-      );
+      const result = await googleLogin(accessToken);
 
       if (result.success) {
-        setSuccess(true);
-      } else {
-        setError(result.error || 'Registration failed. Please try again.');
+        // Already active — goes straight to main app via AuthContext
+        return;
       }
-    } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+
+      if (result.isPending && result.isNew) {
+        // New account created, pending approval
+        setSuccess(true);
+        return;
+      }
+
+      if (result.isPending) {
+        // Existing account still pending
+        setError(
+          result.message ||
+          'Your account is already registered and pending admin approval.'
+        );
+        return;
+      }
+
+      setError(result.error || 'Registration failed. Please try again.');
+    } catch {
+      setError('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -108,10 +93,12 @@ export default function RegisterScreen({ navigation }) {
           </View>
           <Text style={styles.successTitle}>Registration Successful!</Text>
           <Text style={styles.successMessage}>
-            Your account has been created and is pending approval by the administrator.
+            Your BukSU Google account has been verified and your eLoan account
+            has been created.
           </Text>
           <Text style={styles.successSubMessage}>
-            You will be able to log in once your account is approved.
+            Your account is pending administrator approval. You will be able to
+            log in once approved.
           </Text>
           <TouchableOpacity
             style={styles.loginButton}
@@ -126,146 +113,83 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoIcon}>💰</Text>
+            <Text style={styles.logoText}>eLoan</Text>
+          </View>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Register using your BukSU Google account</Text>
+        </View>
+
+        {/* Info card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>Who can register?</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoBullet}>✓</Text>
+            <Text style={styles.infoText}>
+              BukSU students, faculty, and staff with an{' '}
+              <Text style={styles.infoHighlight}>@buksu.edu.ph</Text> Google account
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoBullet}>✓</Text>
+            <Text style={styles.infoText}>
+              Your name and email are auto-filled from your Google profile
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoBullet}>ℹ</Text>
+            <Text style={styles.infoText}>
+              Account still requires administrator approval before you can apply for loans
+            </Text>
+          </View>
+        </View>
+
+        {/* Error */}
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {/* Google Register Button */}
+        <TouchableOpacity
+          style={[styles.googleButton, (loading || !request) && styles.googleButtonDisabled]}
+          onPress={handleGoogleRegister}
+          disabled={loading || !request}
+          activeOpacity={0.8}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoIcon}>💰</Text>
-              <Text style={styles.logoText}>eLoan</Text>
-            </View>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Register as a cooperative member</Text>
-          </View>
+          {loading ? (
+            <ActivityIndicator color="#374151" />
+          ) : (
+            <>
+              <Text style={styles.googleIcon}>G</Text>
+              <Text style={styles.googleButtonText}>Register with Google</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Error Message */}
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
+        <Text style={styles.domainHint}>
+          Only @buksu.edu.ph accounts are accepted
+        </Text>
 
-            {/* Employee ID Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Employee ID</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your employee ID"
-                value={formData.employeeId}
-                onChangeText={(text) => updateField('employeeId', text)}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                editable={!loading}
-              />
-            </View>
-
-            {/* First Name Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>First Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your first name"
-                value={formData.firstname}
-                onChangeText={(text) => updateField('firstname', text)}
-                autoCapitalize="words"
-                autoCorrect={false}
-                editable={!loading}
-              />
-            </View>
-
-            {/* Last Name Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Last Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your last name"
-                value={formData.lastname}
-                onChangeText={(text) => updateField('lastname', text)}
-                autoCapitalize="words"
-                autoCorrect={false}
-                editable={!loading}
-              />
-            </View>
-
-            {/* Email Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@example.com"
-                value={formData.email}
-                onChangeText={(text) => updateField('email', text)}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
-            </View>
-
-            {/* Password Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Minimum 8 characters"
-                value={formData.password}
-                onChangeText={(text) => updateField('password', text)}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
-            </View>
-
-            {/* Confirm Password Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Re-enter your password"
-                value={formData.confirmPassword}
-                onChangeText={(text) => updateField('confirmPassword', text)}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
-            </View>
-
-            {/* Register Button */}
-            <TouchableOpacity
-              style={[styles.registerButton, loading && styles.registerButtonDisabled]}
-              onPress={handleRegister}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.registerButtonText}>Register</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Login Link */}
-            <View style={styles.loginLinkContainer}>
-              <Text style={styles.loginLinkText}>Already have an account? </Text>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Login')}
-                disabled={loading}
-              >
-                <Text style={styles.loginLink}>Login</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        {/* Login link */}
+        <View style={styles.loginLinkContainer}>
+          <Text style={styles.loginLinkText}>Already have an account? </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Login')}
+            disabled={loading}
+          >
+            <Text style={styles.loginLink}>Login</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -275,22 +199,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  content: {
-    flex: 1,
-  },
   scrollContent: {
     flexGrow: 1,
-    padding: 20,
+    padding: 24,
     justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 28,
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 14,
   },
   logoIcon: {
     fontSize: 36,
@@ -310,9 +231,41 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#6b7280',
+    textAlign: 'center',
   },
-  form: {
-    width: '100%',
+  infoCard: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1d4ed8',
+    marginBottom: 10,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  infoBullet: {
+    fontSize: 14,
+    color: '#1d4ed8',
+    marginRight: 8,
+    marginTop: 1,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1e40af',
+    lineHeight: 19,
+  },
+  infoHighlight: {
+    fontWeight: '700',
   },
   errorContainer: {
     backgroundColor: '#fee2e2',
@@ -323,40 +276,43 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#dc2626',
     fontSize: 14,
+    lineHeight: 20,
   },
-  inputGroup: {
-    marginBottom: 14,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  registerButton: {
-    backgroundColor: '#6366f1',
-    borderRadius: 8,
-    padding: 16,
+  googleButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 16,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  registerButtonDisabled: {
-    backgroundColor: '#9ca3af',
+  googleButtonDisabled: {
+    opacity: 0.5,
   },
-  registerButtonText: {
-    color: '#fff',
+  googleIcon: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4285F4',
+    marginRight: 10,
+  },
+  googleButtonText: {
+    color: '#374151',
     fontSize: 16,
     fontWeight: '600',
+  },
+  domainHint: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#9ca3af',
+    marginBottom: 28,
   },
   loginLinkContainer: {
     flexDirection: 'row',
@@ -372,7 +328,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  // Success screen styles
+  // Success screen
   successContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -399,16 +355,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   successMessage: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6b7280',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
     marginBottom: 8,
   },
   successSubMessage: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#9ca3af',
     textAlign: 'center',
+    lineHeight: 20,
     marginBottom: 32,
   },
   loginButton: {

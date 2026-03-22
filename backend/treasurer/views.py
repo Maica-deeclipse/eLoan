@@ -13,7 +13,24 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.hashers import check_password
+from django.utils import timezone
 from decimal import Decimal
+
+from loans.models import StatusChangeLog
+
+
+def _days_in_stage(application, status_name):
+    """Return the number of days this application has been in the given stage."""
+    log = StatusChangeLog.objects.filter(
+        application=application,
+        to_status__status_name=status_name,
+    ).order_by('-changed_at').first()
+    if log:
+        return (timezone.now() - log.changed_at).days
+    # Fall back to forwarded_to_treasurer_at or application_date
+    if application.forwarded_to_treasurer_at:
+        return (timezone.now() - application.forwarded_to_treasurer_at).days
+    return (timezone.now() - application.application_date).days
 
 from .services import (
     TreasurerApplicationService,
@@ -107,6 +124,7 @@ class ForwardedApplicationsView(TreasurerBaseView):
                     'term_months': app.term_months,
                     'application_date': app.application_date.isoformat(),
                     'status': app.current_status.status_name if app.current_status else None,
+                    'days_in_stage': _days_in_stage(app, 'Pending Treasurer Review'),
                 }
                 for app in applications
             ],

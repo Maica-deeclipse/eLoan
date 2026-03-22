@@ -14,8 +14,21 @@ from django.conf import settings
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 
+from django.utils import timezone
+
 from shared.services.pdf_service import LoanApplicationPDFService
-from loans.models import AuditLog
+from loans.models import AuditLog, StatusChangeLog
+
+
+def _days_in_stage(application, status_name):
+    """Return the number of days this application has been in the given stage."""
+    log = StatusChangeLog.objects.filter(
+        application=application,
+        to_status__status_name=status_name,
+    ).order_by('-changed_at').first()
+    if log:
+        return (timezone.now() - log.changed_at).days
+    return (timezone.now() - application.application_date).days
 
 from .services import (
     ApplicationService,
@@ -116,6 +129,7 @@ class ApplicationListView(BookkeeperBaseView):
                     'term_months': app.term_months,
                     'application_date': app.application_date.isoformat(),
                     'status': app.current_status.status_name if app.current_status else None,
+                    'days_in_stage': _days_in_stage(app, 'Submitted'),
                 }
                 for app in applications
             ],

@@ -16,6 +16,10 @@ django-cors-headers>=4.3.0
 # Admin Interface
 django-unfold>=0.40.0  # Modern Tailwind CSS-based admin interface
 
+# PDF Generation
+reportlab>=4.0.0  # Dynamic loan application form PDF generation
+pypdf>=4.0.0      # Read and merge template PDFs for form overlay generation
+
 # Additional utilities
 python-decouple>=3.8  # For environment variable management (.env files)
 python-dotenv>=1.0.0  # Alternative for loading .env files
