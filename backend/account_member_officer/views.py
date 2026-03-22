@@ -21,6 +21,7 @@ from .services import (
 )
 from users.models import User
 from applicant.models import Member, Savings, SharedCapital, MembershipAppeal
+from decimal import Decimal
 
 
 # ---------------------------------------------------------------------------
@@ -476,6 +477,256 @@ class MemberCapitalView(AMOBaseView):
             'id': record.id,
             'amount': str(record.amount),
         }, status=status.HTTP_201_CREATED)
+
+
+# ---------------------------------------------------------------------------
+# Loan Payment Recording (AMO role)
+# ---------------------------------------------------------------------------
+
+class LoanPaymentView(AMOBaseView):
+    """
+    POST /api/amo/loans/<id>/payments/
+    AMO records a cash payment received from a member.
+
+    Request body:
+        amount (required): Payment amount
+        payment_date (optional): Date of payment (defaults to today)
+        payment_method (optional): cash, bank_transfer, etc. (defaults to Cash)
+        remarks (optional): Notes about the payment
+
+    Returns:
+        Payment receipt data + updated schedule summary
+    """
+    def post(self, request, pk):
+        from loans.models import LoanApplication, PaymentSchedule
+        from payments.models import Payment
+        from bookkeeper.models import Notification
+        from users.models import Role
+        from django.utils import timezone
+        from datetime import date
+
+        try:
+            application = LoanApplication.objects.select_related(
+                'current_status', 'loan_type', 'user'
+            ).get(pk=pk)
+        except LoanApplication.DoesNotExist:
+            return Response({'error': 'Loan application not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Only accept payments for Active loans (also allow Disbursed for legacy)
+        active_names = ['Active', 'Disbursed']
+        if not application.current_status or application.current_status.status_name not in active_names:
+            return Response(
+                {'error': f'Cannot record payment. Loan status is: '
+                          f'{application.current_status.status_name if application.current_status else "Unknown"}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Parse input
+        amount_raw = request.data.get('amount')
+        if not amount_raw:
+            return Response({'error': 'Payment amount is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            amount = Decimal(str(amount_raw))
+            if amount <= 0:
+                raise ValueError
+        except (ValueError, Exception):
+            return Response({'error': 'Invalid payment amount.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        payment_date_raw = request.data.get('payment_date')
+        if payment_date_raw:
+            try:
+                from datetime import datetime
+                payment_date = datetime.strptime(payment_date_raw, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({'error': 'Invalid payment_date. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            payment_date = date.today()
+
+        payment_method = request.data.get('payment_method', 'Cash')
+        remarks = request.data.get('remarks', '').strip() or None
+
+        # Create Payment record
+        payment = Payment.objects.create(
+            application=application,
+            amount_paid=amount,
+            payment_date=payment_date,
+            payment_method=payment_method,
+            recorded_by=request.user,
+            remarks=remarks,
+        )
+
+        # Apply payment to schedule (FIFO: earliest unpaid installments first)
+        remaining = amount
+        schedule_qs = PaymentSchedule.objects.filter(
+            application=application
+        ).exclude(status='paid').order_by('installment_number')
+
+        for installment in schedule_qs:
+            if remaining <= 0:
+                break
+            balance_due = installment.amount_due - installment.amount_paid
+            if balance_due <= 0:
+                installment.status = 'paid'
+                installment.paid_at = timezone.now()
+                installment.save(update_fields=['status', 'paid_at'])
+                continue
+
+            if remaining >= balance_due:
+                installment.amount_paid += balance_due
+                installment.status = 'paid'
+                installment.paid_at = timezone.now()
+                remaining -= balance_due
+            else:
+                installment.amount_paid += remaining
+                installment.status = 'partial'
+                remaining = Decimal('0.00')
+
+            installment.save(update_fields=['amount_paid', 'status', 'paid_at'])
+
+        # Refresh to get updated totals
+        application.refresh_from_db()
+
+        # Notify Bookkeeper to record in books
+        try:
+            bk_role = Role.objects.get(name='Bookkeeper')
+            from users.models import User as UserModel
+            bookkeepers = UserModel.objects.filter(role=bk_role, is_active=True)
+            member_name = f"{application.user.firstname} {application.user.lastname}"
+            for bk in bookkeepers:
+                Notification.objects.create(
+                    user=bk,
+                    title='Payment Received – Record in Books',
+                    message=f'Payment of ₱{amount:,.2f} received from {member_name} '
+                            f'for Loan #{application.id} ({application.loan_type.loan_name}). '
+                            f'Remaining balance: ₱{application.remaining_balance:,.2f}. '
+                            f'Please record this payment in the accounting books.',
+                    notification_type='action_required',
+                    related_application=application,
+                )
+        except Role.DoesNotExist:
+            pass
+
+        # Notify applicant
+        Notification.objects.create(
+            user=application.user,
+            title='Payment Recorded',
+            message=f'Your payment of ₱{amount:,.2f} for {application.loan_type.loan_name} '
+                    f'has been recorded. Remaining balance: ₱{application.remaining_balance:,.2f}.',
+            notification_type='info',
+            related_application=application,
+        )
+
+        return Response({
+            'message': 'Payment recorded successfully.',
+            'payment': {
+                'id': payment.id,
+                'amount_paid': str(payment.amount_paid),
+                'payment_date': str(payment.payment_date),
+                'payment_method': payment.payment_method,
+                'recorded_by': f"{request.user.firstname} {request.user.lastname}",
+                'remarks': payment.remarks,
+            },
+            'loan_summary': {
+                'loan_id': application.id,
+                'total_payable': str(application.total_payable),
+                'total_paid': str(application.total_paid),
+                'remaining_balance': str(application.remaining_balance),
+                'is_fully_paid': application.is_fully_paid,
+                'loan_health_status': application.loan_health_status,
+                'status': application.current_status.status_name,
+            },
+        }, status=status.HTTP_201_CREATED)
+
+    def get(self, request, pk):
+        """GET /api/amo/loans/<id>/payments/ — list payment history for a loan."""
+        from loans.models import LoanApplication, PaymentSchedule
+        from payments.models import Payment
+
+        try:
+            application = LoanApplication.objects.select_related(
+                'current_status', 'loan_type', 'user'
+            ).get(pk=pk)
+        except LoanApplication.DoesNotExist:
+            return Response({'error': 'Loan application not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        payments = Payment.objects.filter(application=application).select_related('recorded_by').order_by('-payment_date')
+        schedule = PaymentSchedule.objects.filter(application=application).order_by('installment_number')
+
+        return Response({
+            'loan_summary': {
+                'loan_id': application.id,
+                'borrower': f"{application.user.firstname} {application.user.lastname}",
+                'loan_type': application.loan_type.loan_name,
+                'amount_requested': str(application.amount_requested),
+                'total_payable': str(application.total_payable),
+                'total_paid': str(application.total_paid),
+                'remaining_balance': str(application.remaining_balance),
+                'loan_health_status': application.loan_health_status,
+                'status': application.current_status.status_name if application.current_status else None,
+            },
+            'payments': [
+                {
+                    'id': p.id,
+                    'amount_paid': str(p.amount_paid),
+                    'payment_date': str(p.payment_date),
+                    'payment_method': p.payment_method,
+                    'recorded_by': f"{p.recorded_by.firstname} {p.recorded_by.lastname}" if p.recorded_by else None,
+                    'remarks': p.remarks,
+                }
+                for p in payments
+            ],
+            'schedule': [
+                {
+                    'installment_number': s.installment_number,
+                    'due_date': str(s.due_date),
+                    'amount_due': str(s.amount_due),
+                    'amount_paid': str(s.amount_paid),
+                    'balance_due': str(s.balance_due),
+                    'status': s.status,
+                    'paid_at': s.paid_at.isoformat() if s.paid_at else None,
+                }
+                for s in schedule
+            ],
+        })
+
+
+class ActiveLoansView(AMOBaseView):
+    """
+    GET /api/amo/loans/active/
+    List all active loans for AMO to manage payments.
+    """
+    def get(self, request):
+        from loans.models import LoanApplication
+
+        active_statuses = ['Active', 'Disbursed']
+        loans = LoanApplication.objects.filter(
+            current_status__status_name__in=active_statuses
+        ).select_related('user', 'loan_type', 'current_status').order_by('-activated_at', '-application_date')
+
+        return Response({
+            'loans': [
+                {
+                    'id': loan.id,
+                    'borrower': {
+                        'id': loan.user.id,
+                        'name': f"{loan.user.firstname} {loan.user.lastname}",
+                        'email': loan.user.email,
+                    },
+                    'loan_type': loan.loan_type.loan_name,
+                    'amount_requested': str(loan.amount_requested),
+                    'total_payable': str(loan.total_payable),
+                    'total_paid': str(loan.total_paid),
+                    'remaining_balance': str(loan.remaining_balance),
+                    'loan_health_status': loan.loan_health_status,
+                    'status': loan.current_status.status_name,
+                    'activated_at': str(loan.activated_at) if loan.activated_at else None,
+                    'installment_type': loan.installment_type,
+                    'monthly_amortization': str(loan.monthly_amortization),
+                }
+                for loan in loans
+            ]
+        })
 
 
 # ---------------------------------------------------------------------------

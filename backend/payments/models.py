@@ -41,16 +41,102 @@ def update_loan_status_after_payment(sender, instance, created, **kwargs):
     try:
         total_paid = loan.payments.aggregate(total=models.Sum('amount_paid'))['total'] or 0
         if total_paid >= loan.total_payable:
-            paid_status = None
-            # find status named 'Paid' if it exists
-            from loans.models import ApplicationStatus
-            try:
-                paid_status = ApplicationStatus.objects.get(status_name__iexact='Paid')
-            except ApplicationStatus.DoesNotExist:
-                paid_status = None
+            _close_loan(loan)
+    except Exception:
+        pass
 
-            if paid_status:
-                loan.current_status = paid_status
-                loan.save(update_fields=['current_status'])
+
+def _close_loan(loan):
+    """
+    Mark a fully-paid loan as Closed.
+    - Transitions status to 'Closed'
+    - Clears loan_health_status
+    - Marks all remaining PaymentSchedule items as paid
+    - Notifies applicant, Bookkeeper, AMO, and Treasurer
+    """
+    from loans.models import ApplicationStatus, PaymentSchedule
+    from bookkeeper.models import Notification
+    from account_member_officer.models import AMONotification
+    from users.models import User, Role
+    from django.utils import timezone as tz
+
+    try:
+        closed_status, _ = ApplicationStatus.objects.get_or_create(status_name='Closed')
+
+        # Also try 'Paid' for legacy
+        already_terminal = loan.current_status and loan.current_status.status_name in ('Closed', 'Paid')
+        if already_terminal:
+            return
+
+        loan.current_status = closed_status
+        loan.loan_health_status = None
+        loan.save(update_fields=['current_status', 'loan_health_status'])
+
+        # Mark all remaining schedule items as paid
+        PaymentSchedule.objects.filter(application=loan).exclude(status='paid').update(
+            status='paid',
+            paid_at=tz.now()
+        )
+
+        member_name = f"{loan.user.firstname} {loan.user.lastname}"
+        loan_label = f"{loan.loan_type.loan_name}"
+
+        # Notify applicant
+        Notification.objects.create(
+            user=loan.user,
+            title='Loan Fully Paid – Congratulations!',
+            message=f'Congratulations! Your {loan_label} loan has been fully paid and is now closed. '
+                    f'Thank you for your prompt payments.',
+            notification_type='info',
+            related_application=loan,
+        )
+
+        # Notify Bookkeeper
+        try:
+            bk_role = Role.objects.get(name='Bookkeeper')
+            bookkeepers = User.objects.filter(role=bk_role, is_active=True)
+            for bk in bookkeepers:
+                Notification.objects.create(
+                    user=bk,
+                    title='Loan Closed – Fully Paid',
+                    message=f'Loan #{loan.id} for {member_name} ({loan_label}) has been '
+                            f'fully paid and closed. Please finalize the accounting records.',
+                    notification_type='info',
+                    related_application=loan,
+                )
+        except Role.DoesNotExist:
+            pass
+
+        # Notify AMO
+        try:
+            amo_role = Role.objects.get(name='Account Member Officer')
+            amo_users = User.objects.filter(role=amo_role, is_active=True)
+            for amo in amo_users:
+                AMONotification.objects.create(
+                    user=amo,
+                    title='Loan Closed – Fully Paid',
+                    message=f'Loan #{loan.id} for {member_name} ({loan_label}) '
+                            f'has been fully paid and closed.',
+                    notification_type='info',
+                )
+        except Role.DoesNotExist:
+            pass
+
+        # Notify Treasurer
+        try:
+            tr_role = Role.objects.get(name='Treasurer')
+            treasurers = User.objects.filter(role=tr_role, is_active=True)
+            for tr in treasurers:
+                Notification.objects.create(
+                    user=tr,
+                    title='Loan Closed – Fully Paid',
+                    message=f'Loan #{loan.id} for {member_name} ({loan_label}) '
+                            f'has been fully paid and closed.',
+                    notification_type='info',
+                    related_application=loan,
+                )
+        except Role.DoesNotExist:
+            pass
+
     except Exception:
         pass

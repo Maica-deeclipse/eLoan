@@ -197,3 +197,71 @@ class BookkeeperVerification(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class LoanAccountingEntry(models.Model):
+    """
+    Official accounting entry created by the Bookkeeper when recording a
+    loan disbursement, repayment, or closure in the books.
+
+    Workflow:
+    1. AMO records a payment (payments.Payment created)
+    2. Bookkeeper is notified
+    3. Bookkeeper confirms via ConfirmPaymentView → creates LoanAccountingEntry
+    """
+
+    ENTRY_TYPE_CHOICES = [
+        ('disbursement', 'Loan Disbursement'),
+        ('repayment', 'Loan Repayment'),
+        ('closure', 'Loan Closure'),
+    ]
+
+    application = models.ForeignKey(
+        LoanApplication,
+        on_delete=models.CASCADE,
+        related_name='accounting_entries'
+    )
+    payment = models.OneToOneField(
+        'payments.Payment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='accounting_entry',
+        help_text='Linked payment record (null for disbursement/closure entries)'
+    )
+    entry_type = models.CharField(
+        max_length=15,
+        choices=ENTRY_TYPE_CHOICES,
+        help_text='Type of accounting entry'
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text='Amount recorded in this entry'
+    )
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='accounting_entries',
+        help_text='Bookkeeper who recorded this entry'
+    )
+    recorded_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text='When this entry was recorded'
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text='Optional bookkeeping notes'
+    )
+
+    class Meta:
+        ordering = ['-recorded_at']
+        verbose_name = 'Loan Accounting Entry'
+        verbose_name_plural = 'Loan Accounting Entries'
+        indexes = [
+            models.Index(fields=['application', 'recorded_at']),
+            models.Index(fields=['entry_type', 'recorded_at']),
+        ]
+
+    def __str__(self):
+        return f"App #{self.application_id} — {self.get_entry_type_display()} — ₱{self.amount}"

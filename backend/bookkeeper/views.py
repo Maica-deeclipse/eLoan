@@ -422,6 +422,114 @@ class ReportsView(BookkeeperBaseView):
 
 
 # =============================================================================
+# Loan Accounting (Bookkeeper confirms payments in books)
+# =============================================================================
+
+class ConfirmPaymentView(BookkeeperBaseView):
+    """
+    POST /api/bookkeeper/payments/<id>/confirm/
+    Bookkeeper officially records a payment in the accounting books.
+
+    Creates a LoanAccountingEntry linked to the Payment record.
+    Request body:
+        notes (optional): Bookkeeping notes
+    """
+    def post(self, request, pk):
+        from payments.models import Payment
+        from .models import LoanAccountingEntry
+        from decimal import Decimal
+
+        try:
+            payment = Payment.objects.select_related(
+                'application__loan_type', 'application__user', 'recorded_by'
+            ).get(pk=pk)
+        except Payment.DoesNotExist:
+            from rest_framework import status as http_status
+            from rest_framework.response import Response
+            return Response({'error': 'Payment not found.'}, status=http_status.HTTP_404_NOT_FOUND)
+
+        from rest_framework import status as http_status
+        from rest_framework.response import Response
+
+        # Prevent double-booking
+        if hasattr(payment, 'accounting_entry'):
+            return Response(
+                {'error': 'This payment has already been recorded in the books.'},
+                status=http_status.HTTP_400_BAD_REQUEST
+            )
+
+        notes = request.data.get('notes', '').strip()
+
+        entry = LoanAccountingEntry.objects.create(
+            application=payment.application,
+            payment=payment,
+            entry_type='repayment',
+            amount=payment.amount_paid,
+            recorded_by=request.user,
+            notes=notes,
+        )
+
+        return Response({
+            'message': 'Payment confirmed and recorded in accounting books.',
+            'entry': {
+                'id': entry.id,
+                'entry_type': entry.entry_type,
+                'amount': str(entry.amount),
+                'recorded_by': f"{request.user.firstname} {request.user.lastname}",
+                'recorded_at': entry.recorded_at.isoformat(),
+                'notes': entry.notes,
+            },
+            'payment': {
+                'id': payment.id,
+                'amount_paid': str(payment.amount_paid),
+                'payment_date': str(payment.payment_date),
+                'borrower': f"{payment.application.user.firstname} {payment.application.user.lastname}",
+                'loan_type': payment.application.loan_type.loan_name,
+            },
+        }, status=http_status.HTTP_201_CREATED)
+
+
+class UnconfirmedPaymentsView(BookkeeperBaseView):
+    """
+    GET /api/bookkeeper/payments/unconfirmed/
+    List payments not yet recorded in books (pending bookkeeper action).
+    """
+    def get(self, request):
+        from payments.models import Payment
+        from .models import LoanAccountingEntry
+        from rest_framework.response import Response
+
+        # Payments without a LoanAccountingEntry
+        confirmed_ids = LoanAccountingEntry.objects.filter(
+            entry_type='repayment'
+        ).values_list('payment_id', flat=True)
+
+        unconfirmed = Payment.objects.exclude(
+            id__in=confirmed_ids
+        ).select_related(
+            'application__loan_type', 'application__user', 'recorded_by'
+        ).order_by('-payment_date')
+
+        return Response({
+            'unconfirmed_payments': [
+                {
+                    'id': p.id,
+                    'borrower': f"{p.application.user.firstname} {p.application.user.lastname}",
+                    'loan_type': p.application.loan_type.loan_name,
+                    'loan_id': p.application.id,
+                    'amount_paid': str(p.amount_paid),
+                    'payment_date': str(p.payment_date),
+                    'payment_method': p.payment_method,
+                    'recorded_by': f"{p.recorded_by.firstname} {p.recorded_by.lastname}" if p.recorded_by else None,
+                    'remarks': p.remarks,
+                }
+                for p in unconfirmed
+            ],
+            'count': unconfirmed.count(),
+        })
+
+
+# =============================================================================
 # Notifications API
 # =============================================================================
 

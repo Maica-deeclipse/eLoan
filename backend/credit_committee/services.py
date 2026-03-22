@@ -424,6 +424,42 @@ class CreditCommitteeNotificationService:
             related_application=application
         )
 
+        # If approved, notify Treasurer and AMO to proceed with fund release
+        if decision == 'approved':
+            try:
+                from account_member_officer.models import AMONotification
+
+                treasurer_role = Role.objects.get(name='Treasurer')
+                treasurers = User.objects.filter(role=treasurer_role, is_active=True)
+                member_name = f"{application.user.firstname} {application.user.lastname}"
+
+                for treasurer in treasurers:
+                    Notification.objects.create(
+                        user=treasurer,
+                        title='Loan Approved – Proceed to Fund Release',
+                        message=f'Loan application #{application.id} for {member_name} '
+                                f'({application.loan_type.loan_name}, '
+                                f'₱{application.amount_requested:,.2f}) has been approved by the '
+                                f'Credit Committee. Please verify fund availability and process disbursement.',
+                        notification_type='action_required',
+                        related_application=application
+                    )
+
+                amo_role = Role.objects.get(name='Account Member Officer')
+                amo_users = User.objects.filter(role=amo_role, is_active=True)
+
+                for amo in amo_users:
+                    AMONotification.objects.create(
+                        user=amo,
+                        title='Loan Approved – Action Required',
+                        message=f'Loan application #{application.id} for {member_name} '
+                                f'has been approved by the Credit Committee. '
+                                f'Please coordinate with the Treasurer for fund release.',
+                        notification_type='action_required',
+                    )
+            except Role.DoesNotExist:
+                pass
+
         # If returned, notify all Treasurers
         if decision == 'returned':
             try:

@@ -36,6 +36,7 @@ from .services import (
     TreasurerApplicationService,
     EvaluationService,
     PaymentService,
+    DisbursementService,
     TreasurerDashboardService,
     TreasurerReportService
 )
@@ -304,6 +305,45 @@ class EvaluateApplicationView(TreasurerBaseView):
 # Loans & Payments API
 # =============================================================================
 
+
+class ReleaseFundsView(TreasurerBaseView):
+    """
+    POST /api/treasurer/loans/<id>/release/
+    Treasurer releases funds for an approved loan.
+    Transitions status: 'Approved by Credit Committee' or
+    'Approved – For Disbursement' → 'Active'.
+    Auto-generates payment schedule.
+    """
+    def post(self, request, pk):
+        application = get_object_or_404(LoanApplication, pk=pk)
+        remarks = request.data.get('remarks', '').strip()
+
+        result = DisbursementService.release_funds(application, request.user, remarks)
+
+        if not result['success']:
+            return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
+
+        application.refresh_from_db()
+        schedule = application.schedule.all()
+
+        return Response({
+            'message': 'Funds released successfully. Loan is now Active.',
+            'loan_id': application.id,
+            'status': application.current_status.status_name,
+            'activated_at': str(application.activated_at),
+            'loan_health_status': application.loan_health_status,
+            'payment_schedule': [
+                {
+                    'installment_number': s.installment_number,
+                    'due_date': str(s.due_date),
+                    'amount_due': str(s.amount_due),
+                    'status': s.status,
+                }
+                for s in schedule
+            ],
+        }, status=status.HTTP_200_OK)
+
+
 class DisbursedLoansView(TreasurerBaseView):
     """
     GET /api/treasurer/loans/disbursed/
@@ -562,6 +602,105 @@ class ReportsView(TreasurerBaseView):
             {'error': 'Invalid report type. Must be: disbursement, collection, or outstanding'},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+class ActiveLoansReportView(TreasurerBaseView):
+    """
+    GET /api/treasurer/reports/active-loans/
+    All active loans with health status, balances, and schedule summary.
+    Visible to Treasurer, Bookkeeper, and Superadmin.
+    """
+    def get(self, request):
+        from loans.models import LoanApplication
+
+        active_statuses = ['Active', 'Disbursed']
+        loans = LoanApplication.objects.filter(
+            current_status__status_name__in=active_statuses
+        ).select_related('user', 'loan_type', 'current_status').order_by('loan_health_status', '-activated_at')
+
+        health_summary = {
+            'on_time': 0, 'late': 0, 'overdue': 0, 'delinquent': 0, 'unknown': 0
+        }
+        total_outstanding = Decimal('0.00')
+
+        result = []
+        for loan in loans:
+            h = loan.loan_health_status or 'unknown'
+            if h in health_summary:
+                health_summary[h] += 1
+            else:
+                health_summary['unknown'] += 1
+            bal = loan.remaining_balance
+            total_outstanding += bal
+
+            # Next due date from schedule
+            next_installment = loan.schedule.filter(
+                status__in=['pending', 'partial', 'late', 'overdue']
+            ).order_by('due_date').first()
+
+            result.append({
+                'loan_id': loan.id,
+                'borrower': f"{loan.user.firstname} {loan.user.lastname}",
+                'loan_type': loan.loan_type.loan_name,
+                'amount_requested': str(loan.amount_requested),
+                'total_payable': str(loan.total_payable),
+                'total_paid': str(loan.total_paid),
+                'remaining_balance': str(bal),
+                'loan_health_status': loan.loan_health_status,
+                'activated_at': str(loan.activated_at) if loan.activated_at else None,
+                'next_due_date': str(next_installment.due_date) if next_installment else None,
+                'next_amount_due': str(next_installment.amount_due) if next_installment else None,
+            })
+
+        return Response({
+            'loans': result,
+            'count': len(result),
+            'total_outstanding': str(total_outstanding),
+            'health_summary': health_summary,
+        })
+
+
+class OverdueLoansReportView(TreasurerBaseView):
+    """
+    GET /api/treasurer/reports/overdue-loans/
+    Loans with overdue or delinquent health status.
+    """
+    def get(self, request):
+        from loans.models import LoanApplication
+
+        active_statuses = ['Active', 'Disbursed']
+        loans = LoanApplication.objects.filter(
+            current_status__status_name__in=active_statuses,
+            loan_health_status__in=['late', 'overdue', 'delinquent']
+        ).select_related('user', 'loan_type', 'current_status').order_by('loan_health_status', 'activated_at')
+
+        result = []
+        for loan in loans:
+            oldest_unpaid = loan.schedule.filter(
+                status__in=['pending', 'partial', 'late', 'overdue']
+            ).order_by('due_date').first()
+
+            from datetime import date
+            days_overdue = None
+            if oldest_unpaid and oldest_unpaid.due_date < date.today():
+                days_overdue = (date.today() - oldest_unpaid.due_date).days
+
+            result.append({
+                'loan_id': loan.id,
+                'borrower': f"{loan.user.firstname} {loan.user.lastname}",
+                'borrower_email': loan.user.email,
+                'loan_type': loan.loan_type.loan_name,
+                'remaining_balance': str(loan.remaining_balance),
+                'loan_health_status': loan.loan_health_status,
+                'oldest_overdue_date': str(oldest_unpaid.due_date) if oldest_unpaid else None,
+                'days_overdue': days_overdue,
+                'activated_at': str(loan.activated_at) if loan.activated_at else None,
+            })
+
+        return Response({
+            'overdue_loans': result,
+            'count': len(result),
+        })
 
 
 # =============================================================================

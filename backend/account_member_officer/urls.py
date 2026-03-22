@@ -56,6 +56,10 @@ urlpatterns = [
     path('appeals/<int:pk>/approve/', views.AppealApproveView.as_view(), name='appeal_approve'),
     path('appeals/<int:pk>/reject/', views.AppealRejectView.as_view(), name='appeal_reject'),
 
+    # Loan Payments (AMO collects from members)
+    path('loans/active/', views.ActiveLoansView.as_view(), name='active_loans'),
+    path('loans/<int:pk>/payments/', views.LoanPaymentView.as_view(), name='loan_payments'),
+
     # Reports
     path('reports/', views.ReportsView.as_view(), name='reports'),
 

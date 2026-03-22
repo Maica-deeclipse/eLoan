@@ -44,6 +44,12 @@ urlpatterns = [
     path('applications/<int:pk>/download-pdf/', views.DownloadApplicationPDFView.as_view(), name='download_application_pdf'),
 
     # ==========================================================================
+    # Payments / Accounting
+    # ==========================================================================
+    path('payments/unconfirmed/', views.UnconfirmedPaymentsView.as_view(), name='unconfirmed_payments'),
+    path('payments/<int:pk>/confirm/', views.ConfirmPaymentView.as_view(), name='confirm_payment'),
+
+    # ==========================================================================
     # Reports
     # ==========================================================================
     path('reports/', views.ReportsView.as_view(), name='reports'),

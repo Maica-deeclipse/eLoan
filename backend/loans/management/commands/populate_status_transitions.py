@@ -36,10 +36,15 @@ class Command(BaseCommand):
         ('Pending Credit Committee', 'Rejected by Credit Committee', 'Credit Committee'),
         ('Pending Credit Committee', 'Returned to Treasurer', 'Credit Committee'),
 
-        # Admin/System transitions (for disbursement and completion)
+        # Post-approval disbursement flow
+        ('Approved by Credit Committee', 'Approved – For Disbursement', 'Treasurer'),
+        ('Approved – For Disbursement', 'Active', 'Treasurer'),
+        ('Active', 'Closed', 'System'),
+
+        # Legacy admin transitions (kept for backward compatibility)
         ('Approved by Credit Committee', 'Disbursed', 'Admin'),
         ('Disbursed', 'Paid', 'Admin'),
-        ('Disbursed', 'Completed', 'Admin'),
+        ('Disbursed', 'Closed', 'System'),
     ]
 
     def handle(self, *args, **options):

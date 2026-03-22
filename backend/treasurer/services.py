@@ -422,6 +422,161 @@ class TreasurerReportService:
         }
 
 
+class DisbursementService:
+    """Service for releasing approved loan funds."""
+
+    STATUS_APPROVED_FOR_DISBURSEMENT = 'Approved – For Disbursement'
+    STATUS_ACTIVE = 'Active'
+
+    @staticmethod
+    def release_funds(application, treasurer_user, remarks=''):
+        """
+        Treasurer releases funds for an approved loan.
+
+        Changes status from 'Approved – For Disbursement' → 'Active'.
+        Generates PaymentSchedule. Notifies all relevant parties.
+
+        Args:
+            application: LoanApplication instance
+            treasurer_user: User performing the release
+            remarks: Optional remarks
+
+        Returns:
+            dict: {'success': bool, 'error': str or None}
+        """
+        from loans.models import ApplicationStatus, StatusChangeLog, PaymentSchedule
+        from bookkeeper.models import Notification
+        from account_member_officer.models import AMONotification
+        from users.models import User, Role
+        from datetime import date
+        from dateutil.relativedelta import relativedelta
+
+        expected_statuses = [
+            DisbursementService.STATUS_APPROVED_FOR_DISBURSEMENT,
+            'Approved by Credit Committee',
+        ]
+        if application.current_status.status_name not in expected_statuses:
+            return {
+                'success': False,
+                'error': f"Cannot release funds. Loan is currently: {application.current_status.status_name}"
+            }
+
+        old_status = application.current_status
+
+        # Transition to Active
+        active_status, _ = ApplicationStatus.objects.get_or_create(status_name=DisbursementService.STATUS_ACTIVE)
+        application.current_status = active_status
+        application.activated_at = date.today()
+        application.loan_health_status = 'on_time'
+        application.save(update_fields=['current_status', 'activated_at', 'loan_health_status'])
+
+        # Audit trail
+        StatusChangeLog.objects.create(
+            application=application,
+            changed_by=treasurer_user,
+            changed_by_role='Treasurer',
+            from_status=old_status,
+            to_status=active_status,
+            remarks=remarks or 'Funds released by Treasurer'
+        )
+
+        # Generate payment schedule
+        DisbursementService._generate_payment_schedule(application)
+
+        member_name = f"{application.user.firstname} {application.user.lastname}"
+        loan_label = f"{application.loan_type.loan_name} (₱{application.amount_requested:,.2f})"
+
+        # Notify applicant
+        Notification.objects.create(
+            user=application.user,
+            title='Loan Funds Released',
+            message=f'Your {loan_label} loan has been approved and funds have been released. '
+                    f'Your repayment schedule is now active.',
+            notification_type='approval',
+            related_application=application
+        )
+
+        # Notify Bookkeeper
+        try:
+            bk_role = Role.objects.get(name='Bookkeeper')
+            bookkeepers = User.objects.filter(role=bk_role, is_active=True)
+            for bk in bookkeepers:
+                Notification.objects.create(
+                    user=bk,
+                    title='Loan Activated – Please Record in Books',
+                    message=f'Loan #{application.id} for {member_name} ({loan_label}) '
+                            f'has been activated. Please record the loan disbursement in the accounting books.',
+                    notification_type='action_required',
+                    related_application=application
+                )
+        except Role.DoesNotExist:
+            pass
+
+        # Notify AMO
+        try:
+            amo_role = Role.objects.get(name='Account Member Officer')
+            amo_users = User.objects.filter(role=amo_role, is_active=True)
+            for amo in amo_users:
+                AMONotification.objects.create(
+                    user=amo,
+                    title='Loan Now Active',
+                    message=f'Loan #{application.id} for {member_name} ({loan_label}) '
+                            f'is now active. Payment collection can begin.',
+                    notification_type='info',
+                )
+        except Role.DoesNotExist:
+            pass
+
+        return {'success': True, 'error': None}
+
+    @staticmethod
+    def _generate_payment_schedule(application):
+        """Generate installment schedule for an active loan."""
+        from loans.models import PaymentSchedule
+        from datetime import date
+        from dateutil.relativedelta import relativedelta
+
+        # Clear any existing schedule (e.g., if re-activated after error)
+        PaymentSchedule.objects.filter(application=application).delete()
+
+        activation_date = application.activated_at or date.today()
+        term_months = application.term_months or 0
+        amortization = application.monthly_amortization or Decimal('0.00')
+        installment_type = application.installment_type or 'monthly'
+
+        if term_months <= 0 or amortization <= 0:
+            return
+
+        schedule_items = []
+
+        if installment_type == 'semi_monthly':
+            # Two payments per month → total installments = term_months * 2
+            total_installments = term_months * 2
+            half_amount = (amortization / Decimal('2')).quantize(Decimal('0.01'))
+
+            for i in range(1, total_installments + 1):
+                # Every 15 days from activation
+                due_date = activation_date + relativedelta(days=15 * i)
+                schedule_items.append(PaymentSchedule(
+                    application=application,
+                    installment_number=i,
+                    due_date=due_date,
+                    amount_due=half_amount,
+                ))
+        else:
+            # Monthly payments
+            for i in range(1, term_months + 1):
+                due_date = activation_date + relativedelta(months=i)
+                schedule_items.append(PaymentSchedule(
+                    application=application,
+                    installment_number=i,
+                    due_date=due_date,
+                    amount_due=amortization,
+                ))
+
+        PaymentSchedule.objects.bulk_create(schedule_items)
+
+
 class TreasurerNotificationService:
     """Service for treasurer notifications."""
 

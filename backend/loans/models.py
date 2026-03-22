@@ -102,6 +102,26 @@ class LoanApplication(models.Model):
     forwarded_to_treasurer_at = models.DateTimeField(null=True, blank=True,
                                                       help_text='When application was forwarded to treasurer')
 
+    # Post-disbursement tracking fields
+    LOAN_HEALTH_CHOICES = [
+        ('on_time', 'On Time'),
+        ('late', 'Late'),
+        ('overdue', 'Overdue'),
+        ('delinquent', 'Delinquent'),
+    ]
+    loan_health_status = models.CharField(
+        max_length=20,
+        choices=LOAN_HEALTH_CHOICES,
+        null=True,
+        blank=True,
+        help_text='Payment health: on_time, late (<30 days), overdue (30-90 days), delinquent (>90 days)'
+    )
+    activated_at = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Date the loan became Active (funds released)'
+    )
+
     def __str__(self):
         return f"{self.user} - {self.loan_type.loan_name} - {self.amount_requested}"
 
@@ -454,3 +474,64 @@ class StatusTransitionRule(models.Model):
             to_status=to_status,
             allowed_role=role_name
         ).exists()
+
+
+class PaymentSchedule(models.Model):
+    """
+    Installment schedule generated when a loan becomes Active.
+
+    Each row represents one payment installment with a due date and amount.
+    Updated as payments are recorded by the AMO.
+    """
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('partial', 'Partial'),
+        ('paid', 'Paid'),
+        ('late', 'Late'),
+        ('overdue', 'Overdue'),
+    ]
+
+    application = models.ForeignKey(
+        LoanApplication,
+        on_delete=models.CASCADE,
+        related_name='schedule'
+    )
+    installment_number = models.PositiveIntegerField(
+        help_text='Sequential installment number (1, 2, 3, ...)'
+    )
+    due_date = models.DateField(help_text='Date this installment is due')
+    amount_due = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text='Total amount due for this installment'
+    )
+    amount_paid = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Amount paid towards this installment'
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    paid_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When this installment was fully paid'
+    )
+
+    class Meta:
+        ordering = ['installment_number']
+        unique_together = [('application', 'installment_number')]
+        verbose_name = 'Payment Schedule'
+        verbose_name_plural = 'Payment Schedules'
+
+    def __str__(self):
+        return f"App #{self.application_id} — Installment {self.installment_number} due {self.due_date}"
+
+    @property
+    def balance_due(self):
+        return self.amount_due - self.amount_paid

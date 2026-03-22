@@ -48,6 +48,7 @@ urlpatterns = [
     # Loans & Payments
     # ==========================================================================
     path('loans/disbursed/', views.DisbursedLoansView.as_view(), name='disbursed_loans'),
+    path('loans/<int:pk>/release/', views.ReleaseFundsView.as_view(), name='release_funds'),
     path('loans/<int:pk>/payments/', views.PaymentHistoryView.as_view(), name='payment_history'),
     path('loans/<int:pk>/payments/add/', views.RecordPaymentView.as_view(), name='record_payment'),
     path('loans/monitoring/', views.LoanMonitoringView.as_view(), name='loan_monitoring'),
@@ -56,6 +57,8 @@ urlpatterns = [
     # Reports
     # ==========================================================================
     path('reports/', views.ReportsView.as_view(), name='reports'),
+    path('reports/active-loans/', views.ActiveLoansReportView.as_view(), name='active_loans_report'),
+    path('reports/overdue-loans/', views.OverdueLoansReportView.as_view(), name='overdue_loans_report'),
 
     # ==========================================================================
     # Notifications
