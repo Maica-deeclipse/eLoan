@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,14 +15,16 @@ import { useAuth } from '../context/AuthContext';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
-  const { login, googleLogin } = useAuth();
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const { googleLogin } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: Constants.expoConfig?.extra?.googleClientId,
     androidClientId: Constants.expoConfig?.extra?.googleAndroidClientId,
     iosClientId: Constants.expoConfig?.extra?.googleIosClientId,
     scopes: ['openid', 'profile', 'email'],
+    prompt: 'select_account',
   });
 
   useEffect(() => {
@@ -33,18 +32,17 @@ export default function LoginScreen({ navigation }) {
       const { access_token } = response.params;
       handleGoogleToken(access_token);
     } else if (response?.type === 'error') {
-      setGoogleLoading(false);
+      setLoading(false);
       setError('Google sign-in was cancelled or failed.');
     } else if (response?.type === 'dismiss') {
-      setGoogleLoading(false);
+      setLoading(false);
     }
   }, [response]);
 
   const handleGoogleSignIn = async () => {
     setError('');
-    setGoogleLoading(true);
+    setLoading(true);
     await promptAsync();
-    // loading cleared in useEffect after response
   };
 
   const handleGoogleToken = async (accessToken) => {
@@ -61,37 +59,8 @@ export default function LoginScreen({ navigation }) {
           setError(result.error || 'Google sign-in failed.');
         }
       }
-      // On success, AuthContext sets isAuthenticated → AppNavigator shows Main
     } catch {
       setError('Google sign-in failed. Please try again.');
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleLogin = async () => {
-    // Validation
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter both email and password');
-      return;
-    }
-
-    setError('');
-    setLoading(true);
-
-    try {
-      const result = await login(email, password);
-      if (!result.success) {
-        setError(result.error || 'Login failed. Please try again.');
-      }
-      // Navigation is handled automatically by AuthContext
-      // When isAuthenticated becomes true, AppNavigator shows the Main screen
-    } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -99,10 +68,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-      >
+      <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
@@ -110,106 +76,40 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.logoText}>eLoan</Text>
           </View>
           <Text style={styles.title}>Login to Your Account</Text>
+          <Text style={styles.subtitle}>Use your BukSU Google account to sign in</Text>
         </View>
 
-        {/* Form */}
-        <View style={styles.form}>
-          {/* Error Message */}
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                setError(''); // Clear error on input
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
+        {/* Error */}
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
+        ) : null}
 
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                setError(''); // Clear error on input
-              }}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-          </View>
+        {/* Google Sign-In Button */}
+        <TouchableOpacity
+          style={[styles.googleButton, (loading || !request) && styles.googleButtonDisabled]}
+          onPress={handleGoogleSignIn}
+          disabled={loading || !request}
+        >
+          {loading ? (
+            <ActivityIndicator color="#374151" />
+          ) : (
+            <>
+              <Text style={styles.googleIcon}>G</Text>
+              <Text style={styles.googleButtonText}>Sign in with Google</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
-          {/* Forgot Password Link */}
-          <TouchableOpacity
-            style={styles.forgotPasswordContainer}
-            onPress={() => navigation.navigate('ForgotPassword')}
-            disabled={loading}
-          >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
-          {/* Login Button */}
-          <TouchableOpacity
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-            onPress={handleLogin}
-            disabled={loading || googleLoading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Google Sign-In Button */}
-          <TouchableOpacity
-            style={[styles.googleButton, (loading || googleLoading || !request) && styles.googleButtonDisabled]}
-            onPress={handleGoogleSignIn}
-            disabled={loading || googleLoading || !request}
-          >
-            {googleLoading ? (
-              <ActivityIndicator color="#374151" />
-            ) : (
-              <>
-                <Text style={styles.googleIcon}>G</Text>
-                <Text style={styles.googleButtonText}>Sign in with Google</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          <Text style={styles.googleHint}>Only @buksu.edu.ph accounts are accepted</Text>
-        </View>
+        <Text style={styles.googleHint}>Only @buksu.edu.ph accounts are accepted</Text>
 
         {/* Register Link */}
         <View style={styles.registerContainer}>
           <Text style={styles.registerText}>New BukSU member? </Text>
           <TouchableOpacity
             onPress={() => navigation.navigate('Register')}
-            disabled={loading || googleLoading}
+            disabled={loading}
           >
             <Text style={styles.registerLink}>Register with Google</Text>
           </TouchableOpacity>
@@ -221,7 +121,7 @@ export default function LoginScreen({ navigation }) {
             eLoan Management System • Applicant Access
           </Text>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -233,7 +133,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 24,
     justifyContent: 'center',
   },
   header: {
@@ -261,78 +161,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6b7280',
-  },
-  form: {
-    width: '100%',
+    textAlign: 'center',
   },
   errorContainer: {
     backgroundColor: '#fee2e2',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   errorText: {
     color: '#dc2626',
     fontSize: 14,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    color: '#6366f1',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  loginButton: {
-    backgroundColor: '#6366f1',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  loginButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e5e7eb',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: '#9ca3af',
-    fontSize: 13,
+    lineHeight: 20,
   },
   googleButton: {
     flexDirection: 'row',
@@ -342,7 +184,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#d1d5db',
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
     marginBottom: 8,
   },
   googleButtonDisabled: {
@@ -363,13 +205,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
     color: '#9ca3af',
-    marginBottom: 4,
+    marginBottom: 32,
   },
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
   },
   registerText: {
     color: '#6b7280',

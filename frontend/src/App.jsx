@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import RoleSelection from './pages/RoleSelection';
 import Login from './pages/Login';
+import SuperAdminLogin from './pages/SuperAdminLogin';
 import StaffRegister from './pages/StaffRegister';
 import ForgotPassword from './pages/ForgotPassword';
 import SetPassword from './pages/SetPassword';
@@ -57,6 +58,9 @@ function App() {
       <Routes>
         {/* Role Selection (Home) */}
         <Route path="/" element={<RoleSelection />} />
+
+        {/* Superadmin Login (dedicated, not linked from role selection) */}
+        <Route path="/superadmin/login" element={<SuperAdminLogin />} />
 
         {/* Authentication Routes */}
         <Route path="/login/:role" element={<Login />} />

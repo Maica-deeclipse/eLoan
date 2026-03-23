@@ -1,8 +1,8 @@
 """
-Google OAuth Authentication for Applicants
+Google OAuth Authentication
 
-Verifies Google access tokens and creates/logs in applicant users.
-Only allows @buksu.edu.ph email addresses.
+- GoogleAuthView: For applicants. Verifies Google tokens, creates/logs in @buksu.edu.ph users.
+- StaffGoogleAuthView: For staff/admins. Verifies Google tokens, logs in existing staff accounts.
 """
 
 import requests
@@ -175,6 +175,127 @@ class GoogleAuthView(APIView):
                     'picture': picture,
                 },
                 'is_new': is_new,
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class StaffGoogleAuthView(APIView):
+    """
+    POST /api/auth/google/staff/
+
+    Authenticate an existing staff/admin user via Google OAuth.
+    The user must already have a registered and approved account.
+    No email domain restriction — staff may use any Google account
+    that matches their registered email.
+
+    Request body:
+        { "access_token": "<google_oauth_access_token>" }
+
+    Response:
+        { "tokens": { "access": "...", "refresh": "..." }, "user": {...} }
+    """
+    permission_classes = []
+
+    def post(self, request):
+        access_token = request.data.get('access_token')
+        if not access_token:
+            return Response(
+                {'error': 'access_token is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verify token with Google and get user info
+        try:
+            google_response = requests.get(
+                'https://www.googleapis.com/oauth2/v3/userinfo',
+                headers={'Authorization': f'Bearer {access_token}'},
+                timeout=10
+            )
+            if google_response.status_code != 200:
+                return Response(
+                    {'error': 'Invalid or expired Google token. Please sign in again.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            google_user = google_response.json()
+        except requests.RequestException:
+            return Response(
+                {'error': 'Failed to verify Google token. Check your connection.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        email = google_user.get('email', '')
+        email_verified = google_user.get('email_verified', False)
+        picture = google_user.get('picture', '')
+
+        if not email_verified:
+            return Response(
+                {'error': 'Google email is not verified.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Find the staff user by email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {
+                    'error': (
+                        'No staff account found for this Google account. '
+                        'Please register first or use a different email.'
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Reject applicants — they should use /api/auth/google/ instead
+        if user.role and user.role.name == 'Applicant':
+            return Response(
+                {'error': 'This login is for staff only. Applicants should use the mobile app.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Check account status
+        if user.account_status == 'rejected':
+            return Response(
+                {'error': 'Your account has been rejected. Please contact the administrator.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if user.account_status == 'pending':
+            return Response(
+                {
+                    'error': (
+                        'Your account is pending approval. '
+                        'Please wait for the Super Administrator to approve your account.'
+                    ),
+                    'account_status': 'pending',
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if not user.is_active or user.status == 'suspended':
+            return Response(
+                {'error': 'Your account has been suspended. Please contact the administrator.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Generate JWT tokens and log in
+        refresh = RefreshToken.for_user(user)
+
+        return Response(
+            {
+                'tokens': {
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                },
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'firstname': user.firstname,
+                    'lastname': user.lastname,
+                    'role': user.role.name if user.role else '',
+                    'account_status': user.account_status,
+                    'picture': picture,
+                },
             },
             status=status.HTTP_200_OK
         )

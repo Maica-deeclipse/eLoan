@@ -125,6 +125,65 @@ class StaffLoginView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class SuperAdminLoginView(APIView):
+    """
+    POST /api/auth/superadmin/login/
+
+    Dedicated login endpoint for superusers only.
+    Checks is_superuser=True — no role parameter required.
+    Always returns role as 'Super Administrator'.
+    """
+    permission_classes = []
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        password = request.data.get('password', '')
+
+        if not email or not password:
+            return Response(
+                {'error': 'Email and password are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = authenticate(username=email, password=password)
+
+        if not user:
+            return Response(
+                {'error': 'Invalid credentials.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        if not user.is_superuser:
+            return Response(
+                {'error': 'Access denied.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not user.is_active or user.status != 'active':
+            return Response(
+                {'error': 'Your account has been suspended. Please contact support.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'message': 'Login successful.',
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'firstname': user.firstname,
+                'lastname': user.lastname,
+                'role': 'Super Administrator',
+                'status': user.status,
+            },
+            'tokens': {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }
+        }, status=status.HTTP_200_OK)
+
+
 class ApplicantLoginSerializer(serializers.Serializer):
     """Serializer for applicant login (no role parameter required)."""
     email = serializers.EmailField()

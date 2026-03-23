@@ -21,9 +21,9 @@ from django.conf.urls.static import static
 from django.views.generic import RedirectView
 from django.http import HttpResponse
 
-from authentication.login import StaffLoginView, ApplicantLoginView
-from authentication.registration import ApplicantRegistrationView, StaffRegistrationView
-from authentication.google_auth import GoogleAuthView
+from authentication.login import StaffLoginView, ApplicantLoginView, SuperAdminLoginView
+from authentication.registration import ApplicantRegistrationView, StaffRegistrationView, StaffGoogleRegistrationView
+from authentication.google_auth import GoogleAuthView, StaffGoogleAuthView
 from authentication.password_reset import (
     SetPasswordView,
     ValidateTokenView,
@@ -56,6 +56,7 @@ urlpatterns = [
 
     # Authentication endpoints
     path('api/auth/login/', StaffLoginView.as_view(), name='staff_login'),
+    path('api/auth/superadmin/login/', SuperAdminLoginView.as_view(), name='superadmin_login'),
     path('api/auth/applicant/login/', ApplicantLoginView.as_view(), name='applicant_login'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
@@ -67,6 +68,9 @@ urlpatterns = [
     # Google OAuth for applicants (only @buksu.edu.ph emails)
     path('api/auth/google/', GoogleAuthView.as_view(), name='google_auth'),
 
+    # Google OAuth for staff/admins (existing accounts only, no domain restriction)
+    path('api/auth/google/staff/', StaffGoogleAuthView.as_view(), name='google_auth_staff'),
+
     # Applicant self-registration (public endpoint)
     # Creates account with 'pending' status - requires Super Admin approval to login
     path('api/auth/register/', ApplicantRegistrationView.as_view(), name='applicant_register'),
@@ -74,6 +78,9 @@ urlpatterns = [
     # Staff self-registration (public endpoint)
     # Creates staff account with 'pending' status - requires Super Admin approval
     path('api/auth/staff/register/', StaffRegistrationView.as_view(), name='staff_register'),
+
+    # Staff registration via Google OAuth (no password needed, employee_id + role still required)
+    path('api/auth/staff/register/google/', StaffGoogleRegistrationView.as_view(), name='staff_register_google'),
 
     # Membership appeal (for rejected applicants)
     path('api/auth/appeal/', SubmitAppealView.as_view(), name='submit_appeal'),

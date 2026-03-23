@@ -123,6 +123,41 @@ class AuthService {
   }
 
   /**
+   * Login superadmin via email/password (is_superuser only)
+   * @param {string} email
+   * @param {string} password
+   * @returns {Promise}
+   */
+  async superAdminLogin(email, password) {
+    const response = await axios.post(`${API_URL}/superadmin/login/`, { email, password });
+    if (response.data.tokens) {
+      localStorage.setItem('accessToken', response.data.tokens.access);
+      localStorage.setItem('refreshToken', response.data.tokens.refresh);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    return response.data;
+  }
+
+  /**
+   * Login staff member via Google OAuth
+   * @param {string} googleAccessToken - Access token from Google OAuth
+   * @returns {Promise} User data and tokens
+   */
+  async googleLogin(googleAccessToken) {
+    const response = await axios.post(`${API_URL}/google/staff/`, {
+      access_token: googleAccessToken,
+    });
+
+    if (response.data.tokens) {
+      localStorage.setItem('accessToken', response.data.tokens.access);
+      localStorage.setItem('refreshToken', response.data.tokens.refresh);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+
+    return response.data;
+  }
+
+  /**
    * Check if user is authenticated
    * @returns {boolean}
    */
