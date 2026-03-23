@@ -272,52 +272,36 @@ CORS_ALLOW_CREDENTIALS = True
 # Django Unfold Admin Configuration
 UNFOLD = {
     "SITE_TITLE": "eLoan Administration",
-    "SITE_HEADER": "eLoan Super Admin",
+    "SITE_HEADER": "eLoan Admin Console",
     "SITE_URL": "/",
-    "SITE_ICON": {
-        "light": lambda request: "💰",  # Icon for light mode
-        "dark": lambda request: "💰",   # Icon for dark mode
-    },
-    "SITE_LOGO": {
-        "light": lambda request: "💰 eLoan",  # Logo for light mode
-        "dark": lambda request: "💰 eLoan",   # Logo for dark mode
-    },
-    "SITE_SYMBOL": "💰",  # Symbol in top left corner
-    "SHOW_HISTORY": True,  # Show history button
-    "SHOW_VIEW_ON_SITE": True,  # Show view on site button
+    "SITE_SYMBOL": "account_balance",  # Material Symbols icon in sidebar header
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
     "ENVIRONMENT": "development",
     "DASHBOARD_CALLBACK": None,
     "STYLES": [
-        lambda request: "/static/css/custom-admin.css",  # Custom CSS if needed
+        lambda request: "/static/css/custom-admin.css",
     ],
     "SCRIPTS": [],
+    # eLoan brand color scale — navy #02327a as the 700 anchor
     "COLORS": {
         "primary": {
-            "50": "250 245 255",
-            "100": "243 232 255",
-            "200": "233 213 255",
-            "300": "216 180 254",
-            "400": "192 132 252",
-            "500": "168 85 247",  # Main purple color
-            "600": "147 51 234",
-            "700": "126 34 206",
-            "800": "107 33 168",
-            "900": "88 28 135",
-            "950": "59 7 100",
-        },
-    },
-    "EXTENSIONS": {
-        "modeltranslation": {
-            "flags": {
-                "en": "🇬🇧",
-                "fr": "🇫🇷",
-                "nl": "🇧🇪",
-            },
+            "50":  "236 244 255",
+            "100": "213 232 255",
+            "200": "172 209 255",
+            "300": "108 173 255",
+            "400": "52  126 246",
+            "500": "14  88  210",
+            "600": "8   65  175",
+            "700": "2   50  122",   # #02327a — eLoan brand
+            "800": "1   38  95",
+            "900": "1   28  70",
+            "950": "1   18  46",
         },
     },
     "SIDEBAR": {
-        "show_search": True,  # Search in sidebar
-        "show_all_applications": True,  # Show all applications
+        "show_search": True,
+        "show_all_applications": False,
         "navigation": [
             {
                 "title": "User Management",
@@ -333,6 +317,11 @@ UNFOLD = {
                         "icon": "badge",
                         "link": lambda request: "/admin/users/role/",
                     },
+                    {
+                        "title": "Pending Approval",
+                        "icon": "pending_actions",
+                        "link": lambda request: "/admin/users/user/?account_status__exact=pending",
+                    },
                 ],
             },
             {
@@ -340,14 +329,9 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     {
-                        "title": "Pending Registrations",
-                        "icon": "pending_actions",
-                        "link": lambda request: "/admin/users/user/?account_status__exact=pending",
-                    },
-                    {
                         "title": "All Members",
                         "icon": "people",
-                        "link": lambda request: "/admin/applicant/",
+                        "link": lambda request: "/admin/applicant/member/",
                     },
                     {
                         "title": "Savings Records",
@@ -399,6 +383,27 @@ UNFOLD = {
                 ],
             },
             {
+                "title": "Disciplinary",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Violations",
+                        "icon": "gavel",
+                        "link": lambda request: "/admin/superadmin/violation/",
+                    },
+                    {
+                        "title": "Disciplinary Actions",
+                        "icon": "policy",
+                        "link": lambda request: "/admin/superadmin/disciplinaryaction/",
+                    },
+                    {
+                        "title": "Termination Records",
+                        "icon": "person_remove",
+                        "link": lambda request: "/admin/superadmin/terminationrecord/",
+                    },
+                ],
+            },
+            {
                 "title": "Reports & Analytics",
                 "separator": True,
                 "items": [
@@ -413,9 +418,7 @@ UNFOLD = {
     },
     "TABS": [
         {
-            "models": [
-                "users.user",
-            ],
+            "models": ["users.user"],
             "items": [
                 {
                     "title": "All Users",
@@ -436,6 +439,27 @@ UNFOLD = {
                 {
                     "title": "Suspended",
                     "link": lambda request: "/admin/users/user/?status__exact=suspended",
+                },
+            ],
+        },
+        {
+            "models": ["superadmin.violation"],
+            "items": [
+                {
+                    "title": "All Violations",
+                    "link": lambda request: "/admin/superadmin/violation/",
+                },
+                {
+                    "title": "Open",
+                    "link": lambda request: "/admin/superadmin/violation/?status__exact=open",
+                },
+                {
+                    "title": "Escalated",
+                    "link": lambda request: "/admin/superadmin/violation/?status__exact=escalated",
+                },
+                {
+                    "title": "Resolved",
+                    "link": lambda request: "/admin/superadmin/violation/?status__exact=resolved",
                 },
             ],
         },

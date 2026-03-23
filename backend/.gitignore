@@ -26,6 +26,7 @@ db.sqlite3-journal
 
 # Static and media files (if collected)
 /static/
+!/static/css/custom-admin.css
 /staticfiles/
 /media/
 
