@@ -46,6 +46,11 @@ import AMOActivityLogs from './pages/account-member-officer/ActivityLogs';
 import AMONotifications from './pages/account-member-officer/Notifications';
 import AMOSettings from './pages/account-member-officer/Settings';
 
+// Super Administrator Module
+import SuperAdminLayout from './components/superadmin/SuperAdminLayout';
+import SuperAdminDashboard from './pages/superadmin/Dashboard';
+import SuperAdminNotifications from './pages/superadmin/Notifications';
+
 function App() {
   return (
     <Router>
@@ -109,9 +114,15 @@ function App() {
           <Route path="settings" element={<AMOSettings />} />
         </Route>
 
-        {/* Super Admin - Django admin dashboard at /admindashboard */}
-        <Route path="/admin" element={<Navigate to="/admindashboard/" replace />} />
-        <Route path="/admin/dashboard" element={<PlaceholderDashboard role="Super Administrator" />} />
+        {/* Super Administrator Module */}
+        <Route path="/superadmin" element={<SuperAdminLayout />}>
+          <Route index element={<Navigate to="/superadmin/dashboard" replace />} />
+          <Route path="dashboard" element={<SuperAdminDashboard />} />
+          <Route path="notifications" element={<SuperAdminNotifications />} />
+        </Route>
+
+        {/* Legacy admin redirect */}
+        <Route path="/admin" element={<Navigate to="/superadmin/dashboard" replace />} />
 
         <Route path="/dashboard" element={<PlaceholderDashboard role="Staff" />} />
 

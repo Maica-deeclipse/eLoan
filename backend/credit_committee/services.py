@@ -492,34 +492,15 @@ class CreditCommitteeNotificationService:
             QuerySet: Notification records
         """
         return Notification.objects.filter(
-            user=user
+            user=user, is_deleted=False, is_archived=False
         ).select_related('related_application').order_by('-created_at')[:limit]
 
     @staticmethod
     def get_unread_count(user):
-        """
-        Get unread notification count.
-
-        Args:
-            user: User instance
-
-        Returns:
-            int: Unread count
-        """
-        return Notification.objects.filter(user=user, is_read=False).count()
+        return Notification.objects.filter(user=user, is_read=False, is_deleted=False, is_archived=False).count()
 
     @staticmethod
     def mark_as_read(notification_id, user):
-        """
-        Mark a notification as read.
-
-        Args:
-            notification_id: Notification ID
-            user: User instance (for security)
-
-        Returns:
-            bool: Success status
-        """
         try:
             notification = Notification.objects.get(pk=notification_id, user=user)
             notification.mark_as_read()
@@ -529,15 +510,26 @@ class CreditCommitteeNotificationService:
 
     @staticmethod
     def mark_all_as_read(user):
-        """
-        Mark all notifications as read for a user.
-
-        Args:
-            user: User instance
-
-        Returns:
-            int: Number of notifications marked
-        """
         return Notification.objects.filter(
-            user=user, is_read=False
+            user=user, is_read=False, is_deleted=False, is_archived=False
         ).update(is_read=True, read_at=timezone.now())
+
+    @staticmethod
+    def delete_notification(notification_id, user):
+        try:
+            n = Notification.objects.get(pk=notification_id, user=user)
+            n.is_deleted = True
+            n.save(update_fields=['is_deleted'])
+            return True
+        except Notification.DoesNotExist:
+            return False
+
+    @staticmethod
+    def archive_notification(notification_id, user):
+        try:
+            n = Notification.objects.get(pk=notification_id, user=user)
+            n.is_archived = True
+            n.save(update_fields=['is_archived'])
+            return True
+        except Notification.DoesNotExist:
+            return False

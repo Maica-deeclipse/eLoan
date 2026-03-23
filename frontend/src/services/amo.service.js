@@ -149,6 +149,20 @@ class AMOService {
     } catch (e) { handleError(e); }
   }
 
+  async deleteNotification(id) {
+    try {
+      const res = await axios.post(`${API_URL}/notifications/${id}/delete/`, {}, getAuthHeaders());
+      return res.data;
+    } catch (e) { handleError(e); }
+  }
+
+  async archiveNotification(id) {
+    try {
+      const res = await axios.post(`${API_URL}/notifications/${id}/archive/`, {}, getAuthHeaders());
+      return res.data;
+    } catch (e) { handleError(e); }
+  }
+
   async getUnreadCount() {
     try {
       const res = await axios.get(`${API_URL}/notifications/unread-count/`, getAuthHeaders());

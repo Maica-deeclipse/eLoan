@@ -171,11 +171,25 @@ class BookkeeperService {
    */
   async markAllNotificationsRead() {
     try {
-      const response = await axios.post(
-        `${API_URL}/notifications/mark-all-read/`,
-        {},
-        getAuthHeaders()
-      );
+      const response = await axios.post(`${API_URL}/notifications/mark-all-read/`, {}, getAuthHeaders());
+      return response.data;
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  async deleteNotification(id) {
+    try {
+      const response = await axios.post(`${API_URL}/notifications/${id}/delete/`, {}, getAuthHeaders());
+      return response.data;
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  async archiveNotification(id) {
+    try {
+      const response = await axios.post(`${API_URL}/notifications/${id}/archive/`, {}, getAuthHeaders());
       return response.data;
     } catch (error) {
       handleError(error);

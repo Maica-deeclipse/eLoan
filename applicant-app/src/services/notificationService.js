@@ -41,6 +41,22 @@ class NotificationService {
     const response = await apiService.get('/applicant/notifications/unread-count/');
     return response.data.unread_count;
   }
+
+  /**
+   * Delete a notification (soft delete)
+   */
+  async deleteNotification(notificationId) {
+    const response = await apiService.post(`/applicant/notifications/${notificationId}/delete/`);
+    return response.data;
+  }
+
+  /**
+   * Archive a notification
+   */
+  async archiveNotification(notificationId) {
+    const response = await apiService.post(`/applicant/notifications/${notificationId}/archive/`);
+    return response.data;
+  }
 }
 
 export default new NotificationService();

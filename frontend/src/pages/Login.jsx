@@ -11,6 +11,7 @@ function Login() {
   const getRoleName = (urlRole) => {
     const roleMap = {
       'admin': 'Super Administrator',
+      'Super Administrator': 'Super Administrator',
       'Bookkeeper': 'Bookkeeper',
       'Treasurer': 'Treasurer',
       'Credit Committee': 'Credit Committee',
@@ -74,7 +75,7 @@ function Login() {
           navigate('/amo/dashboard');
           break;
         case 'Super Administrator':
-          navigate('/admin/dashboard');
+          navigate('/superadmin/dashboard');
           break;
         default:
           navigate('/dashboard');
@@ -162,7 +163,7 @@ function Login() {
             ← Back to Role Selection
           </Link>
 
-          {urlRole !== 'admin' && (
+          {urlRole !== 'admin' && urlRole !== 'Super Administrator' && (
             <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
               Don't have an account?{' '}
               <Link

@@ -597,6 +597,22 @@ class UnreadNotificationCountView(BookkeeperBaseView):
         return Response({'unread_count': count})
 
 
+class DeleteNotificationView(BookkeeperBaseView):
+    """POST /api/bookkeeper/notifications/<id>/delete/"""
+    def post(self, request, pk):
+        if NotificationService.delete_notification(pk, request.user):
+            return Response({'message': 'Notification deleted.'})
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ArchiveNotificationView(BookkeeperBaseView):
+    """POST /api/bookkeeper/notifications/<id>/archive/"""
+    def post(self, request, pk):
+        if NotificationService.archive_notification(pk, request.user):
+            return Response({'message': 'Notification archived.'})
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
 # =============================================================================
 # Settings API
 # =============================================================================

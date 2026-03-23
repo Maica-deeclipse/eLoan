@@ -1756,3 +1756,24 @@ class UnreadCountView(ApplicantBaseView):
             count = NotificationService.get_unread_count(request.user)
             cache.set(cache_key, count, 60)  # cache for 1 minute
         return Response({'unread_count': count})
+
+
+class DeleteNotificationView(ApplicantBaseView):
+    """POST /api/applicant/notifications/<id>/delete/"""
+
+    def post(self, request, pk):
+        success, error = NotificationService.delete_notification(pk, request.user)
+        if not success:
+            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+        cache.delete(f'notif_unread_{request.user.id}')
+        return Response({'message': 'Notification deleted'})
+
+
+class ArchiveNotificationView(ApplicantBaseView):
+    """POST /api/applicant/notifications/<id>/archive/"""
+
+    def post(self, request, pk):
+        success, error = NotificationService.archive_notification(pk, request.user)
+        if not success:
+            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'message': 'Notification archived'})

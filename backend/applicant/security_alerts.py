@@ -7,9 +7,7 @@ Monitors and alerts administrators about suspicious patterns:
 - Potential fraud or spoofing attempts
 
 Automatically creates notifications for:
-- Super Administrators
-- Bookkeepers
-- Credit Committee members (if configured)
+- Super Administrators only (RBAC: security alerts are superadmin-exclusive)
 
 Logs all alerts to AuditLog for forensic analysis.
 """

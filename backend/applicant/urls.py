@@ -89,6 +89,8 @@ urlpatterns = [
     # Notifications
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),
     path('notifications/<int:pk>/read/', views.MarkNotificationReadView.as_view(), name='mark_read'),
+    path('notifications/<int:pk>/delete/', views.DeleteNotificationView.as_view(), name='delete_notification'),
+    path('notifications/<int:pk>/archive/', views.ArchiveNotificationView.as_view(), name='archive_notification'),
     path('notifications/mark-all-read/', views.MarkAllNotificationsReadView.as_view(), name='mark_all_read'),
     path('notifications/unread-count/', views.UnreadCountView.as_view(), name='unread_count'),
 ]

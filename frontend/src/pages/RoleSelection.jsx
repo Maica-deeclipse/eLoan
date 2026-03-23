@@ -48,6 +48,13 @@ function RoleSelection() {
           >
             <span className="role-card-name">Account Member Officer</span>
           </button>
+
+          <button
+            className="role-card"
+            onClick={() => handleRoleSelect('Super Administrator')}
+          >
+            <span className="role-card-name">Super Administrator</span>
+          </button>
         </div>
 
         <div className="role-selection-footer">

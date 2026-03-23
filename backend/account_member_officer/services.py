@@ -297,11 +297,24 @@ class DashboardService:
 
 
 class ActivityLogService:
-    """Fetches audit log entries relevant to AMO work."""
+    """Fetches audit log entries relevant to AMO work.
+
+    RBAC: Security-related action types (face verification failures, liveness
+    failures, suspicious activity) are excluded — those are superadmin-only.
+    """
+
+    # Action types reserved for Super Administrator visibility
+    SUPERADMIN_ONLY_TYPES = {
+        'FACE_VERIFY_FAIL',
+        'LIVENESS_FAIL',
+        'SUSPICIOUS_ACTIVITY',
+        'RATE_LIMIT_HIT',
+    }
 
     @staticmethod
     def get_logs(search=None, limit=100):
         qs = AuditLog.objects.select_related('user', 'related_application').order_by('-timestamp')
+        qs = qs.exclude(action_type__in=ActivityLogService.SUPERADMIN_ONLY_TYPES)
         if search:
             qs = qs.filter(
                 Q(user__firstname__icontains=search) |
@@ -341,11 +354,11 @@ class NotificationService:
 
     @staticmethod
     def get_notifications(user):
-        return AMONotification.objects.filter(user=user)
+        return AMONotification.objects.filter(user=user, is_deleted=False, is_archived=False)
 
     @staticmethod
     def get_unread_count(user):
-        return AMONotification.objects.filter(user=user, is_read=False).count()
+        return AMONotification.objects.filter(user=user, is_read=False, is_deleted=False, is_archived=False).count()
 
     @staticmethod
     def mark_read(notification_id, user):
@@ -355,6 +368,26 @@ class NotificationService:
 
     @staticmethod
     def mark_all_read(user):
-        AMONotification.objects.filter(user=user, is_read=False).update(
+        AMONotification.objects.filter(user=user, is_read=False, is_deleted=False, is_archived=False).update(
             is_read=True, read_at=timezone.now()
         )
+
+    @staticmethod
+    def delete_notification(notification_id, user):
+        try:
+            n = AMONotification.objects.get(pk=notification_id, user=user)
+            n.is_deleted = True
+            n.save(update_fields=['is_deleted'])
+            return True
+        except AMONotification.DoesNotExist:
+            return False
+
+    @staticmethod
+    def archive_notification(notification_id, user):
+        try:
+            n = AMONotification.objects.get(pk=notification_id, user=user)
+            n.is_archived = True
+            n.save(update_fields=['is_archived'])
+            return True
+        except AMONotification.DoesNotExist:
+            return False

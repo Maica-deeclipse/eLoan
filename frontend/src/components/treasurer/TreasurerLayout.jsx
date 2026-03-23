@@ -19,8 +19,10 @@ export default function TreasurerLayout() {
     }
     setUser(currentUser);
 
-    // Fetch unread notification count
+    // Fetch unread notification count + poll every 30s
     fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
   }, [navigate]);
 
   const fetchUnreadCount = async () => {

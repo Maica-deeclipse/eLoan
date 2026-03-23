@@ -18,6 +18,8 @@ export default function AMOLayout() {
     }
     setUser(currentUser);
     fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
   }, [navigate]);
 
   const fetchUnreadCount = async () => {

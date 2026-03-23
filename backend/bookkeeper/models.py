@@ -84,6 +84,14 @@ class Notification(models.Model):
         default=False,
         help_text='Whether user has read this notification'
     )
+    is_archived = models.BooleanField(
+        default=False,
+        help_text='Whether user has archived this notification'
+    )
+    is_deleted = models.BooleanField(
+        default=False,
+        help_text='Soft delete — hidden from all views'
+    )
     created_at = models.DateTimeField(
         default=timezone.now,
         help_text='When notification was created'

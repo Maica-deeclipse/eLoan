@@ -771,6 +771,22 @@ class UnreadNotificationCountView(TreasurerBaseView):
         return Response({'unread_count': count})
 
 
+class DeleteNotificationView(TreasurerBaseView):
+    """POST /api/treasurer/notifications/<id>/delete/"""
+    def post(self, request, pk):
+        if NotificationService.delete_notification(pk, request.user):
+            return Response({'message': 'Notification deleted.'})
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ArchiveNotificationView(TreasurerBaseView):
+    """POST /api/treasurer/notifications/<id>/archive/"""
+    def post(self, request, pk):
+        if NotificationService.archive_notification(pk, request.user):
+            return Response({'message': 'Notification archived.'})
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
 # =============================================================================
 # Settings API
 # =============================================================================

@@ -1,31 +1,29 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
-import bookkeeperService from '../../services/bookkeeper.service';
+import { useOutletContext } from 'react-router-dom';
+import superadminService from '../../services/superadmin.service';
 
 const ICON_CONFIG = {
-  new_application: { bg: '#dbeafe', color: '#2563eb', icon: '📄' },
-  status_change:   { bg: '#fef3c7', color: '#d97706', icon: '🔄' },
-  action_required: { bg: '#fee2e2', color: '#dc2626', icon: '⚠️' },
+  security_alert:  { bg: '#fee2e2', color: '#b91c1c', icon: '🔒' },
+  action_required: { bg: '#fef3c7', color: '#b45309', icon: '⚠️' },
+  info:            { bg: '#e5e7eb', color: '#4b5563', icon: 'ℹ️' },
   approval:        { bg: '#d1fae5', color: '#059669', icon: '✅' },
   rejection:       { bg: '#fee2e2', color: '#dc2626', icon: '❌' },
-  security_alert:  { bg: '#fef3c7', color: '#b45309', icon: '🔒' },
-  info:            { bg: '#e5e7eb', color: '#4b5563', icon: 'ℹ️' },
+  status_change:   { bg: '#fef3c7', color: '#d97706', icon: '🔄' },
 };
 
-export default function Notifications() {
-  const navigate = useNavigate();
-  const { fetchUnreadCount } = useOutletContext();
-  const [loading, setLoading] = useState(true);
+export default function SuperAdminNotifications() {
+  const { fetchUnreadCount } = useOutletContext() || {};
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, notification: null });
   const contextMenuRef = useRef(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const result = await bookkeeperService.getNotifications();
-      setNotifications(result.notifications);
-      setUnreadCount(result.unread_count);
+      const result = await superadminService.getNotifications();
+      setNotifications(result.notifications || []);
+      setUnreadCount(result.unread_count || 0);
     } catch (err) {
       console.error(err);
     } finally {
@@ -53,15 +51,12 @@ export default function Notifications() {
 
   const handleCardClick = async (notification) => {
     if (!notification.is_read) {
-      await bookkeeperService.markNotificationRead(notification.id);
+      await superadminService.markNotificationRead(notification.id);
       setNotifications(prev =>
         prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
       fetchUnreadCount?.();
-    }
-    if (notification.related_application_id) {
-      navigate(`/bookkeeper/applications/${notification.related_application_id}`);
     }
   };
 
@@ -71,7 +66,7 @@ export default function Notifications() {
   };
 
   const handleMarkAllAsRead = async () => {
-    await bookkeeperService.markAllNotificationsRead();
+    await superadminService.markAllNotificationsRead();
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnreadCount(0);
     fetchUnreadCount?.();
@@ -79,7 +74,7 @@ export default function Notifications() {
 
   const handleDelete = async (notification) => {
     setContextMenu(prev => ({ ...prev, visible: false }));
-    await bookkeeperService.deleteNotification(notification.id);
+    await superadminService.deleteNotification(notification.id);
     setNotifications(prev => prev.filter(n => n.id !== notification.id));
     if (!notification.is_read) {
       setUnreadCount(prev => Math.max(0, prev - 1));
@@ -89,7 +84,7 @@ export default function Notifications() {
 
   const handleArchive = async (notification) => {
     setContextMenu(prev => ({ ...prev, visible: false }));
-    await bookkeeperService.archiveNotification(notification.id);
+    await superadminService.archiveNotification(notification.id);
     setNotifications(prev => prev.filter(n => n.id !== notification.id));
     if (!notification.is_read) {
       setUnreadCount(prev => Math.max(0, prev - 1));
@@ -108,18 +103,23 @@ export default function Notifications() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937', margin: 0 }}>
-          Notifications
-          {unreadCount > 0 && (
-            <span style={{ marginLeft: '0.75rem', background: '#ef4444', color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.875rem' }}>
-              {unreadCount} unread
-            </span>
-          )}
-        </h1>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.25rem' }}>
+            System Notifications
+            {unreadCount > 0 && (
+              <span style={{ marginLeft: '0.75rem', background: '#ef4444', color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 600 }}>
+                {unreadCount} unread
+              </span>
+            )}
+          </h1>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: '0.875rem' }}>
+            Security alerts and system-level events — visible to Super Administrator only
+          </p>
+        </div>
         {unreadCount > 0 && (
           <button
             onClick={handleMarkAllAsRead}
-            style={{ background: '#6366f1', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.375rem', cursor: 'pointer', fontWeight: 500 }}
+            style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.5rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}
           >
             Mark All as Read
           </button>
@@ -128,51 +128,48 @@ export default function Notifications() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {notifications.length === 0 ? (
-          <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '3rem', textAlign: 'center', color: '#6b7280', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '3rem', textAlign: 'center', color: '#9ca3af', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔔</div>
-            <h3 style={{ margin: '0 0 0.5rem' }}>No Notifications</h3>
-            <p style={{ margin: 0, fontSize: '0.875rem' }}>You're all caught up!</p>
+            <h3 style={{ margin: '0 0 0.5rem', color: '#6b7280' }}>No Notifications</h3>
+            <p style={{ margin: 0, fontSize: '0.875rem' }}>No system alerts at this time.</p>
           </div>
         ) : (
           notifications.map(n => {
             const cfg = ICON_CONFIG[n.notification_type] || ICON_CONFIG.info;
-            const isClickable = !n.is_read || n.related_application_id;
             return (
               <div
                 key={n.id}
                 onClick={() => handleCardClick(n)}
                 onContextMenu={(e) => handleContextMenu(e, n)}
                 style={{
-                  background: n.is_read ? '#fff' : '#f0f9ff',
+                  background: n.is_read ? '#fff' : '#fff5f5',
                   borderRadius: '12px',
                   padding: '1.25rem',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                  borderLeft: `4px solid ${n.is_read ? '#e5e7eb' : '#6366f1'}`,
+                  borderLeft: `4px solid ${n.is_read ? '#e5e7eb' : '#ef4444'}`,
                   display: 'flex',
                   gap: '1rem',
                   alignItems: 'flex-start',
-                  cursor: isClickable ? 'pointer' : 'default',
-                  transition: 'box-shadow 0.15s, background 0.15s',
+                  cursor: n.is_read ? 'default' : 'pointer',
+                  transition: 'box-shadow 0.15s',
                   userSelect: 'none',
                 }}
-                onMouseEnter={e => { if (isClickable) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)'; }}
-                onMouseLeave={e => { if (isClickable) e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'; }}
+                onMouseEnter={e => { if (!n.is_read) e.currentTarget.style.boxShadow = '0 4px 12px rgba(239,68,68,0.15)'; }}
+                onMouseLeave={e => { if (!n.is_read) e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'; }}
               >
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.2rem' }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.3rem' }}>
                   {cfg.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: n.is_read ? 500 : 700, fontSize: '0.9rem', color: '#1f2937' }}>{n.title}</span>
-                    {!n.is_read && <span style={{ width: 8, height: 8, background: '#6366f1', borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: n.is_read ? 500 : 700, fontSize: '0.95rem', color: '#1f2937' }}>{n.title}</span>
+                    <span style={{ background: cfg.bg, color: cfg.color, padding: '0.1rem 0.5rem', borderRadius: '9999px', fontSize: '0.7rem', fontWeight: 600 }}>
+                      {n.notification_type.replace(/_/g, ' ')}
+                    </span>
+                    {!n.is_read && <span style={{ width: 8, height: 8, background: '#ef4444', borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />}
                   </div>
-                  <p style={{ margin: '0 0 0.5rem', color: '#4b5563', fontSize: '0.875rem', lineHeight: 1.5 }}>{n.message}</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: '#9ca3af' }}>
-                    <span>{formatTimeAgo(n.created_at)}</span>
-                    {n.related_application_id && (
-                      <span style={{ color: '#6366f1' }}>View Application →</span>
-                    )}
-                  </div>
+                  <p style={{ margin: '0 0 0.5rem', color: '#4b5563', fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{n.message}</p>
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{new Date(n.created_at).toLocaleString()}</span>
                 </div>
               </div>
             );
@@ -217,14 +214,4 @@ export default function Notifications() {
       )}
     </div>
   );
-}
-
-function formatTimeAgo(dateString) {
-  const date = new Date(dateString);
-  const seconds = Math.floor((new Date() - date) / 1000);
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return date.toLocaleDateString();
 }

@@ -15,7 +15,6 @@ class AMONotification(models.Model):
         ('savings_update', 'Savings Update'),
         ('capital_update', 'Capital Update'),
         ('action_required', 'Action Required'),
-        ('security_alert', 'Security Alert'),
         ('info', 'Information'),
     ]
 
@@ -32,6 +31,8 @@ class AMONotification(models.Model):
         default='info',
     )
     is_read = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
     read_at = models.DateTimeField(null=True, blank=True)
 

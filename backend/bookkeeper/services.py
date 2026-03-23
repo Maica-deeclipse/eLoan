@@ -176,20 +176,33 @@ class NotificationService:
 
     @staticmethod
     def get_notifications(user, limit=None):
-        """
-        Get notifications for a user.
-
-        Args:
-            user: User to get notifications for
-            limit: Optional limit on number of notifications
-
-        Returns:
-            QuerySet: User's notifications
-        """
-        qs = Notification.objects.filter(user=user)
+        """Get active (non-deleted, non-archived) notifications for a user."""
+        qs = Notification.objects.filter(user=user, is_deleted=False, is_archived=False)
         if limit:
             qs = qs[:limit]
         return qs
+
+    @staticmethod
+    def delete_notification(notification_id, user):
+        """Soft-delete a notification."""
+        try:
+            n = Notification.objects.get(pk=notification_id, user=user)
+            n.is_deleted = True
+            n.save(update_fields=['is_deleted'])
+            return True
+        except Notification.DoesNotExist:
+            return False
+
+    @staticmethod
+    def archive_notification(notification_id, user):
+        """Archive a notification (hides from main list)."""
+        try:
+            n = Notification.objects.get(pk=notification_id, user=user)
+            n.is_archived = True
+            n.save(update_fields=['is_archived'])
+            return True
+        except Notification.DoesNotExist:
+            return False
 
     @staticmethod
     def mark_as_read(notification_id, user):

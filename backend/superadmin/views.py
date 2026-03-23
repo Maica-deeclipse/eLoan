@@ -1,8 +1,9 @@
 """
 Superadmin Module API Views
 
-Handles: violations, disciplinary actions, terminations, member oversight.
-Only accessible to users with is_superuser=True or role='Super Admin'.
+Handles: violations, disciplinary actions, terminations, member oversight,
+and security alert notifications.
+Only accessible to users with is_superuser=True or role='Super Administrator'.
 """
 
 from rest_framework.views import APIView
@@ -27,11 +28,11 @@ class SuperAdminBaseView(APIView):
     def check_permissions(self, request):
         super().check_permissions(request)
         user = request.user
-        is_superadmin = user.is_superuser or (user.role and user.role.name == 'Super Admin')
+        is_superadmin = user.is_superuser or (user.role and user.role.name == 'Super Administrator')
         if not is_superadmin:
             self.permission_denied(
                 request,
-                message='Only Super Admins can access this module.'
+                message='Only Super Administrators can access this module.'
             )
 
 
@@ -341,3 +342,94 @@ def _suggest_action(violations):
     if total_open >= 1:
         return {'action': 'warning', 'reason': f'{total_open} open violation(s).'}
     return {'action': None, 'reason': 'No open violations.'}
+
+
+# ---------------------------------------------------------------------------
+# Notifications (Super Administrator only — security alerts & system alerts)
+# ---------------------------------------------------------------------------
+
+class NotificationListView(SuperAdminBaseView):
+    """GET /api/superadmin/notifications/ — all notifications for the logged-in superadmin."""
+
+    def get(self, request):
+        from bookkeeper.models import Notification
+        notifications = Notification.objects.filter(user=request.user, is_deleted=False, is_archived=False).order_by('-created_at')
+        unread_count = notifications.filter(is_read=False).count()
+        return Response({
+            'notifications': [
+                {
+                    'id': n.id,
+                    'title': n.title,
+                    'message': n.message,
+                    'notification_type': n.notification_type,
+                    'is_read': n.is_read,
+                    'created_at': n.created_at.isoformat(),
+                    'read_at': n.read_at.isoformat() if n.read_at else None,
+                    'related_application_id': n.related_application_id,
+                }
+                for n in notifications
+            ],
+            'unread_count': unread_count,
+        })
+
+
+class MarkNotificationReadView(SuperAdminBaseView):
+    """POST /api/superadmin/notifications/<id>/read/ — mark one notification as read."""
+
+    def post(self, request, pk):
+        from bookkeeper.models import Notification
+        try:
+            notification = Notification.objects.get(pk=pk, user=request.user)
+            notification.mark_as_read()
+            return Response({'message': 'Notification marked as read.'})
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class MarkAllNotificationsReadView(SuperAdminBaseView):
+    """POST /api/superadmin/notifications/mark-all-read/ — mark all as read."""
+
+    def post(self, request):
+        from bookkeeper.models import Notification
+        Notification.objects.filter(user=request.user, is_read=False).update(
+            is_read=True,
+            read_at=timezone.now()
+        )
+        return Response({'message': 'All notifications marked as read.'})
+
+
+class UnreadNotificationCountView(SuperAdminBaseView):
+    """GET /api/superadmin/notifications/unread-count/"""
+
+    def get(self, request):
+        from bookkeeper.models import Notification
+        count = Notification.objects.filter(user=request.user, is_read=False, is_deleted=False, is_archived=False).count()
+        return Response({'unread_count': count})
+
+
+class DeleteNotificationView(SuperAdminBaseView):
+    """POST /api/superadmin/notifications/<id>/delete/"""
+
+    def post(self, request, pk):
+        from bookkeeper.models import Notification
+        try:
+            n = Notification.objects.get(pk=pk, user=request.user)
+            n.is_deleted = True
+            n.save(update_fields=['is_deleted'])
+            return Response({'message': 'Notification deleted.'})
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ArchiveNotificationView(SuperAdminBaseView):
+    """POST /api/superadmin/notifications/<id>/archive/"""
+
+    def post(self, request, pk):
+        from bookkeeper.models import Notification
+        try:
+            n = Notification.objects.get(pk=pk, user=request.user)
+            n.is_archived = True
+            n.save(update_fields=['is_archived'])
+            return Response({'message': 'Notification archived.'})
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)

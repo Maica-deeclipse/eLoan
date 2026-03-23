@@ -1,71 +1,105 @@
-import { useState, useEffect } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import creditCommitteeService from '../../services/creditCommittee.service';
 
+const ICON_CONFIG = {
+  new_application: { bg: '#ede9fe', color: '#7c3aed', icon: '📄' },
+  status_change:   { bg: '#fef3c7', color: '#d97706', icon: '🔄' },
+  action_required: { bg: '#fee2e2', color: '#dc2626', icon: '⚠️' },
+  approval:        { bg: '#d1fae5', color: '#059669', icon: '✅' },
+  rejection:       { bg: '#fee2e2', color: '#dc2626', icon: '❌' },
+  info:            { bg: '#e5e7eb', color: '#4b5563', icon: 'ℹ️' },
+};
+
 export default function Notifications() {
+  const navigate = useNavigate();
   const { fetchUnreadCount } = useOutletContext();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, notification: null });
+  const contextMenuRef = useRef(null);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
-      setLoading(true);
       const result = await creditCommitteeService.getNotifications();
       setNotifications(result.notifications || []);
       setUnreadCount(result.unread_count || 0);
     } catch (err) {
-      setError('Failed to load notifications');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleMarkAsRead = async (id) => {
-    try {
-      await creditCommitteeService.markNotificationRead(id);
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    const dismiss = (e) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target)) {
+        setContextMenu(prev => ({ ...prev, visible: false }));
+      }
+    };
+    if (contextMenu.visible) {
+      window.addEventListener('mousedown', dismiss);
+    }
+    return () => window.removeEventListener('mousedown', dismiss);
+  }, [contextMenu.visible]);
+
+  const handleCardClick = async (notification) => {
+    if (!notification.is_read) {
+      await creditCommitteeService.markNotificationRead(notification.id);
       setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+        prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
       fetchUnreadCount?.();
-    } catch (err) {
-      console.error('Failed to mark as read:', err);
+    }
+    if (notification.related_application_id) {
+      navigate(`/credit-committee/applications/${notification.related_application_id}`);
     }
   };
 
+  const handleContextMenu = (e, notification) => {
+    e.preventDefault();
+    setContextMenu({ visible: true, x: e.clientX, y: e.clientY, notification });
+  };
+
   const handleMarkAllAsRead = async () => {
-    try {
-      await creditCommitteeService.markAllNotificationsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
+    await creditCommitteeService.markAllNotificationsRead();
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+    fetchUnreadCount?.();
+  };
+
+  const handleDelete = async (notification) => {
+    setContextMenu(prev => ({ ...prev, visible: false }));
+    await creditCommitteeService.deleteNotification(notification.id);
+    setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    if (!notification.is_read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
       fetchUnreadCount?.();
-    } catch (err) {
-      console.error('Failed to mark all as read:', err);
+    }
+  };
+
+  const handleArchive = async (notification) => {
+    setContextMenu(prev => ({ ...prev, visible: false }));
+    await creditCommitteeService.archiveNotification(notification.id);
+    setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    if (!notification.is_read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      fetchUnreadCount?.();
     }
   };
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>Loading...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ background: '#fee2e2', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem' }}>
-        {error}
-        <button onClick={fetchNotifications} style={{ marginLeft: '1rem', textDecoration: 'underline' }}>
-          Retry
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh', color: '#6b7280' }}>
+        Loading notifications...
       </div>
     );
   }
@@ -73,17 +107,10 @@ export default function Notifications() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937', margin: 0 }}>
           Notifications
           {unreadCount > 0 && (
-            <span style={{
-              background: '#ef4444',
-              color: '#fff',
-              padding: '0.25rem 0.75rem',
-              borderRadius: '9999px',
-              fontSize: '0.875rem',
-              marginLeft: '0.75rem',
-            }}>
+            <span style={{ marginLeft: '0.75rem', background: '#ef4444', color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.875rem' }}>
               {unreadCount} unread
             </span>
           )}
@@ -91,148 +118,112 @@ export default function Notifications() {
         {unreadCount > 0 && (
           <button
             onClick={handleMarkAllAsRead}
-            style={{
-              background: '#8b5cf6',
-              color: '#fff',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.375rem',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: 500,
-            }}
+            style={{ background: '#8b5cf6', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.375rem', cursor: 'pointer', fontWeight: 500 }}
           >
             Mark All as Read
           </button>
         )}
       </div>
 
-      <div style={{
-        background: '#fff',
-        borderRadius: '0.75rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        overflow: 'hidden',
-      }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {notifications.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#128276;</div>
-            <div style={{ fontSize: '1.125rem', fontWeight: 500 }}>No Notifications</div>
-            <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
-              You're all caught up!
-            </div>
+          <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '3rem', textAlign: 'center', color: '#6b7280', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔔</div>
+            <h3 style={{ margin: '0 0 0.5rem' }}>No Notifications</h3>
+            <p style={{ margin: 0, fontSize: '0.875rem' }}>You're all caught up!</p>
           </div>
         ) : (
-          notifications.map((notification) => (
-            <div
-              key={notification.id}
-              style={{
-                padding: '1rem 1.5rem',
-                borderBottom: '1px solid #e5e7eb',
-                background: notification.is_read ? '#fff' : '#f5f3ff',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                  <NotificationIcon type={notification.notification_type} />
-                  <span style={{ fontWeight: 600, color: '#1f2937' }}>{notification.title}</span>
-                  {!notification.is_read && (
-                    <span style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: '#8b5cf6',
-                    }} />
-                  )}
+          notifications.map(n => {
+            const cfg = ICON_CONFIG[n.notification_type] || ICON_CONFIG.info;
+            const isClickable = !n.is_read || n.related_application_id;
+            return (
+              <div
+                key={n.id}
+                onClick={() => handleCardClick(n)}
+                onContextMenu={(e) => handleContextMenu(e, n)}
+                style={{
+                  background: n.is_read ? '#fff' : '#f5f3ff',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                  borderLeft: `4px solid ${n.is_read ? '#e5e7eb' : '#8b5cf6'}`,
+                  display: 'flex',
+                  gap: '1rem',
+                  alignItems: 'flex-start',
+                  cursor: isClickable ? 'pointer' : 'default',
+                  transition: 'box-shadow 0.15s, background 0.15s',
+                  userSelect: 'none',
+                }}
+                onMouseEnter={e => { if (isClickable) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)'; }}
+                onMouseLeave={e => { if (isClickable) e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'; }}
+              >
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.2rem' }}>
+                  {cfg.icon}
                 </div>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
-                  {notification.message}
-                </div>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                    {formatTimeAgo(notification.created_at)}
-                  </span>
-                  {notification.related_application_id && (
-                    <Link
-                      to={`/credit-committee/applications/${notification.related_application_id}`}
-                      style={{
-                        fontSize: '0.75rem',
-                        color: '#8b5cf6',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      View Application &rarr;
-                    </Link>
-                  )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: n.is_read ? 500 : 700, fontSize: '0.9rem', color: '#1f2937' }}>{n.title}</span>
+                    {!n.is_read && <span style={{ width: 8, height: 8, background: '#8b5cf6', borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />}
+                  </div>
+                  <p style={{ margin: '0 0 0.5rem', color: '#4b5563', fontSize: '0.875rem', lineHeight: 1.5 }}>{n.message}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: '#9ca3af' }}>
+                    <span>{formatTimeAgo(n.created_at)}</span>
+                    {n.related_application_id && (
+                      <span style={{ color: '#8b5cf6' }}>View Application →</span>
+                    )}
+                  </div>
                 </div>
               </div>
-              {!notification.is_read && (
-                <button
-                  onClick={() => handleMarkAsRead(notification.id)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#6b7280',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Mark as Read
-                </button>
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      {contextMenu.visible && (
+        <div
+          ref={contextMenuRef}
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            background: '#fff',
+            borderRadius: '0.5rem',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            border: '1px solid #e5e7eb',
+            zIndex: 9999,
+            minWidth: 160,
+            overflow: 'hidden',
+          }}
+        >
+          <button
+            onClick={() => handleArchive(contextMenu.notification)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.625rem 1rem', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.875rem', color: '#374151', textAlign: 'left' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            📁 Archive
+          </button>
+          <div style={{ height: 1, background: '#e5e7eb' }} />
+          <button
+            onClick={() => handleDelete(contextMenu.notification)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.625rem 1rem', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.875rem', color: '#dc2626', textAlign: 'left' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            🗑️ Delete
+          </button>
+        </div>
+      )}
     </div>
-  );
-}
-
-function NotificationIcon({ type }) {
-  const icons = {
-    action_required: { icon: '&#9888;', color: '#f59e0b' },
-    approval: { icon: '&#10004;', color: '#10b981' },
-    rejection: { icon: '&#10006;', color: '#ef4444' },
-    status_change: { icon: '&#8634;', color: '#6366f1' },
-    info: { icon: '&#8505;', color: '#3b82f6' },
-    new_application: { icon: '&#128196;', color: '#8b5cf6' },
-  };
-
-  const { icon, color } = icons[type] || icons.info;
-
-  return (
-    <span
-      style={{
-        width: '24px',
-        height: '24px',
-        borderRadius: '50%',
-        background: `${color}15`,
-        color: color,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '0.875rem',
-      }}
-      dangerouslySetInnerHTML={{ __html: icon }}
-    />
   );
 }
 
 function formatTimeAgo(dateString) {
   const date = new Date(dateString);
-  const now = new Date();
-  const diff = now - date;
-
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
-
+  const seconds = Math.floor((new Date() - date) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
   return date.toLocaleDateString();
 }

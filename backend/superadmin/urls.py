@@ -8,6 +8,10 @@ API Structure:
     /api/superadmin/violations/                     - GET/POST: list or create violations
     /api/superadmin/violations/<id>/                - GET/PATCH: view or update violation
     /api/superadmin/disciplinary-actions/           - GET/POST: list or create disciplinary actions
+    /api/superadmin/notifications/                  - GET: list notifications
+    /api/superadmin/notifications/<id>/read/        - POST: mark one as read
+    /api/superadmin/notifications/mark-all-read/    - POST: mark all as read
+    /api/superadmin/notifications/unread-count/     - GET: unread count
 """
 
 from django.urls import path
@@ -27,4 +31,12 @@ urlpatterns = [
 
     # Disciplinary Actions
     path('disciplinary-actions/', views.DisciplinaryActionListView.as_view(), name='disciplinary_actions'),
+
+    # Notifications
+    path('notifications/', views.NotificationListView.as_view(), name='notifications'),
+    path('notifications/mark-all-read/', views.MarkAllNotificationsReadView.as_view(), name='notifications_mark_all_read'),
+    path('notifications/unread-count/', views.UnreadNotificationCountView.as_view(), name='notifications_unread_count'),
+    path('notifications/<int:pk>/read/', views.MarkNotificationReadView.as_view(), name='notification_mark_read'),
+    path('notifications/<int:pk>/delete/', views.DeleteNotificationView.as_view(), name='notification_delete'),
+    path('notifications/<int:pk>/archive/', views.ArchiveNotificationView.as_view(), name='notification_archive'),
 ]

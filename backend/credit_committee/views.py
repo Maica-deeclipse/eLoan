@@ -554,6 +554,22 @@ class UnreadNotificationCountView(CreditCommitteeBaseView):
         return Response({'unread_count': count})
 
 
+class DeleteNotificationView(CreditCommitteeBaseView):
+    """POST /api/credit-committee/notifications/<id>/delete/"""
+    def post(self, request, pk):
+        if CreditCommitteeNotificationService.delete_notification(pk, request.user):
+            return Response({'message': 'Notification deleted.'})
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ArchiveNotificationView(CreditCommitteeBaseView):
+    """POST /api/credit-committee/notifications/<id>/archive/"""
+    def post(self, request, pk):
+        if CreditCommitteeNotificationService.archive_notification(pk, request.user):
+            return Response({'message': 'Notification archived.'})
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
 # =============================================================================
 # Settings API
 # =============================================================================

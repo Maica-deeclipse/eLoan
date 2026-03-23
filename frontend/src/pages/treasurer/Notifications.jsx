@@ -1,60 +1,105 @@
-import { useState, useEffect } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import treasurerService from '../../services/treasurer.service';
 
+const ICON_CONFIG = {
+  new_application: { bg: '#dbeafe', color: '#2563eb', icon: '📄' },
+  status_change:   { bg: '#fef3c7', color: '#d97706', icon: '🔄' },
+  action_required: { bg: '#fee2e2', color: '#dc2626', icon: '⚠️' },
+  approval:        { bg: '#d1fae5', color: '#059669', icon: '✅' },
+  rejection:       { bg: '#fee2e2', color: '#dc2626', icon: '❌' },
+  info:            { bg: '#e5e7eb', color: '#4b5563', icon: 'ℹ️' },
+};
+
 export default function Notifications() {
+  const navigate = useNavigate();
   const { fetchUnreadCount } = useOutletContext();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, notification: null });
+  const contextMenuRef = useRef(null);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
-      setLoading(true);
       const result = await treasurerService.getNotifications();
       setNotifications(result.notifications);
       setUnreadCount(result.unread_count);
     } catch (err) {
-      setError('Failed to load notifications');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleMarkAsRead = async (id) => {
-    try {
-      await treasurerService.markNotificationRead(id);
-      setNotifications(notifications.map(n =>
-        n.id === id ? { ...n, is_read: true } : n
-      ));
-      setUnreadCount(Math.max(0, unreadCount - 1));
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    const dismiss = (e) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target)) {
+        setContextMenu(prev => ({ ...prev, visible: false }));
+      }
+    };
+    if (contextMenu.visible) {
+      window.addEventListener('mousedown', dismiss);
+    }
+    return () => window.removeEventListener('mousedown', dismiss);
+  }, [contextMenu.visible]);
+
+  const handleCardClick = async (notification) => {
+    if (!notification.is_read) {
+      await treasurerService.markNotificationRead(notification.id);
+      setNotifications(prev =>
+        prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
       fetchUnreadCount?.();
-    } catch (err) {
-      console.error('Failed to mark as read:', err);
+    }
+    if (notification.related_application_id) {
+      navigate(`/treasurer/applications/${notification.related_application_id}`);
     }
   };
 
+  const handleContextMenu = (e, notification) => {
+    e.preventDefault();
+    setContextMenu({ visible: true, x: e.clientX, y: e.clientY, notification });
+  };
+
   const handleMarkAllAsRead = async () => {
-    try {
-      await treasurerService.markAllNotificationsRead();
-      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
+    await treasurerService.markAllNotificationsRead();
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+    fetchUnreadCount?.();
+  };
+
+  const handleDelete = async (notification) => {
+    setContextMenu(prev => ({ ...prev, visible: false }));
+    await treasurerService.deleteNotification(notification.id);
+    setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    if (!notification.is_read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
       fetchUnreadCount?.();
-    } catch (err) {
-      console.error('Failed to mark all as read:', err);
+    }
+  };
+
+  const handleArchive = async (notification) => {
+    setContextMenu(prev => ({ ...prev, visible: false }));
+    await treasurerService.archiveNotification(notification.id);
+    setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    if (!notification.is_read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      fetchUnreadCount?.();
     }
   };
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>Loading notifications...</div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh', color: '#6b7280' }}>
+        Loading notifications...
       </div>
     );
   }
@@ -65,192 +110,120 @@ export default function Notifications() {
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937', margin: 0 }}>
           Notifications
           {unreadCount > 0 && (
-            <span style={{
-              marginLeft: '0.75rem',
-              background: '#ef4444',
-              color: '#fff',
-              padding: '0.25rem 0.75rem',
-              borderRadius: '9999px',
-              fontSize: '0.875rem',
-            }}>
+            <span style={{ marginLeft: '0.75rem', background: '#ef4444', color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.875rem' }}>
               {unreadCount} unread
             </span>
           )}
         </h1>
-        {notifications.length > 0 && unreadCount > 0 && (
+        {unreadCount > 0 && (
           <button
             onClick={handleMarkAllAsRead}
-            style={{
-              background: '#10b981',
-              color: '#fff',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-              fontWeight: 500,
-            }}
+            style={{ background: '#10b981', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.375rem', cursor: 'pointer', fontWeight: 500 }}
           >
             Mark All as Read
           </button>
         )}
       </div>
 
-      {error && (
-        <div style={{ background: '#fee2e2', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
-          {error}
-        </div>
-      )}
-
-      <div style={{ background: '#fff', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e5e7eb' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>All Notifications</h3>
-        </div>
-
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {notifications.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#128276;</div>
-            <h3 style={{ margin: 0, marginBottom: '0.5rem' }}>No Notifications</h3>
+          <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '3rem', textAlign: 'center', color: '#6b7280', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔔</div>
+            <h3 style={{ margin: '0 0 0.5rem' }}>No Notifications</h3>
             <p style={{ margin: 0, fontSize: '0.875rem' }}>You're all caught up!</p>
           </div>
         ) : (
-          <div>
-            {notifications.map((notification) => (
+          notifications.map(n => {
+            const cfg = ICON_CONFIG[n.notification_type] || ICON_CONFIG.info;
+            const isClickable = !n.is_read || n.related_application_id;
+            return (
               <div
-                key={notification.id}
+                key={n.id}
+                onClick={() => handleCardClick(n)}
+                onContextMenu={(e) => handleContextMenu(e, n)}
                 style={{
-                  padding: '1rem 1.5rem',
-                  borderBottom: '1px solid #e5e7eb',
-                  background: notification.is_read ? '#fff' : '#f0fdf4',
+                  background: n.is_read ? '#fff' : '#f0fdf4',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                  borderLeft: `4px solid ${n.is_read ? '#e5e7eb' : '#10b981'}`,
                   display: 'flex',
                   gap: '1rem',
+                  alignItems: 'flex-start',
+                  cursor: isClickable ? 'pointer' : 'default',
+                  transition: 'box-shadow 0.15s, background 0.15s',
+                  userSelect: 'none',
                 }}
+                onMouseEnter={e => { if (isClickable) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)'; }}
+                onMouseLeave={e => { if (isClickable) e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'; }}
               >
-                <NotificationIcon type={notification.notification_type} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <h4 style={{
-                        margin: '0 0 0.25rem',
-                        fontSize: '0.875rem',
-                        fontWeight: notification.is_read ? 500 : 700,
-                      }}>
-                        {notification.title}
-                      </h4>
-                      <p style={{ margin: '0 0 0.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
-                        {notification.message}
-                      </p>
-                      <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                        {formatTimeAgo(notification.created_at)}
-                        {notification.is_read && notification.read_at && (
-                          <> &bull; Read {formatTimeAgo(notification.read_at)}</>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      {notification.related_application_id && (
-                        <Link
-                          to={`/treasurer/applications/${notification.related_application_id}`}
-                          style={{
-                            background: '#10b981',
-                            color: '#fff',
-                            padding: '0.375rem 0.75rem',
-                            borderRadius: '0.375rem',
-                            fontSize: '0.75rem',
-                            textDecoration: 'none',
-                          }}
-                        >
-                          View
-                        </Link>
-                      )}
-                      {!notification.is_read && (
-                        <button
-                          onClick={() => handleMarkAsRead(notification.id)}
-                          style={{
-                            background: '#f3f4f6',
-                            border: 'none',
-                            padding: '0.375rem 0.75rem',
-                            borderRadius: '0.375rem',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                          }}
-                          title="Mark as read"
-                        >
-                          &#10003;
-                        </button>
-                      )}
-                    </div>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.2rem' }}>
+                  {cfg.icon}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: n.is_read ? 500 : 700, fontSize: '0.9rem', color: '#1f2937' }}>{n.title}</span>
+                    {!n.is_read && <span style={{ width: 8, height: 8, background: '#10b981', borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />}
+                  </div>
+                  <p style={{ margin: '0 0 0.5rem', color: '#4b5563', fontSize: '0.875rem', lineHeight: 1.5 }}>{n.message}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: '#9ca3af' }}>
+                    <span>{formatTimeAgo(n.created_at)}</span>
+                    {n.related_application_id && (
+                      <span style={{ color: '#10b981' }}>View Application →</span>
+                    )}
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })
         )}
       </div>
 
-      {/* Notification Types Legend */}
-      <div style={{ marginTop: '1.5rem', background: '#fff', borderRadius: '0.75rem', padding: '1rem 1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', fontWeight: 600 }}>
-          Notification Types
-        </h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <LegendItem type="action_required" label="Action Required" />
-          <LegendItem type="status_change" label="Status Change" />
-          <LegendItem type="info" label="Information" />
-          <LegendItem type="approval" label="Approval" />
-          <LegendItem type="rejection" label="Rejection" />
+      {contextMenu.visible && (
+        <div
+          ref={contextMenuRef}
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            background: '#fff',
+            borderRadius: '0.5rem',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            border: '1px solid #e5e7eb',
+            zIndex: 9999,
+            minWidth: 160,
+            overflow: 'hidden',
+          }}
+        >
+          <button
+            onClick={() => handleArchive(contextMenu.notification)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.625rem 1rem', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.875rem', color: '#374151', textAlign: 'left' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            📁 Archive
+          </button>
+          <div style={{ height: 1, background: '#e5e7eb' }} />
+          <button
+            onClick={() => handleDelete(contextMenu.notification)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.625rem 1rem', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.875rem', color: '#dc2626', textAlign: 'left' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            🗑️ Delete
+          </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function NotificationIcon({ type }) {
-  const iconConfig = {
-    new_application: { bg: '#dbeafe', color: '#2563eb', icon: '&#128196;' },
-    status_change: { bg: '#fef3c7', color: '#d97706', icon: '&#8635;' },
-    action_required: { bg: '#fee2e2', color: '#dc2626', icon: '&#9888;' },
-    approval: { bg: '#d1fae5', color: '#059669', icon: '&#10004;' },
-    rejection: { bg: '#fee2e2', color: '#dc2626', icon: '&#10006;' },
-    info: { bg: '#e5e7eb', color: '#4b5563', icon: '&#8505;' },
-  };
-
-  const config = iconConfig[type] || iconConfig.info;
-
-  return (
-    <div style={{
-      width: '40px',
-      height: '40px',
-      borderRadius: '50%',
-      background: config.bg,
-      color: config.color,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-      fontSize: '1.25rem',
-    }}>
-      <span dangerouslySetInnerHTML={{ __html: config.icon }} />
-    </div>
-  );
-}
-
-function LegendItem({ type, label }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-      <NotificationIcon type={type} />
-      <span style={{ fontSize: '0.875rem', color: '#374151' }}>{label}</span>
+      )}
     </div>
   );
 }
 
 function formatTimeAgo(dateString) {
   const date = new Date(dateString);
-  const now = new Date();
-  const seconds = Math.floor((now - date) / 1000);
-
+  const seconds = Math.floor((new Date() - date) / 1000);
   if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
   return date.toLocaleDateString();
 }

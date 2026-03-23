@@ -956,8 +956,8 @@ class NotificationService:
 
     @staticmethod
     def get_notifications(user, limit=None, unread_only=False):
-        """Get notifications for a user."""
-        qs = Notification.objects.filter(user=user).order_by('-created_at')
+        """Get active (non-deleted, non-archived) notifications for a user."""
+        qs = Notification.objects.filter(user=user, is_deleted=False, is_archived=False).order_by('-created_at')
 
         if unread_only:
             qs = qs.filter(is_read=False)
@@ -979,8 +979,8 @@ class NotificationService:
 
     @staticmethod
     def mark_all_as_read(user):
-        """Mark all notifications as read."""
-        Notification.objects.filter(user=user, is_read=False).update(
+        """Mark all active notifications as read."""
+        Notification.objects.filter(user=user, is_read=False, is_deleted=False, is_archived=False).update(
             is_read=True,
             read_at=timezone.now()
         )
@@ -988,8 +988,30 @@ class NotificationService:
 
     @staticmethod
     def get_unread_count(user):
-        """Get count of unread notifications."""
-        return Notification.objects.filter(user=user, is_read=False).count()
+        """Get count of unread active notifications."""
+        return Notification.objects.filter(user=user, is_read=False, is_deleted=False, is_archived=False).count()
+
+    @staticmethod
+    def delete_notification(notification_id, user):
+        """Soft-delete a notification."""
+        try:
+            n = Notification.objects.get(pk=notification_id, user=user)
+            n.is_deleted = True
+            n.save(update_fields=['is_deleted'])
+            return True, None
+        except Notification.DoesNotExist:
+            return False, "Notification not found."
+
+    @staticmethod
+    def archive_notification(notification_id, user):
+        """Archive a notification (hides from main list)."""
+        try:
+            n = Notification.objects.get(pk=notification_id, user=user)
+            n.is_archived = True
+            n.save(update_fields=['is_archived'])
+            return True, None
+        except Notification.DoesNotExist:
+            return False, "Notification not found."
 
     @staticmethod
     def notify_applicant(application, title, message, notification_type='info'):

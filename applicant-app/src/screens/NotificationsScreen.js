@@ -12,49 +12,44 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import notificationService from '../services/notificationService';
 
-const NotificationItem = ({ notification, onPress }) => {
-  const getTypeIcon = (type) => {
-    const icons = {
-      'new_application': '📝',
-      'status_change': '🔄',
-      'action_required': '⚠️',
-      'info': 'ℹ️',
-      'approval': '✅',
-      'rejection': '❌',
-    };
-    return icons[type] || '📌';
-  };
-
-  return (
-    <TouchableOpacity
-      style={[
-        styles.notificationCard,
-        !notification.is_read && styles.notificationCardUnread,
-      ]}
-      onPress={onPress}
-    >
-      <View style={styles.iconContainer}>
-        <Text style={styles.typeIcon}>{getTypeIcon(notification.notification_type)}</Text>
-      </View>
-      <View style={styles.notificationContent}>
-        <Text style={[styles.title, !notification.is_read && styles.titleUnread]}>
-          {notification.title}
-        </Text>
-        <Text style={styles.message} numberOfLines={2}>
-          {notification.message}
-        </Text>
-        <Text style={styles.time}>
-          {new Date(notification.created_at).toLocaleString()}
-        </Text>
-      </View>
-      {!notification.is_read && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
-  );
+const TYPE_ICONS = {
+  new_application: '📝',
+  status_change: '🔄',
+  action_required: '⚠️',
+  info: 'ℹ️',
+  approval: '✅',
+  rejection: '❌',
 };
+
+const NotificationItem = ({ notification, onPress, onLongPress }) => (
+  <TouchableOpacity
+    style={[styles.notificationCard, !notification.is_read && styles.notificationCardUnread]}
+    onPress={onPress}
+    onLongPress={onLongPress}
+    activeOpacity={0.75}
+  >
+    <View style={styles.iconContainer}>
+      <Text style={styles.typeIcon}>{TYPE_ICONS[notification.notification_type] || '📌'}</Text>
+    </View>
+    <View style={styles.notificationContent}>
+      <Text style={[styles.title, !notification.is_read && styles.titleUnread]}>
+        {notification.title}
+      </Text>
+      <Text style={styles.message} numberOfLines={2}>
+        {notification.message}
+      </Text>
+      <Text style={styles.time}>
+        {formatTimeAgo(notification.created_at)}
+      </Text>
+    </View>
+    {!notification.is_read && <View style={styles.unreadDot} />}
+  </TouchableOpacity>
+);
 
 export default function NotificationsScreen({ navigation }) {
   const [notifications, setNotifications] = useState([]);
@@ -80,6 +75,8 @@ export default function NotificationsScreen({ navigation }) {
 
   useEffect(() => {
     loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
   }, [loadNotifications]);
 
   const onRefresh = useCallback(() => {
@@ -92,34 +89,82 @@ export default function NotificationsScreen({ navigation }) {
       try {
         await notificationService.markAsRead(notification.id);
         setNotifications((prev) =>
-          prev.map((n) =>
-            n.id === notification.id ? { ...n, is_read: true } : n
-          )
+          prev.map((n) => n.id === notification.id ? { ...n, is_read: true } : n)
         );
         setUnreadCount((prev) => Math.max(0, prev - 1));
       } catch (error) {
         console.error('Mark as read error:', error);
       }
     }
-
-    // Navigate to related application if exists
     if (notification.related_application_id) {
-      navigation.navigate('ApplicationDetail', {
-        id: notification.related_application_id,
-      });
+      navigation.navigate('ApplicationDetail', { id: notification.related_application_id });
     }
   };
 
   const handleMarkAllRead = async () => {
     try {
       await notificationService.markAllAsRead();
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, is_read: true }))
-      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
     } catch (error) {
       console.error('Mark all as read error:', error);
     }
+  };
+
+  const handleLongPress = (notification) => {
+    const options = [];
+
+    if (!notification.is_read) {
+      options.push({
+        text: 'Mark as Read',
+        onPress: async () => {
+          try {
+            await notificationService.markAsRead(notification.id);
+            setNotifications((prev) =>
+              prev.map((n) => n.id === notification.id ? { ...n, is_read: true } : n)
+            );
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+          } catch (error) {
+            console.error('Mark as read error:', error);
+          }
+        },
+      });
+    }
+
+    options.push({
+      text: 'Archive',
+      onPress: async () => {
+        try {
+          await notificationService.archiveNotification(notification.id);
+          setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+          if (!notification.is_read) {
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+          }
+        } catch (error) {
+          console.error('Archive notification error:', error);
+        }
+      },
+    });
+
+    options.push({
+      text: 'Delete',
+      style: 'destructive',
+      onPress: async () => {
+        try {
+          await notificationService.deleteNotification(notification.id);
+          setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+          if (!notification.is_read) {
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+          }
+        } catch (error) {
+          console.error('Delete notification error:', error);
+        }
+      },
+    });
+
+    options.push({ text: 'Cancel', style: 'cancel' });
+
+    Alert.alert('Notification Options', notification.title, options);
   };
 
   if (loading) {
@@ -133,7 +178,6 @@ export default function NotificationsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Notifications</Text>
@@ -141,14 +185,11 @@ export default function NotificationsScreen({ navigation }) {
             {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
           </Text>
         </View>
-        {unreadCount > 0 && (
-          <TouchableOpacity style={styles.markAllButton} onPress={handleMarkAllRead}>
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={styles.markAllButton} onPress={handleMarkAllRead}>
+          <Text style={styles.markAllText}>Mark all read</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Notifications List */}
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id.toString()}
@@ -156,6 +197,7 @@ export default function NotificationsScreen({ navigation }) {
           <NotificationItem
             notification={item}
             onPress={() => handleNotificationPress(item)}
+            onLongPress={() => handleLongPress(item)}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -174,6 +216,16 @@ export default function NotificationsScreen({ navigation }) {
       />
     </SafeAreaView>
   );
+}
+
+function formatTimeAgo(dateString) {
+  const date = new Date(dateString);
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+  return date.toLocaleDateString();
 }
 
 const styles = StyleSheet.create({

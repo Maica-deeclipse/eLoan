@@ -166,6 +166,24 @@ class TreasurerService {
     }
   }
 
+  async deleteNotification(id) {
+    try {
+      const response = await axios.post(`${API_URL}/notifications/${id}/delete/`, {}, getAuthHeaders());
+      return response.data;
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  async archiveNotification(id) {
+    try {
+      const response = await axios.post(`${API_URL}/notifications/${id}/archive/`, {}, getAuthHeaders());
+      return response.data;
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
   // =========================================================================
   // Settings
   // =========================================================================
