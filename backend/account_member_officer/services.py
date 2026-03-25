@@ -256,6 +256,10 @@ class SavingsCapitalService:
     @staticmethod
     def add_capital(member_id, amount, transaction_type, reference_number, remarks, recorded_by):
         member = Member.objects.get(pk=member_id)
+        if transaction_type == 'withdrawal':
+            amount = -abs(Decimal(str(amount)))
+        else:
+            amount = abs(Decimal(str(amount)))
         return SharedCapital.objects.create(
             member=member,
             amount=amount,

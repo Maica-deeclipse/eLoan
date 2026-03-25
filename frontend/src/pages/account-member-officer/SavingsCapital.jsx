@@ -26,6 +26,12 @@ export default function SavingsCapital() {
     if (memberId) loadRecords();
   }, [memberId, tab]);
 
+  // Reset transaction_type default when switching tabs
+  useEffect(() => {
+    setForm(prev => ({ ...prev, transaction_type: tab === 'savings' ? 'deposit' : 'contribution' }));
+    setShowForm(false);
+  }, [tab]);
+
   const loadRecords = async () => {
     setLoading(true);
     try {
@@ -48,7 +54,7 @@ export default function SavingsCapital() {
       if (tab === 'savings') {
         await amoService.addSavings(memberId, form);
       } else {
-        await amoService.addCapital(memberId, { ...form, transaction_type: form.transaction_type === 'deposit' ? 'contribution' : 'withdrawal' });
+        await amoService.addCapital(memberId, form);
       }
       setMsg('Record added successfully.');
       setShowForm(false);
