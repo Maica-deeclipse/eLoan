@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { ResponseType } from 'expo-auth-session';
 import Constants from 'expo-constants';
 import { useAuth } from '../context/AuthContext';
 
@@ -32,6 +33,8 @@ export default function RegisterScreen({ navigation }) {
     androidClientId: Constants.expoConfig?.extra?.googleAndroidClientId,
     iosClientId: Constants.expoConfig?.extra?.googleIosClientId,
     scopes: ['openid', 'profile', 'email'],
+    responseType: ResponseType.Token,
+    usePKCE: false,
   });
 
   useEffect(() => {
