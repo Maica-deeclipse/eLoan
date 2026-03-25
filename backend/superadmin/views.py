@@ -21,6 +21,25 @@ STAFF_ROLES = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Of
 
 
 # ---------------------------------------------------------------------------
+# Base View (Super Admin only)
+# ---------------------------------------------------------------------------
+
+class SuperAdminBaseView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        user = request.user
+        is_superadmin = user.is_superuser or (user.role and user.role.name == 'Super Administrator')
+        if not is_superadmin:
+            self.permission_denied(
+                request,
+                message='Only Super Administrators can access this module.'
+            )
+
+
+# ---------------------------------------------------------------------------
 # Stats Dashboard
 # ---------------------------------------------------------------------------
 
@@ -164,25 +183,6 @@ class StaffActionView(SuperAdminBaseView):
             staff.account_status = 'approved'
             staff.save(update_fields=['status', 'account_status'])
             return Response({'message': f"{staff.firstname} {staff.lastname} has been reactivated."})
-
-
-# ---------------------------------------------------------------------------
-# Base View (Super Admin only)
-# ---------------------------------------------------------------------------
-
-class SuperAdminBaseView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def check_permissions(self, request):
-        super().check_permissions(request)
-        user = request.user
-        is_superadmin = user.is_superuser or (user.role and user.role.name == 'Super Administrator')
-        if not is_superadmin:
-            self.permission_denied(
-                request,
-                message='Only Super Administrators can access this module.'
-            )
 
 
 # ---------------------------------------------------------------------------

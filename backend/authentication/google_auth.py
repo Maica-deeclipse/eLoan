@@ -89,6 +89,18 @@ class GoogleAuthView(APIView):
         try:
             user = User.objects.get(email=email)
 
+            # Block non-applicants — staff must use the web portal
+            if user.role and user.role.name != 'Applicant':
+                return Response(
+                    {
+                        'error': (
+                            f"Your account is registered as '{user.role.name}'. "
+                            'Please use the staff web portal to sign in.'
+                        )
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
             # Existing user — check account status
             if user.account_status == 'rejected':
                 return Response(
