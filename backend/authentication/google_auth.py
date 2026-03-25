@@ -234,9 +234,12 @@ class StaffGoogleAuthView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # Optional: role sent from frontend for cross-role guard
+        requested_role = request.data.get('role', '').strip()
+
         # Find the staff user by email
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.select_related('role').get(email=email)
         except User.DoesNotExist:
             return Response(
                 {
@@ -252,6 +255,18 @@ class StaffGoogleAuthView(APIView):
         if user.role and user.role.name == 'Applicant':
             return Response(
                 {'error': 'This login is for staff only. Applicants should use the mobile app.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Block cross-role login: user already has a different role
+        if requested_role and user.role and user.role.name != requested_role:
+            return Response(
+                {
+                    'error': (
+                        f"Your account is registered as '{user.role.name}'. "
+                        f"Please select '{user.role.name}' on the role selection screen to sign in."
+                    )
+                },
                 status=status.HTTP_403_FORBIDDEN
             )
 

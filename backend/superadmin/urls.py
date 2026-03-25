@@ -2,6 +2,9 @@
 Superadmin Module URL Configuration
 
 API Structure:
+    /api/superadmin/stats/                          - GET: aggregate counts for dashboard
+    /api/superadmin/staff/                          - GET: list staff users
+    /api/superadmin/staff/<id>/<action>/            - POST: approve/reject/suspend/reactivate
     /api/superadmin/members/                        - GET: all members with violation counts
     /api/superadmin/members/<id>/case-history/      - GET: full case history (violations + actions)
     /api/superadmin/members/<id>/terminate/         - POST: terminate member
@@ -20,6 +23,13 @@ from . import views
 app_name = 'superadmin'
 
 urlpatterns = [
+    # Stats
+    path('stats/', views.StatsView.as_view(), name='stats'),
+
+    # Staff management
+    path('staff/', views.StaffListView.as_view(), name='staff_list'),
+    path('staff/<int:user_id>/<str:action>/', views.StaffActionView.as_view(), name='staff_action'),
+
     # Member overview and case management
     path('members/', views.MemberOverviewView.as_view(), name='member_overview'),
     path('members/<int:member_id>/case-history/', views.MemberCaseHistoryView.as_view(), name='member_case_history'),

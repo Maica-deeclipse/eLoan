@@ -119,8 +119,13 @@ class StaffGoogleRegistrationView(APIView):
         if not email:
             return Response({'error': 'Could not retrieve email from Google account.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if User.objects.filter(email=email).exists():
-            return Response({'error': 'An account with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        existing = User.objects.select_related('role').filter(email=email).first()
+        if existing:
+            role_info = f" as '{existing.role.name}'" if existing.role else ""
+            return Response(
+                {'error': f"An account with this email already exists{role_info}. Please log in instead."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             role = Role.objects.get(name=role_name)

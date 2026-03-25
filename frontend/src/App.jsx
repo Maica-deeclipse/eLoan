@@ -51,6 +51,11 @@ import AMOSettings from './pages/account-member-officer/Settings';
 import SuperAdminLayout from './components/superadmin/SuperAdminLayout';
 import SuperAdminDashboard from './pages/superadmin/Dashboard';
 import SuperAdminNotifications from './pages/superadmin/Notifications';
+import SuperAdminStaffApprovals from './pages/superadmin/StaffApprovals';
+import SuperAdminMembers from './pages/superadmin/Members';
+import SuperAdminViolations from './pages/superadmin/Violations';
+import SuperAdminDisciplinaryActions from './pages/superadmin/DisciplinaryActions';
+import SuperAdminSettings from './pages/superadmin/Settings';
 
 function App() {
   return (
@@ -122,7 +127,12 @@ function App() {
         <Route path="/superadmin" element={<SuperAdminLayout />}>
           <Route index element={<Navigate to="/superadmin/dashboard" replace />} />
           <Route path="dashboard" element={<SuperAdminDashboard />} />
+          <Route path="staff" element={<SuperAdminStaffApprovals />} />
+          <Route path="members" element={<SuperAdminMembers />} />
+          <Route path="violations" element={<SuperAdminViolations />} />
+          <Route path="disciplinary" element={<SuperAdminDisciplinaryActions />} />
           <Route path="notifications" element={<SuperAdminNotifications />} />
+          <Route path="settings" element={<SuperAdminSettings />} />
         </Route>
 
         {/* Legacy admin redirect */}

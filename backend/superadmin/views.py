@@ -15,6 +15,155 @@ from django.utils import timezone
 
 from .models import Violation, DisciplinaryAction, TerminationRecord
 from applicant.models import Member
+from users.models import User
+
+STAFF_ROLES = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Officer']
+
+
+# ---------------------------------------------------------------------------
+# Stats Dashboard
+# ---------------------------------------------------------------------------
+
+class StatsView(SuperAdminBaseView):
+    """GET /api/superadmin/stats/ — aggregate counts for the dashboard."""
+
+    def get(self, request):
+        from loans.models import LoanApplication
+
+        total_staff = User.objects.filter(
+            role__name__in=STAFF_ROLES, is_superuser=False
+        ).count()
+        pending_approvals = User.objects.filter(
+            role__name__in=STAFF_ROLES, account_status='pending'
+        ).count()
+        suspended_staff = User.objects.filter(
+            role__name__in=STAFF_ROLES, status='suspended'
+        ).count()
+        total_members = Member.objects.count()
+        active_members = Member.objects.filter(membership_status='active').count()
+        open_violations = Violation.objects.filter(status='open').count()
+        total_violations = Violation.objects.count()
+        total_disciplinary = DisciplinaryAction.objects.count()
+        total_terminations = TerminationRecord.objects.count()
+
+        try:
+            total_loans = LoanApplication.objects.count()
+            pending_loans = LoanApplication.objects.filter(status='pending').count()
+        except Exception:
+            total_loans = 0
+            pending_loans = 0
+
+        return Response({
+            'staff': {
+                'total': total_staff,
+                'pending_approvals': pending_approvals,
+                'suspended': suspended_staff,
+            },
+            'members': {
+                'total': total_members,
+                'active': active_members,
+            },
+            'violations': {
+                'open': open_violations,
+                'total': total_violations,
+            },
+            'disciplinary': {
+                'total': total_disciplinary,
+                'terminations': total_terminations,
+            },
+            'loans': {
+                'total': total_loans,
+                'pending': pending_loans,
+            },
+        })
+
+
+# ---------------------------------------------------------------------------
+# Staff Management
+# ---------------------------------------------------------------------------
+
+class StaffListView(SuperAdminBaseView):
+    """GET /api/superadmin/staff/ — list all staff with optional filters."""
+
+    def get(self, request):
+        account_status = request.query_params.get('account_status')
+        role_name = request.query_params.get('role')
+
+        qs = User.objects.filter(
+            role__name__in=STAFF_ROLES, is_superuser=False
+        ).select_related('role', 'approved_by').order_by('-date_joined')
+
+        if account_status:
+            qs = qs.filter(account_status=account_status)
+        if role_name:
+            qs = qs.filter(role__name=role_name)
+
+        return Response([self._serialize_staff(u) for u in qs])
+
+    @staticmethod
+    def _serialize_staff(u):
+        return {
+            'id': u.id,
+            'name': f"{u.firstname} {u.lastname}",
+            'email': u.email,
+            'role': u.role.name if u.role else None,
+            'employee_id': u.employee_id,
+            'account_status': u.account_status,
+            'status': u.status,
+            'date_joined': u.date_joined.isoformat(),
+            'approved_by': f"{u.approved_by.firstname} {u.approved_by.lastname}" if u.approved_by else None,
+            'approved_at': u.approved_at.isoformat() if u.approved_at else None,
+            'rejection_reason': u.rejection_reason,
+        }
+
+
+class StaffActionView(SuperAdminBaseView):
+    """POST /api/superadmin/staff/<id>/<action>/ — approve/reject/suspend/reactivate."""
+
+    VALID_ACTIONS = ['approve', 'reject', 'suspend', 'reactivate']
+
+    def post(self, request, user_id, action):
+        if action not in self.VALID_ACTIONS:
+            return Response(
+                {'error': f"Invalid action. Choose from: {', '.join(self.VALID_ACTIONS)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            staff = User.objects.select_related('role').get(
+                pk=user_id, role__name__in=STAFF_ROLES, is_superuser=False
+            )
+        except User.DoesNotExist:
+            return Response({'error': 'Staff user not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if action == 'approve':
+            staff.account_status = 'approved'
+            staff.status = 'active'
+            staff.approved_by = request.user
+            staff.approved_at = timezone.now()
+            staff.rejection_reason = None
+            staff.save(update_fields=['account_status', 'status', 'approved_by', 'approved_at', 'rejection_reason'])
+            return Response({'message': f"{staff.firstname} {staff.lastname}'s account has been approved."})
+
+        elif action == 'reject':
+            reason = request.data.get('reason', '').strip()
+            if not reason:
+                return Response({'error': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            staff.account_status = 'rejected'
+            staff.rejection_reason = reason
+            staff.save(update_fields=['account_status', 'rejection_reason'])
+            return Response({'message': f"{staff.firstname} {staff.lastname}'s account has been rejected."})
+
+        elif action == 'suspend':
+            staff.status = 'suspended'
+            staff.save(update_fields=['status'])
+            return Response({'message': f"{staff.firstname} {staff.lastname} has been suspended."})
+
+        elif action == 'reactivate':
+            staff.status = 'active'
+            staff.account_status = 'approved'
+            staff.save(update_fields=['status', 'account_status'])
+            return Response({'message': f"{staff.firstname} {staff.lastname} has been reactivated."})
 
 
 # ---------------------------------------------------------------------------

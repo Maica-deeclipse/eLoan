@@ -143,9 +143,10 @@ class AuthService {
    * @param {string} googleAccessToken - Access token from Google OAuth
    * @returns {Promise} User data and tokens
    */
-  async googleLogin(googleAccessToken) {
+  async googleLogin(googleAccessToken, role = '') {
     const response = await axios.post(`${API_URL}/google/staff/`, {
       access_token: googleAccessToken,
+      role,
     });
 
     if (response.data.tokens) {

@@ -65,7 +65,7 @@ function Login() {
   const handleGoogleSuccess = async (tokenResponse) => {
     setError('');
     try {
-      const response = await authService.googleLogin(tokenResponse.access_token);
+      const response = await authService.googleLogin(tokenResponse.access_token, formData.role);
       redirectByRole(response.user.role);
     } catch (err) {
       setError(err.response?.data?.error || 'Google sign-in failed. Please try again.');
