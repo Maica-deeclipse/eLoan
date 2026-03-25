@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -15,8 +19,11 @@ import { useAuth } from '../context/AuthContext';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
-  const { googleLogin } = useAuth();
+  const { login, googleLogin } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -32,16 +39,33 @@ export default function LoginScreen({ navigation }) {
       const { access_token } = response.params;
       handleGoogleToken(access_token);
     } else if (response?.type === 'error') {
-      setLoading(false);
+      setGoogleLoading(false);
       setError('Google sign-in was cancelled or failed.');
     } else if (response?.type === 'dismiss') {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   }, [response]);
 
-  const handleGoogleSignIn = async () => {
+  const handleManualLogin = async () => {
+    if (!email.trim() || !password) {
+      setError('Please enter your email and password.');
+      return;
+    }
     setError('');
     setLoading(true);
+    try {
+      const result = await login(email.trim().toLowerCase(), password);
+      if (!result.success) {
+        setError(result.error || 'Login failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
     await promptAsync();
   };
 
@@ -62,66 +86,119 @@ export default function LoginScreen({ navigation }) {
     } catch {
       setError('Google sign-in failed. Please try again.');
     } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
+  const isLoading = loading || googleLoading;
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoIcon}>💰</Text>
-            <Text style={styles.logoText}>eLoan</Text>
-          </View>
-          <Text style={styles.title}>Login to Your Account</Text>
-          <Text style={styles.subtitle}>Use your BukSU Google account to sign in</Text>
-        </View>
-
-        {/* Error */}
-        {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        {/* Google Sign-In Button */}
-        <TouchableOpacity
-          style={[styles.googleButton, (loading || !request) && styles.googleButtonDisabled]}
-          onPress={handleGoogleSignIn}
-          disabled={loading || !request}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {loading ? (
-            <ActivityIndicator color="#374151" />
-          ) : (
-            <>
-              <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.googleButtonText}>Sign in with Google</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoIcon}>💰</Text>
+              <Text style={styles.logoText}>eLoan</Text>
+            </View>
+            <Text style={styles.title}>Login to Your Account</Text>
+            <Text style={styles.subtitle}>Sign in to access eLoan services</Text>
+          </View>
 
-        <Text style={styles.googleHint}>Only @buksu.edu.ph accounts are accepted</Text>
+          {/* Error */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-        {/* Register Link */}
-        <View style={styles.registerContainer}>
-          <Text style={styles.registerText}>New BukSU member? </Text>
+          {/* Manual Login Form */}
+          <View style={styles.form}>
+            <TextInput
+              style={styles.input}
+              placeholder="Email address"
+              placeholderTextColor="#9ca3af"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoading}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#9ca3af"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!isLoading}
+            />
+            <TouchableOpacity
+              style={[styles.loginButton, isLoading && styles.buttonDisabled]}
+              onPress={handleManualLogin}
+              disabled={isLoading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>Login</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google Sign-In Button */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('Register')}
-            disabled={loading}
+            style={[styles.googleButton, (googleLoading || !request || loading) && styles.buttonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={googleLoading || !request || loading}
           >
-            <Text style={styles.registerLink}>Register with Google</Text>
+            {googleLoading ? (
+              <ActivityIndicator color="#374151" />
+            ) : (
+              <>
+                <Text style={styles.googleIcon}>G</Text>
+                <Text style={styles.googleButtonText}>Sign in with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
-        </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            eLoan Management System • Applicant Access
-          </Text>
-        </View>
-      </View>
+          <Text style={styles.googleHint}>Only @buksu.edu.ph accounts are accepted</Text>
+
+          {/* Register Link */}
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>New BukSU member? </Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Register')}
+              disabled={isLoading}
+            >
+              <Text style={styles.registerLink}>Register with Google</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              eLoan Management System • Applicant Access
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -132,18 +209,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     padding: 24,
     justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   logoIcon: {
     fontSize: 40,
@@ -158,7 +235,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
@@ -169,12 +246,56 @@ const styles = StyleSheet.create({
     backgroundColor: '#fee2e2',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   errorText: {
     color: '#dc2626',
     fontSize: 14,
     lineHeight: 20,
+  },
+  form: {
+    marginBottom: 4,
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: '#1f2937',
+    marginBottom: 12,
+  },
+  loginButton: {
+    backgroundColor: '#02327a',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  dividerText: {
+    color: '#9ca3af',
+    fontSize: 13,
+    marginHorizontal: 12,
   },
   googleButton: {
     flexDirection: 'row',
@@ -186,9 +307,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     marginBottom: 8,
-  },
-  googleButtonDisabled: {
-    opacity: 0.5,
   },
   googleIcon: {
     fontSize: 18,
@@ -205,7 +323,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
     color: '#9ca3af',
-    marginBottom: 32,
+    marginBottom: 28,
   },
   registerContainer: {
     flexDirection: 'row',
@@ -222,7 +340,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footer: {
-    marginTop: 40,
+    marginTop: 36,
     alignItems: 'center',
   },
   footerText: {
