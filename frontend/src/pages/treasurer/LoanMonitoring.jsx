@@ -84,7 +84,7 @@ export default function LoanMonitoring() {
 
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-        <SummaryCard label="Total Loans" value={stats.total} color="#6366f1" />
+        <SummaryCard label="Total Loans" value={stats.total} color="#17236a" />
         <SummaryCard label="Active" value={stats.active} color="#3b82f6" />
         <SummaryCard label="Overdue" value={stats.overdue} color="#ef4444" />
         <SummaryCard label="Fully Paid" value={stats.paid} color="#10b981" />

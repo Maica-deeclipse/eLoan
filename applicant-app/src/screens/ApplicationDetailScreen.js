@@ -128,7 +128,7 @@ export default function ApplicationDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#17236a" />
         <Text style={styles.loadingText}>Loading application...</Text>
       </SafeAreaView>
     );
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   infoValueHighlight: {
-    color: '#6366f1',
+    color: '#17236a',
     fontWeight: '600',
   },
   purposeText: {

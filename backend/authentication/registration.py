@@ -127,6 +127,12 @@ class StaffGoogleRegistrationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if User.objects.filter(employee_id=employee_id).exists():
+            return Response(
+                {'error': f"Employee ID '{employee_id}' is already registered. Please use a different Employee ID."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
             role = Role.objects.get(name=role_name)
         except Role.DoesNotExist:

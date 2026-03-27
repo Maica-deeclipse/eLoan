@@ -255,7 +255,7 @@ export default function Settings() {
                   width: '80px',
                   height: '80px',
                   borderRadius: '50%',
-                  background: profile?.profile_picture ? `url(${profile.profile_picture}) center/cover` : '#6366f1',
+                  background: profile?.profile_picture ? `url(${profile.profile_picture}) center/cover` : '#17236a',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -273,7 +273,7 @@ export default function Settings() {
                   onClick={handlePictureClick}
                   disabled={saving}
                   style={{
-                    background: '#6366f1',
+                    background: '#17236a',
                     color: '#fff',
                     border: 'none',
                     padding: '0.5rem 1rem',
@@ -352,7 +352,7 @@ export default function Settings() {
                 type="submit"
                 disabled={saving}
                 style={{
-                  background: '#6366f1',
+                  background: '#17236a',
                   color: '#fff',
                   border: 'none',
                   padding: '0.75rem 1.5rem',
@@ -423,7 +423,7 @@ export default function Settings() {
                 type="submit"
                 disabled={saving}
                 style={{
-                  background: '#6366f1',
+                  background: '#17236a',
                   color: '#fff',
                   border: 'none',
                   padding: '0.75rem 1.5rem',
@@ -596,7 +596,7 @@ function ToggleSwitch({ checked, onChange }) {
         height: '24px',
         borderRadius: '12px',
         border: 'none',
-        background: checked ? '#6366f1' : '#d1d5db',
+        background: checked ? '#17236a' : '#d1d5db',
         cursor: 'pointer',
         position: 'relative',
         transition: 'background 0.2s',

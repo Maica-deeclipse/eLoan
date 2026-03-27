@@ -144,7 +144,7 @@ function Login() {
               Don't have an account?{' '}
               <Link
                 to={urlRole ? `/staff/register/${urlRole}` : '/staff/register'}
-                style={{ color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}
+                style={{ color: '#17236a', fontWeight: 600, textDecoration: 'none' }}
               >
                 Register here
               </Link>

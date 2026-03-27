@@ -131,7 +131,7 @@ export default function ApplicationDetail() {
               <div style={{
                 width: '60px',
                 height: '60px',
-                background: '#6366f1',
+                background: '#17236a',
                 color: '#fff',
                 borderRadius: '50%',
                 display: 'flex',
@@ -712,7 +712,7 @@ function InfoRow({ label, value, highlight, children }) {
         <span
           style={{
             fontWeight: highlight ? 700 : 500,
-            color: highlight ? '#6366f1' : '#1f2937',
+            color: highlight ? '#17236a' : '#1f2937',
             fontSize: highlight ? '1.125rem' : '0.875rem',
           }}
           dangerouslySetInnerHTML={{ __html: value }}

@@ -229,7 +229,7 @@ export default function PersonalDetailsScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#17236a" />
         <Text style={styles.loadingText}>Loading your information...</Text>
       </SafeAreaView>
     );
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#17236a',
     borderRadius: 2,
   },
   progressText: {
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     flex: 2,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#17236a',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',

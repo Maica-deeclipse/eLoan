@@ -43,7 +43,7 @@
     },
     "scheme": "eloan",
     "extra": {
-      "apiUrl": "http://192.168.1.13:8000/api/auth",
+      "apiUrl": "http://192.168.1.15:8000/api/auth",
       "googleClientId": "YOUR_EXPO_GOOGLE_CLIENT_ID",
       "googleAndroidClientId": "YOUR_ANDROID_GOOGLE_CLIENT_ID",
       "googleIosClientId": "YOUR_IOS_GOOGLE_CLIENT_ID"

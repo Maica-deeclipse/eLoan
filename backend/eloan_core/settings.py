@@ -31,7 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '192.168.1.13',
+    '192.168.1.24',
     '10.0.0.52',
 ]
 
@@ -111,11 +111,11 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         # Read DB connection from environment variables so you can point
         # this Django project to any local or remote MySQL/MariaDB server.
-        'NAME': os.environ.get('DB_NAME', 'eloan'),
-        'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
+        'NAME': config('DB_NAME', default='eloan'),
+        'USER': config('DB_USER', default='root'),
+        'PASSWORD': config('DB_PASSWORD', default=''),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='3306'),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
         }
@@ -258,9 +258,9 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',       # Web frontend
     'http://127.0.0.1:3000',       # Web frontend
-    'http://192.168.1.13:3000',   # Web frontend (network access)
+    'http://192.168.1.15:3000',   # Web frontend (network access)
     'http://localhost:8081',       # Expo dev server (default)
-    'http://192.168.1.13:8081',       # Expo dev server
+    'http://192.168.1.15:8081',       # Expo dev server
     'http://localhost:19000',      # Expo dev server (alternative port)
     'http://localhost:19006',      # Expo web
 ]

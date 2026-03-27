@@ -37,7 +37,7 @@ export default function AMODashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         {statCard('Pending Applications', stats.pending_applications ?? 0, '#f59e0b', '📋')}
         {statCard('Total Members', stats.total_members ?? 0, '#10b981', '👥')}
-        {statCard('Approved This Week', stats.recently_approved ?? 0, '#6366f1', '✅')}
+        {statCard('Approved This Week', stats.recently_approved ?? 0, '#17236a', '✅')}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>

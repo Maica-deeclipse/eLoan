@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginLink: {
-    color: '#6366f1',
+    color: '#17236a',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   loginButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#17236a',
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 32,
