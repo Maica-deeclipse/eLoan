@@ -32,12 +32,19 @@ class ApplicantProfile(models.Model):
     contact_number = models.CharField(max_length=20, blank=True, null=True)
     secondary_contact = models.CharField(max_length=20, blank=True, null=True)
 
-    # Address Fields
+    # Present Address Fields (address_line1=street, address_line2=barangay)
     address_line1 = models.CharField(max_length=255, blank=True, null=True)
-    address_line2 = models.CharField(max_length=255, blank=True, null=True)
+    address_line2 = models.CharField(max_length=255, blank=True, null=True)  # barangay
     city = models.CharField(max_length=100, blank=True, null=True)
     province = models.CharField(max_length=100, blank=True, null=True)
     zip_code = models.CharField(max_length=10, blank=True, null=True)
+
+    # Permanent Address Fields
+    permanent_address_line1 = models.CharField(max_length=255, blank=True, null=True)
+    permanent_address_barangay = models.CharField(max_length=255, blank=True, null=True)
+    permanent_city = models.CharField(max_length=100, blank=True, null=True)
+    permanent_province = models.CharField(max_length=100, blank=True, null=True)
+    permanent_zip_code = models.CharField(max_length=10, blank=True, null=True)
 
     # Personal Information
     CIVIL_STATUS_CHOICES = [
@@ -52,16 +59,49 @@ class ApplicantProfile(models.Model):
         blank=True,
         null=True
     )
+    GENDER_CHOICES = [
+        ('male', 'Male'),
+        ('female', 'Female'),
+    ]
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
+    middle_name = models.CharField(max_length=50, blank=True, null=True)
+    citizenship = models.CharField(max_length=50, blank=True, null=True, default='Filipino')
+    spouse_name = models.CharField(max_length=100, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     tin = models.CharField(max_length=20, blank=True, null=True, help_text='Tax Identification Number')
+    sss_number = models.CharField(max_length=30, blank=True, null=True, help_text='SSS Number')
+
+    HIGHEST_EDUCATION_CHOICES = [
+        ('elementary', 'Elementary'),
+        ('high_school', 'High School'),
+        ('vocational', 'Vocational/Technical'),
+        ('college', 'College'),
+        ('post_graduate', 'Post-Graduate'),
+    ]
+    highest_education = models.CharField(
+        max_length=20,
+        choices=HIGHEST_EDUCATION_CHOICES,
+        blank=True,
+        null=True
+    )
 
     # Employment Information
+    EMPLOYMENT_CATEGORY_CHOICES = [
+        ('teaching', 'Teaching'),
+        ('non_teaching', 'Non-Teaching'),
+        ('others', 'Others'),
+    ]
+    employment_category = models.CharField(
+        max_length=20,
+        choices=EMPLOYMENT_CATEGORY_CHOICES,
+        blank=True,
+        null=True
+    )
     EMPLOYMENT_STATUS_CHOICES = [
-        ('permanent', 'Permanent'),
-        ('temporary', 'Temporary'),
+        ('regular', 'Regular'),
         ('casual', 'Casual'),
-        ('part_time', 'Part-Time'),
         ('job_order', 'Job Order'),
+        ('part_time', 'Part-time'),
     ]
     employment_status = models.CharField(
         max_length=20,
@@ -69,6 +109,8 @@ class ApplicantProfile(models.Model):
         blank=True,
         null=True
     )
+    buksu_id_number = models.CharField(max_length=50, blank=True, null=True, help_text='BukSU ID Number')
+    office = models.CharField(max_length=100, blank=True, null=True, help_text='Office/Department')
     employer_name = models.CharField(max_length=255, blank=True, null=True)
     employer_address = models.TextField(blank=True, null=True)
     position = models.CharField(max_length=100, blank=True, null=True)
@@ -87,12 +129,32 @@ class ApplicantProfile(models.Model):
     )
     years_employed = models.IntegerField(null=True, blank=True)
 
+    # Parents Information
+    father_name = models.CharField(max_length=100, blank=True, null=True)
+    father_occupation = models.CharField(max_length=100, blank=True, null=True)
+    father_contact = models.CharField(max_length=20, blank=True, null=True)
+    mother_name = models.CharField(max_length=100, blank=True, null=True)
+    mother_occupation = models.CharField(max_length=100, blank=True, null=True)
+    mother_contact = models.CharField(max_length=20, blank=True, null=True)
+
     # Emergency Contact
     emergency_contact_name = models.CharField(max_length=100, blank=True, null=True)
     emergency_contact_number = models.CharField(max_length=20, blank=True, null=True)
     emergency_contact_relationship = models.CharField(max_length=50, blank=True, null=True)
 
-    # Membership Documents (uploaded during registration)
+    # Registration Documents
+    id_photo = models.ImageField(
+        upload_to='applicant_documents/id_photos/',
+        blank=True,
+        null=True,
+        help_text='2x2 ID photo'
+    )
+    payslip = models.FileField(
+        upload_to='applicant_documents/payslips/',
+        blank=True,
+        null=True,
+        help_text='Payslip as proof of monthly income'
+    )
     coe_document = models.FileField(
         upload_to='membership_documents/coe/',
         blank=True,
@@ -128,6 +190,28 @@ class ApplicantProfile(models.Model):
             self.zip_code
         ]
         return ', '.join(filter(None, parts))
+
+
+class ApplicantBeneficiary(models.Model):
+    """
+    Beneficiary declared by an applicant during registration.
+    """
+    profile = models.ForeignKey(
+        ApplicantProfile,
+        on_delete=models.CASCADE,
+        related_name='beneficiaries'
+    )
+    name = models.CharField(max_length=100)
+    relationship = models.CharField(max_length=50)
+    date_of_birth = models.DateField(blank=True, null=True)
+    contact_number = models.CharField(max_length=20, blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Applicant Beneficiary'
+        verbose_name_plural = 'Applicant Beneficiaries'
+
+    def __str__(self):
+        return f"{self.name} ({self.relationship})"
 
 
 class CoMakerInfo(models.Model):

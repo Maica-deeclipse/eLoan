@@ -113,6 +113,38 @@ class AuthService {
   }
 
   /**
+   * Register new applicant with full profile data (multipart/form-data)
+   * @param {FormData} formData - All registration fields + file uploads
+   * @returns {Promise<Object>} { success: boolean, message?: string, error?: string }
+   */
+  async registerFull(formData) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/register/`,
+        formData,
+        {
+          timeout: 60000,
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      );
+      if (response.data.user) {
+        return { success: true, message: response.data.message, user: response.data.user };
+      }
+      return { success: false, error: 'Invalid response from server' };
+    } catch (error) {
+      if (error.response?.data) {
+        const errors = error.response.data;
+        const firstKey = Object.keys(errors)[0];
+        if (firstKey) {
+          const msg = errors[firstKey];
+          return { success: false, error: Array.isArray(msg) ? msg[0] : msg };
+        }
+      }
+      return { success: false, error: 'Unable to register. Please check your internet connection.' };
+    }
+  }
+
+  /**
    * Logout user (clear stored tokens)
    */
   async logout() {

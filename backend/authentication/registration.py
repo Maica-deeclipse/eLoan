@@ -166,7 +166,7 @@ class StaffGoogleRegistrationView(APIView):
 
 
 class ApplicantRegistrationSerializer(serializers.Serializer):
-    """Serializer for applicant self-registration."""
+    """Serializer for applicant self-registration — validates account credentials only."""
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
     firstname = serializers.CharField(max_length=50)
@@ -207,38 +207,86 @@ class ApplicantRegistrationSerializer(serializers.Serializer):
 class ApplicantRegistrationView(APIView):
     """
     Public endpoint for applicant self-registration.
-    Requires @buksu.edu.ph email. Creates account with 'pending' status.
-    AMO reviews COE document and approves/rejects.
+    Accepts multipart/form-data with full profile fields + file uploads.
+    Creates account with 'pending' status — AMO reviews and approves/rejects.
     """
     permission_classes = []
 
     def post(self, request):
+        import json
+        from applicant.models import ApplicantProfile, ApplicantBeneficiary
+
         serializer = ApplicantRegistrationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        if serializer.is_valid():
-            user = serializer.save()
+        user = serializer.save()
 
-            # Save COE document and membership form if provided
-            coe_document = request.FILES.get('coe_document')
-            membership_form_file = request.FILES.get('membership_form')
-            if coe_document or membership_form_file:
-                from applicant.models import ApplicantProfile
-                profile, _ = ApplicantProfile.objects.get_or_create(user=user)
-                if coe_document:
-                    profile.coe_document = coe_document
-                if membership_form_file:
-                    profile.membership_form = membership_form_file
-                profile.save()
+        # Build profile data from request
+        profile, _ = ApplicantProfile.objects.get_or_create(user=user)
 
-            return Response({
-                'message': 'Registration successful. Your account is pending approval by the Account Member Officer.',
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'firstname': user.firstname,
-                    'lastname': user.lastname,
-                    'account_status': user.account_status,
-                }
-            }, status=status.HTTP_201_CREATED)
+        str_fields = [
+            'middle_name', 'gender', 'citizenship', 'civil_status', 'spouse_name',
+            'contact_number', 'tin', 'sss_number', 'highest_education',
+            'address_line1', 'address_line2', 'city', 'province', 'zip_code',
+            'permanent_address_line1', 'permanent_address_barangay',
+            'permanent_city', 'permanent_province', 'permanent_zip_code',
+            'buksu_id_number', 'employment_category', 'employment_status',
+            'office', 'father_name', 'father_occupation', 'father_contact',
+            'mother_name', 'mother_occupation', 'mother_contact',
+        ]
+        for field in str_fields:
+            val = request.data.get(field, '').strip()
+            if val:
+                setattr(profile, field, val)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Date of birth
+        dob = request.data.get('date_of_birth', '').strip()
+        if dob:
+            profile.date_of_birth = dob
+
+        # Monthly income
+        income = request.data.get('monthly_income', '').strip()
+        if income:
+            try:
+                from decimal import Decimal
+                profile.monthly_income = Decimal(income)
+            except Exception:
+                pass
+
+        # File uploads
+        if 'id_photo' in request.FILES:
+            profile.id_photo = request.FILES['id_photo']
+        if 'payslip' in request.FILES:
+            profile.payslip = request.FILES['payslip']
+
+        profile.save()
+
+        # Beneficiaries (sent as JSON string)
+        beneficiaries_raw = request.data.get('beneficiaries', '[]')
+        try:
+            beneficiaries = json.loads(beneficiaries_raw)
+            for b in beneficiaries:
+                name = b.get('name', '').strip()
+                if not name:
+                    continue
+                ApplicantBeneficiary.objects.create(
+                    profile=profile,
+                    name=name,
+                    relationship=b.get('relationship', ''),
+                    date_of_birth=b.get('date_of_birth') or None,
+                    contact_number=b.get('contact_number', ''),
+                )
+        except (json.JSONDecodeError, Exception):
+            pass
+
+        return Response({
+            'message': 'Registration successful. Your account is pending approval by the Account Member Officer.',
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'firstname': user.firstname,
+                'lastname': user.lastname,
+                'account_status': user.account_status,
+            }
+        }, status=status.HTTP_201_CREATED)

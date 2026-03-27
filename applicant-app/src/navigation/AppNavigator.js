@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 // Screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import RegisterWizardScreen from '../screens/RegisterWizardScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import SetPasswordScreen from '../screens/SetPasswordScreen';
 import ApplicationDetailScreen from '../screens/ApplicationDetailScreen';
@@ -52,6 +53,7 @@ export default function AppNavigator() {
             {/* Public Routes */}
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="RegisterWizard" component={RegisterWizardScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
             <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
           </>
