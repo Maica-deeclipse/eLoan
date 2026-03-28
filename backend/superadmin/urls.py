@@ -34,6 +34,7 @@ urlpatterns = [
     path('members/', views.MemberOverviewView.as_view(), name='member_overview'),
     path('members/<int:member_id>/case-history/', views.MemberCaseHistoryView.as_view(), name='member_case_history'),
     path('members/<int:member_id>/terminate/', views.TerminateMemberView.as_view(), name='terminate_member'),
+    path('members/<int:member_id>/face-verifications/', views.MemberFaceVerificationsView.as_view(), name='member_face_verifications'),
 
     # Violations
     path('violations/', views.ViolationListView.as_view(), name='violations'),

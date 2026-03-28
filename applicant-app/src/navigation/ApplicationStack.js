@@ -11,6 +11,7 @@ import { ApplicationProvider } from '../context/ApplicationContext';
 import SelectLoanTypeScreen from '../screens/application/SelectLoanTypeScreen';
 import PersonalDetailsScreen from '../screens/application/PersonalDetailsScreen';
 import LoanDetailsScreen from '../screens/application/LoanDetailsScreen';
+import LoanFormDataScreen from '../screens/application/LoanFormDataScreen';
 import CoMakerScreen from '../screens/application/CoMakerScreen';
 import DocumentUploadScreen from '../screens/application/DocumentUploadScreen';
 import FaceVerificationScreen from '../screens/application/FaceVerificationScreen';
@@ -50,6 +51,11 @@ function ApplicationStackNavigator() {
       <Stack.Screen
         name="LoanDetails"
         component={LoanDetailsScreen}
+        options={{ title: 'Loan Details' }}
+      />
+      <Stack.Screen
+        name="LoanFormData"
+        component={LoanFormDataScreen}
         options={{ title: 'Loan Details' }}
       />
       <Stack.Screen

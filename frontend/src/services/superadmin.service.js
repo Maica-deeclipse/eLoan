@@ -53,6 +53,13 @@ class SuperAdminService {
     } catch (e) { handleError(e); }
   }
 
+  async getMemberFaceVerifications(memberId) {
+    try {
+      const res = await axios.get(`${API_URL}/members/${memberId}/face-verifications/`, getAuthHeaders());
+      return res.data;
+    } catch (e) { handleError(e); }
+  }
+
   async getMemberCaseHistory(memberId) {
     try {
       const res = await axios.get(`${API_URL}/members/${memberId}/case-history/`, getAuthHeaders());

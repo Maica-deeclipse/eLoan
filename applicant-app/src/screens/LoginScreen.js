@@ -185,12 +185,12 @@ export default function LoginScreen({ navigation }) {
 
           {/* Register Link */}
           <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>New BukSU member? </Text>
+            <Text style={styles.registerText}>New BukSU EMC member? </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('Register')}
               disabled={isLoading}
             >
-              <Text style={styles.registerLink}>Register with Google</Text>
+              <Text style={styles.registerLink}>Register Here</Text>
             </TouchableOpacity>
           </View>
 
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   registerLink: {
-    color: '#6366f1',
+    color: '#02327a',
     fontSize: 14,
     fontWeight: '600',
   },

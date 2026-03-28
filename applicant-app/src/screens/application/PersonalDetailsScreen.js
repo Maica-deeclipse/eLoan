@@ -1,9 +1,9 @@
 /**
  * Personal Details Screen (Step 2)
- * Collects applicant's personal information
+ * Pre-fills from registration profile data. Fields are editable to allow corrections.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,6 @@ export default function PersonalDetailsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Form fields
   const [contactNumber, setContactNumber] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
@@ -51,7 +50,6 @@ export default function PersonalDetailsScreen({ navigation }) {
   const [employerName, setEmployerName] = useState('');
   const [position, setPosition] = useState('');
   const [monthlyIncome, setMonthlyIncome] = useState('');
-  // New fields
   const [employmentStatus, setEmploymentStatus] = useState('');
   const [civilStatus, setCivilStatus] = useState('');
   const [tin, setTin] = useState('');
@@ -64,48 +62,29 @@ export default function PersonalDetailsScreen({ navigation }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!state.loanType?.id || !state.applicationId) return;
-
       saveLoanTypeDraft(state.loanType.id, {
         applicationId: state.applicationId,
         currentStep: 2,
         personalDetails: {
-          contactNumber,
-          addressLine1,
-          city,
-          province,
-          zipCode,
-          employerName,
-          position,
-          monthlyIncome,
-          employmentStatus,
-          civilStatus,
-          tin,
-          dateOfBirth,
+          contactNumber, addressLine1, city, province, zipCode,
+          employerName, position, monthlyIncome,
+          employmentStatus, civilStatus, tin, dateOfBirth,
         },
       });
     }, 350);
-
     return () => clearTimeout(timer);
   }, [
-    state.loanType?.id,
-    state.applicationId,
-    contactNumber,
-    addressLine1,
-    city,
-    province,
-    zipCode,
-    employerName,
-    position,
-    monthlyIncome,
-    employmentStatus,
-    civilStatus,
-    tin,
-    dateOfBirth,
+    state.loanType?.id, state.applicationId,
+    contactNumber, addressLine1, city, province, zipCode,
+    employerName, position, monthlyIncome,
+    employmentStatus, civilStatus, tin, dateOfBirth,
   ]);
 
   const loadAutofillData = async () => {
     try {
       const data = await profileService.getAutofillData();
+
+      // Start with profile data
       setContactNumber(data.contact_number || '');
       setAddressLine1(data.address_line1 || '');
       setCity(data.city || '');
@@ -119,6 +98,7 @@ export default function PersonalDetailsScreen({ navigation }) {
       setTin(data.tin || '');
       setDateOfBirth(data.date_of_birth || '');
 
+      // Override with any locally saved draft values
       if (state.loanType?.id && state.applicationId) {
         const localDraft = await getLoanTypeDraft(state.loanType.id);
         const local =
@@ -126,18 +106,18 @@ export default function PersonalDetailsScreen({ navigation }) {
             ? localDraft.personalDetails || {}
             : {};
 
-        setContactNumber(local.contactNumber ?? data.contact_number ?? '');
-        setAddressLine1(local.addressLine1 ?? data.address_line1 ?? '');
-        setCity(local.city ?? data.city ?? '');
-        setProvince(local.province ?? data.province ?? '');
-        setZipCode(local.zipCode ?? data.zip_code ?? '');
-        setEmployerName(local.employerName ?? data.employer_name ?? '');
-        setPosition(local.position ?? data.position ?? '');
-        setMonthlyIncome(local.monthlyIncome ?? (data.monthly_income ? String(data.monthly_income) : '') ?? '');
+        setContactNumber(local.contactNumber    ?? data.contact_number    ?? '');
+        setAddressLine1(local.addressLine1      ?? data.address_line1     ?? '');
+        setCity(local.city                       ?? data.city              ?? '');
+        setProvince(local.province               ?? data.province          ?? '');
+        setZipCode(local.zipCode                 ?? data.zip_code          ?? '');
+        setEmployerName(local.employerName       ?? data.employer_name     ?? '');
+        setPosition(local.position               ?? data.position          ?? '');
+        setMonthlyIncome(local.monthlyIncome     ?? (data.monthly_income ? String(data.monthly_income) : '') ?? '');
         setEmploymentStatus(local.employmentStatus ?? data.employment_status ?? '');
-        setCivilStatus(local.civilStatus ?? data.civil_status ?? '');
-        setTin(local.tin ?? data.tin ?? '');
-        setDateOfBirth(local.dateOfBirth ?? data.date_of_birth ?? '');
+        setCivilStatus(local.civilStatus         ?? data.civil_status      ?? '');
+        setTin(local.tin                         ?? data.tin               ?? '');
+        setDateOfBirth(local.dateOfBirth         ?? data.date_of_birth     ?? '');
       }
     } catch (error) {
       console.error('Load autofill error:', error);
@@ -156,7 +136,7 @@ export default function PersonalDetailsScreen({ navigation }) {
       return false;
     }
     if (!employerName.trim()) {
-      Alert.alert('Validation Error', 'Office is required');
+      Alert.alert('Validation Error', 'Office / Department is required');
       return false;
     }
     if (!monthlyIncome || isNaN(parseFloat(monthlyIncome)) || parseFloat(monthlyIncome) <= 0) {
@@ -176,33 +156,24 @@ export default function PersonalDetailsScreen({ navigation }) {
     setSaving(true);
     try {
       await profileService.updateProfile({
-        contact_number: contactNumber,
-        address_line1: addressLine1,
+        contact_number:    contactNumber,
+        address_line1:     addressLine1,
         city,
         province,
-        zip_code: zipCode,
-        employer_name: employerName,
+        zip_code:          zipCode,
+        employer_name:     employerName,
         position,
-        monthly_income: monthlyIncome || null,
+        monthly_income:    monthlyIncome || null,
         employment_status: employmentStatus || null,
-        civil_status: civilStatus || null,
-        tin: tin || null,
-        date_of_birth: dateOfBirth || null,
+        civil_status:      civilStatus || null,
+        tin:               tin || null,
+        date_of_birth:     dateOfBirth || null,
       });
 
       const details = {
-        contactNumber,
-        addressLine1,
-        city,
-        province,
-        zipCode,
-        employerName,
-        position,
-        monthlyIncome,
-        employmentStatus,
-        civilStatus,
-        tin,
-        dateOfBirth,
+        contactNumber, addressLine1, city, province, zipCode,
+        employerName, position, monthlyIncome,
+        employmentStatus, civilStatus, tin, dateOfBirth,
       };
 
       setPersonalDetails(details);
@@ -253,7 +224,7 @@ export default function PersonalDetailsScreen({ navigation }) {
           <View style={styles.instructions}>
             <Text style={styles.instructionTitle}>Personal Details</Text>
             <Text style={styles.instructionText}>
-              Please verify and complete your personal information
+              Your registration details are pre-filled below. Please verify and update if needed.
             </Text>
           </View>
 
@@ -319,7 +290,6 @@ export default function PersonalDetailsScreen({ navigation }) {
           {/* Personal Information */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Personal Information</Text>
-
             <View style={styles.field}>
               <DropdownPicker
                 label="Civil Status"
@@ -329,7 +299,6 @@ export default function PersonalDetailsScreen({ navigation }) {
                 onChange={(val) => setCivilStatus(val)}
               />
             </View>
-
             <View style={styles.field}>
               <Text style={styles.label}>Date of Birth</Text>
               <TextInput
@@ -340,7 +309,6 @@ export default function PersonalDetailsScreen({ navigation }) {
                 keyboardType="numbers-and-punctuation"
               />
             </View>
-
             <View style={styles.field}>
               <Text style={styles.label}>TIN (Tax Identification Number)</Text>
               <TextInput
@@ -356,7 +324,6 @@ export default function PersonalDetailsScreen({ navigation }) {
           {/* Employment */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Employment Information</Text>
-
             <View style={styles.field}>
               <DropdownPicker
                 label="Employment Status *"
@@ -366,9 +333,8 @@ export default function PersonalDetailsScreen({ navigation }) {
                 onChange={(val) => setEmploymentStatus(val)}
               />
             </View>
-
             <View style={styles.field}>
-              <Text style={styles.label}>Office *</Text>
+              <Text style={styles.label}>Office / Department *</Text>
               <TextInput
                 style={styles.input}
                 value={employerName}
@@ -386,7 +352,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               />
             </View>
             <View style={styles.field}>
-              <Text style={styles.label}>Monthly Income</Text>
+              <Text style={styles.label}>Monthly Income *</Text>
               <TextInput
                 style={styles.input}
                 value={monthlyIncome}
@@ -400,10 +366,7 @@ export default function PersonalDetailsScreen({ navigation }) {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -424,140 +387,43 @@ export default function PersonalDetailsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  progressContainer: {
-    padding: 16,
-    paddingBottom: 0,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 2,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#6366f1',
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'right',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 8,
-    paddingBottom: 100,
-  },
-  instructions: {
-    marginBottom: 16,
-  },
-  instructionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  instructionText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
+  container:        { flex: 1, backgroundColor: '#f9fafb' },
+  keyboardView:     { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9fafb' },
+  loadingText:      { marginTop: 12, fontSize: 16, color: '#6b7280' },
+  progressContainer:{ padding: 16, paddingBottom: 0 },
+  progressBar:      { height: 4, backgroundColor: '#e5e7eb', borderRadius: 2 },
+  progressFill:     { height: '100%', backgroundColor: '#6366f1', borderRadius: 2 },
+  progressText:     { fontSize: 12, color: '#9ca3af', marginTop: 8, textAlign: 'right' },
+  scrollContent:    { padding: 16, paddingTop: 8, paddingBottom: 100 },
+  instructions:     { marginBottom: 16 },
+  instructionTitle: { fontSize: 20, fontWeight: '700', color: '#1f2937' },
+  instructionText:  { fontSize: 14, color: '#6b7280', marginTop: 4 },
   section: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03, shadowRadius: 2, elevation: 1,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginBottom: 16,
-    textTransform: 'uppercase',
+    fontSize: 14, fontWeight: '600', color: '#6b7280',
+    marginBottom: 16, textTransform: 'uppercase',
   },
-  field: {
-    marginBottom: 16,
-  },
-  row: {
-    flexDirection: 'row',
-  },
-  label: {
-    fontSize: 13,
-    color: '#374151',
-    marginBottom: 6,
-    fontWeight: '500',
-  },
+  field:  { marginBottom: 16 },
+  row:    { flexDirection: 'row' },
+  label:  { fontSize: 13, color: '#374151', marginBottom: 6, fontWeight: '500' },
   input: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#1f2937',
-    backgroundColor: '#fff',
+    borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 12,
+    fontSize: 15, color: '#1f2937', backgroundColor: '#fff',
   },
   footer: {
-    flexDirection: 'row',
-    padding: 16,
-    paddingTop: 12,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    flexDirection: 'row', padding: 16, paddingTop: 12,
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb',
+    position: 'absolute', bottom: 0, left: 0, right: 0,
   },
-  backButton: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  backButtonText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  continueButton: {
-    flex: 2,
-    backgroundColor: '#6366f1',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  continueButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  continueButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  backButton:             { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 12, padding: 16, alignItems: 'center', marginRight: 8 },
+  backButtonText:         { color: '#374151', fontSize: 16, fontWeight: '600' },
+  continueButton:         { flex: 2, backgroundColor: '#6366f1', borderRadius: 12, padding: 16, alignItems: 'center' },
+  continueButtonDisabled: { backgroundColor: '#9ca3af' },
+  continueButtonText:     { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

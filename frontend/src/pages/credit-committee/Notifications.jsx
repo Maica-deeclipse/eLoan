@@ -50,14 +50,14 @@ export default function Notifications() {
     return () => window.removeEventListener('mousedown', dismiss);
   }, [contextMenu.visible]);
 
-  const handleCardClick = async (notification) => {
+  const handleCardClick = (notification) => {
     if (!notification.is_read) {
-      await creditCommitteeService.markNotificationRead(notification.id);
       setNotifications(prev =>
         prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
       fetchUnreadCount?.();
+      creditCommitteeService.markNotificationRead(notification.id).catch(console.error);
     }
     if (notification.related_application_id) {
       navigate(`/credit-committee/applications/${notification.related_application_id}`);
@@ -135,7 +135,6 @@ export default function Notifications() {
         ) : (
           notifications.map(n => {
             const cfg = ICON_CONFIG[n.notification_type] || ICON_CONFIG.info;
-            const isClickable = !n.is_read || n.related_application_id;
             return (
               <div
                 key={n.id}
@@ -150,12 +149,12 @@ export default function Notifications() {
                   display: 'flex',
                   gap: '1rem',
                   alignItems: 'flex-start',
-                  cursor: isClickable ? 'pointer' : 'default',
+                  cursor: 'pointer',
                   transition: 'box-shadow 0.15s, background 0.15s',
                   userSelect: 'none',
                 }}
-                onMouseEnter={e => { if (isClickable) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)'; }}
-                onMouseLeave={e => { if (isClickable) e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'; }}
+                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)')}
+                onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)')}
               >
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.2rem' }}>
                   {cfg.icon}

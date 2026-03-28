@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import treasurerService from '../../services/treasurer.service';
 
 export default function ForwardedApplications() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [applications, setApplications] = useState([]);
@@ -67,20 +68,25 @@ export default function ForwardedApplications() {
                 <th style={thStyle}>Monthly Amortization</th>
                 <th style={thStyle}>Term</th>
                 <th style={thStyle}>Date Forwarded</th>
-                <th style={thStyle}>Action</th>
               </tr>
             </thead>
             <tbody>
               {applications.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
                     <div style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No applications pending evaluation</div>
                     <div style={{ fontSize: '0.875rem' }}>Applications verified by Bookkeeper will appear here</div>
                   </td>
                 </tr>
               ) : (
                 applications.map((app) => (
-                  <tr key={app.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                  <tr
+                    key={app.id}
+                    onClick={() => navigate(`/treasurer/applications/${app.id}`)}
+                    style={{ borderBottom: '1px solid #e5e7eb', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f0fdf4')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}
+                  >
                     <td style={tdStyle}>
                       <div style={{ fontWeight: 500 }}>{app.applicant.name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{app.applicant.email}</div>
@@ -101,23 +107,6 @@ export default function ForwardedApplications() {
                     </td>
                     <td style={{ ...tdStyle, color: '#6b7280' }}>
                       {new Date(app.application_date).toLocaleDateString()}
-                    </td>
-                    <td style={tdStyle}>
-                      <Link
-                        to={`/treasurer/applications/${app.id}`}
-                        style={{
-                          background: '#10b981',
-                          color: '#fff',
-                          padding: '0.5rem 1rem',
-                          borderRadius: '0.375rem',
-                          fontSize: '0.875rem',
-                          textDecoration: 'none',
-                          display: 'inline-block',
-                          fontWeight: 500,
-                        }}
-                      >
-                        Evaluate
-                      </Link>
                     </td>
                   </tr>
                 ))

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, KeyboardAvoidingView, Platform, Modal,
@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import authService from '../services/authService';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -108,6 +109,101 @@ function SectionTitle({ title }) {
   return <Text style={s.sectionTitle}>{title}</Text>;
 }
 
+// ─── Camera Frame Modal ───────────────────────────────────────────────────────
+function CameraFrameModal({ visible, onClose, onCapture, frameType = 'square' }) {
+  const cameraRef = useRef(null);
+  const [facing, setFacing] = useState('back');
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const frameW = frameType === 'square' ? 260 : 300;
+  const frameH = frameType === 'square' ? 260 : 190;
+
+  const handleCapture = async () => {
+    if (!cameraRef.current) return;
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
+      onCapture(photo);
+      onClose();
+    } catch {
+      Alert.alert('Error', 'Could not capture photo. Please try again.');
+    }
+  };
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <View style={cam.root}>
+        {!permission?.granted ? (
+          <View style={cam.permWrap}>
+            <Text style={cam.permTitle}>Camera Access Required</Text>
+            <Text style={cam.permMsg}>Please grant camera permission to take a photo.</Text>
+            <TouchableOpacity style={cam.permBtn} onPress={requestPermission}>
+              <Text style={cam.permBtnText}>Grant Permission</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={cam.cancelLink} onPress={onClose}>
+              <Text style={cam.cancelLinkText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <CameraView ref={cameraRef} style={cam.camera} facing={facing}>
+            {/* Darkened overlay with frame cutout */}
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              {/* Top dark bar */}
+              <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+              {/* Middle row */}
+              <View style={{ flexDirection: 'row', height: frameH }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+                {/* Frame window */}
+                <View style={{ width: frameW }}>
+                  {/* Corner brackets */}
+                  <View style={cam.cornerTL} />
+                  <View style={cam.cornerTR} />
+                  <View style={cam.cornerBL} />
+                  <View style={cam.cornerBR} />
+                </View>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+              </View>
+              {/* Bottom dark bar */}
+              <View style={{ flex: 2, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+            </View>
+
+            {/* Close button */}
+            <TouchableOpacity style={cam.closeBtn} onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={cam.closeBtnText}>✕</Text>
+            </TouchableOpacity>
+
+            {/* Instruction hint */}
+            <View style={cam.hintWrap} pointerEvents="none">
+              <Text style={cam.hintText}>
+                {frameType === 'square'
+                  ? 'Position your face within the frame'
+                  : 'Align your payslip within the frame'}
+              </Text>
+            </View>
+
+            {/* Bottom controls */}
+            <View style={cam.controls}>
+              <TouchableOpacity
+                style={cam.flipBtn}
+                onPress={() => setFacing(f => f === 'back' ? 'front' : 'back')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={cam.flipIcon}>⟳</Text>
+                <Text style={cam.flipLabel}>Flip</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={cam.captureRing} onPress={handleCapture} activeOpacity={0.7}>
+                <View style={cam.captureDot} />
+              </TouchableOpacity>
+              <View style={{ width: 56 }} />
+            </View>
+          </CameraView>
+        )}
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Main Wizard Screen ───────────────────────────────────────────────────────
 export default function RegisterWizardScreen({ navigation }) {
   const [step, setStep] = useState(1);
@@ -171,6 +267,22 @@ export default function RegisterWizardScreen({ navigation }) {
   // ── Step 6: Documents ──
   const [idPhoto, setIdPhoto] = useState(null);
   const [payslip, setPayslip] = useState(null);
+
+  // ── Camera modal ──
+  const [cameraVisible, setCameraVisible] = useState(false);
+  const [cameraFrameType, setCameraFrameType] = useState('square');
+  const cameraSetterRef = useRef(null);
+
+  const openCamera = (setter, frameType = 'square') => {
+    cameraSetterRef.current = setter;
+    setCameraFrameType(frameType);
+    setCameraVisible(true);
+  };
+
+  const handleCameraCapture = (photo) => {
+    if (cameraSetterRef.current) cameraSetterRef.current(photo);
+    cameraSetterRef.current = null;
+  };
 
   // ─── Validation ──────────────────────────────────────────────────────────
   const validate = () => {
@@ -437,13 +549,15 @@ export default function RegisterWizardScreen({ navigation }) {
         <Input placeholder="XX-XXXXXXX-X" value={sss} onChangeText={setSss} />
       </Field>
 
-      <SectionTitle title="Education & Account" />
+      <SectionTitle title="Education" />
       <Field label="Highest Educational Attainment">
         <Dropdown
           value={highestEd} options={EDUCATION_OPTIONS}
           onChange={setHighestEd} placeholder="Select education level"
         />
       </Field>
+
+      <SectionTitle title="Account Security" />
       <Field label="Password" required>
         <Input
           placeholder="Minimum 8 characters" value={password}
@@ -632,7 +746,7 @@ export default function RegisterWizardScreen({ navigation }) {
     <View>
       {/* 2×2 ID Photo */}
       <SectionTitle title="2×2 ID Photo" />
-      <Text style={s.docHint}>Use a plain background. Face must be clearly visible. Photo will be cropped to a square.</Text>
+      <Text style={s.docHint}>Use a plain background. Face must be clearly visible.</Text>
       {idPhoto ? (
         <View style={s.photoPreviewWrap}>
           <Image source={{ uri: idPhoto.uri }} style={s.idPhotoPreview} />
@@ -642,9 +756,10 @@ export default function RegisterWizardScreen({ navigation }) {
         </View>
       ) : (
         <View style={s.docBtns}>
-          <TouchableOpacity style={s.docBtn} onPress={() => takePhoto(setIdPhoto, true)}>
+          <TouchableOpacity style={s.docBtn} onPress={() => openCamera(setIdPhoto, 'square')}>
             <Text style={s.docBtnIcon}>📷</Text>
             <Text style={s.docBtnText}>Take Photo</Text>
+            <Text style={s.docBtnSub}>with frame guide</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.docBtn} onPress={() => pickImage(setIdPhoto, true)}>
             <Text style={s.docBtnIcon}>🖼️</Text>
@@ -665,9 +780,10 @@ export default function RegisterWizardScreen({ navigation }) {
         </View>
       ) : (
         <View style={s.docBtns}>
-          <TouchableOpacity style={s.docBtn} onPress={() => takePhoto(setPayslip, false)}>
+          <TouchableOpacity style={s.docBtn} onPress={() => openCamera(setPayslip, 'rect')}>
             <Text style={s.docBtnIcon}>📷</Text>
             <Text style={s.docBtnText}>Take Photo</Text>
+            <Text style={s.docBtnSub}>with frame guide</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.docBtn} onPress={() => pickImage(setPayslip, false)}>
             <Text style={s.docBtnIcon}>🖼️</Text>
@@ -747,6 +863,14 @@ export default function RegisterWizardScreen({ navigation }) {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Camera frame modal */}
+      <CameraFrameModal
+        visible={cameraVisible}
+        frameType={cameraFrameType}
+        onCapture={handleCameraCapture}
+        onClose={() => setCameraVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -886,6 +1010,7 @@ const s = StyleSheet.create({
   },
   docBtnIcon: { fontSize: 28, marginBottom: 8 },
   docBtnText: { fontSize: 13, color: '#374151', fontWeight: '600', textAlign: 'center' },
+  docBtnSub: { fontSize: 11, color: '#9ca3af', marginTop: 3, textAlign: 'center' },
   photoPreviewWrap: { alignItems: 'center', marginBottom: 20 },
   idPhotoPreview: { width: 150, height: 150, borderRadius: 8, borderWidth: 2, borderColor: '#02327a' },
   payslipPreview: { width: '100%', height: 180, borderRadius: 8, borderWidth: 2, borderColor: '#02327a', resizeMode: 'cover' },
@@ -924,4 +1049,91 @@ const s = StyleSheet.create({
     paddingVertical: 14, paddingHorizontal: 32,
   },
   backToLoginText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+});
+
+// ─── Camera Frame Modal Styles ────────────────────────────────────────────────
+const CORNER_LEN = 22;
+const CORNER_THICK = 3;
+const CORNER_COLOR = '#fff';
+
+const cam = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#000' },
+  camera: { flex: 1 },
+
+  // Permission screen
+  permWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: '#111' },
+  permTitle: { fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 10, textAlign: 'center' },
+  permMsg: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginBottom: 28, lineHeight: 20 },
+  permBtn: {
+    backgroundColor: '#02327a', borderRadius: 8,
+    paddingVertical: 14, paddingHorizontal: 32, marginBottom: 14,
+  },
+  permBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  cancelLink: { paddingVertical: 10 },
+  cancelLinkText: { color: '#9ca3af', fontSize: 14 },
+
+  // Close button (top-left)
+  closeBtn: {
+    position: 'absolute', top: 52, left: 20,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  closeBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+
+  // Hint text (above the frame)
+  hintWrap: {
+    position: 'absolute', top: '28%', left: 0, right: 0,
+    alignItems: 'center',
+  },
+  hintText: {
+    color: '#fff', fontSize: 13, fontWeight: '600',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    overflow: 'hidden',
+  },
+
+  // Corner bracket markers
+  cornerTL: {
+    position: 'absolute', top: 0, left: 0,
+    width: CORNER_LEN, height: CORNER_LEN,
+    borderTopWidth: CORNER_THICK, borderLeftWidth: CORNER_THICK,
+    borderColor: CORNER_COLOR, borderTopLeftRadius: 3,
+  },
+  cornerTR: {
+    position: 'absolute', top: 0, right: 0,
+    width: CORNER_LEN, height: CORNER_LEN,
+    borderTopWidth: CORNER_THICK, borderRightWidth: CORNER_THICK,
+    borderColor: CORNER_COLOR, borderTopRightRadius: 3,
+  },
+  cornerBL: {
+    position: 'absolute', bottom: 0, left: 0,
+    width: CORNER_LEN, height: CORNER_LEN,
+    borderBottomWidth: CORNER_THICK, borderLeftWidth: CORNER_THICK,
+    borderColor: CORNER_COLOR, borderBottomLeftRadius: 3,
+  },
+  cornerBR: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: CORNER_LEN, height: CORNER_LEN,
+    borderBottomWidth: CORNER_THICK, borderRightWidth: CORNER_THICK,
+    borderColor: CORNER_COLOR, borderBottomRightRadius: 3,
+  },
+
+  // Bottom controls
+  controls: {
+    position: 'absolute', bottom: 48, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 40,
+  },
+  flipBtn: { width: 56, alignItems: 'center' },
+  flipIcon: { fontSize: 26, color: '#fff' },
+  flipLabel: { fontSize: 11, color: '#e5e7eb', marginTop: 3 },
+  captureRing: {
+    width: 72, height: 72, borderRadius: 36,
+    borderWidth: 4, borderColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  captureDot: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: '#fff',
+  },
 });

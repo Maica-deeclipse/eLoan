@@ -100,7 +100,13 @@ export default function MemberApplications() {
             {applicants.map((a, i) => {
               const badge = STATUS_BADGE[a.account_status] || STATUS_BADGE.pending;
               return (
-                <tr key={a.id} style={{ borderTop: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <tr
+                  key={a.id}
+                  onClick={() => openDetail(a.id)}
+                  style={{ borderTop: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#f0fdf4')}
+                  onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#fafafa')}
+                >
                   <td style={{ padding: '0.875rem 1rem', fontWeight: 500, fontSize: '0.875rem' }}>{a.name}</td>
                   <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#4b5563' }}>{a.email}</td>
                   <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#4b5563' }}>{a.employee_id || '—'}</td>
@@ -110,11 +116,7 @@ export default function MemberApplications() {
                       {badge.label}
                     </span>
                   </td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
-                    <button onClick={() => openDetail(a.id)} style={{
-                      background: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '0.35rem 0.75rem',
-                      borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', marginRight: '0.5rem', fontWeight: 500,
-                    }}>View</button>
+                  <td style={{ padding: '0.875rem 1rem' }} onClick={e => e.stopPropagation()}>
                     {a.account_status === 'pending' && (
                       <>
                         <button onClick={() => handleApprove(a.id)} style={{

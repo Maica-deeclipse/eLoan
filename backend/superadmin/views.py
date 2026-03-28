@@ -478,6 +478,49 @@ class MemberCaseHistoryView(SuperAdminBaseView):
         })
 
 
+class MemberFaceVerificationsView(SuperAdminBaseView):
+    """GET /api/superadmin/members/<id>/face-verifications/ — all face checks for a member."""
+
+    def get(self, request, member_id):
+        from loans.models import FaceVerification
+        from django.conf import settings as django_settings
+
+        try:
+            member = Member.objects.select_related('user').get(pk=member_id)
+        except Member.DoesNotExist:
+            return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        verifications = FaceVerification.objects.filter(
+            loan_application__user=member.user
+        ).select_related('loan_application').order_by('-created_at')
+
+        result = []
+        for fv in verifications:
+            id_photo_url = None
+            if fv.id_photo_path:
+                id_photo_url = request.build_absolute_uri(django_settings.MEDIA_URL + fv.id_photo_path)
+            selfie_url = None
+            if fv.captured_image_path:
+                selfie_url = request.build_absolute_uri(django_settings.MEDIA_URL + fv.captured_image_path)
+            result.append({
+                'id': fv.id,
+                'loan_application_id': fv.loan_application_id,
+                'loan_type': fv.loan_application.loan_type.loan_name if fv.loan_application.loan_type_id else '—',
+                'id_photo_url': id_photo_url,
+                'selfie_url': selfie_url,
+                'face_detected_in_id': fv.face_detected_in_id,
+                'face_detected_in_selfie': fv.face_detected_in_selfie,
+                'similarity_score': float(fv.similarity_score) if fv.similarity_score is not None else None,
+                'is_match': fv.is_match,
+                'comparison_model': fv.comparison_model,
+                'verification_status': fv.verification_status,
+                'error_message': fv.error_message,
+                'processed_at': fv.processed_at.isoformat() if fv.processed_at else None,
+            })
+
+        return Response({'member_id': member_id, 'verifications': result})
+
+
 def _suggest_action(violations):
     """Suggest a disciplinary action based on violation count and severity."""
     open_violations = violations.filter(status='open')

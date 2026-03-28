@@ -101,14 +101,7 @@ export default function RegisterScreen({ navigation }) {
 
         {/* Google Register */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Who can register?</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoBullet}>✓</Text>
-            <Text style={styles.infoText}>
-              BukSU faculty and staff with an{' '}
-              <Text style={styles.infoHighlight}>@buksu.edu.ph</Text> email
-            </Text>
-          </View>
+          <Text style={styles.infoTitle}>NOTE:</Text>
           <View style={styles.infoRow}>
             <Text style={styles.infoBullet}>ℹ</Text>
             <Text style={styles.infoText}>
@@ -118,39 +111,13 @@ export default function RegisterScreen({ navigation }) {
         </View>
 
         <TouchableOpacity
-          style={[styles.googleButton, (loading || !request) && styles.buttonDisabled]}
-          onPress={handleGoogleRegister}
-          disabled={loading || !request}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator color="#374151" />
-          ) : (
-            <>
-              <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.googleButtonText}>Register with Google</Text>
-            </>
-          )}
-        </TouchableOpacity>
-        <Text style={styles.domainHint}>Only @buksu.edu.ph accounts are accepted</Text>
-
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.divider} />
-        </View>
-
-        {/* Manual registration → full wizard */}
-        <TouchableOpacity
           style={styles.manualButton}
           onPress={() => navigation.navigate('RegisterWizard')}
           disabled={loading}
           activeOpacity={0.8}
         >
-          <Text style={styles.manualButtonText}>Register Manually</Text>
+          <Text style={styles.manualButtonText}>Register</Text>
         </TouchableOpacity>
-        <Text style={styles.domainHint}>Fill in your complete membership form</Text>
 
         {/* Login link */}
         <View style={styles.loginLinkContainer}>
@@ -165,54 +132,181 @@ export default function RegisterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  scrollContent: { flexGrow: 1, padding: 24, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: 28 },
-  logoContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  logoIcon: { fontSize: 36, marginRight: 8 },
-  logoText: { fontSize: 28, fontWeight: 'bold', color: '#1f2937' },
-  title: { fontSize: 24, fontWeight: '600', color: '#1f2937' },
-  subtitle: { fontSize: 14, color: '#6b7280', marginTop: 4 },
-  errorContainer: { backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, marginBottom: 16 },
-  errorText: { color: '#dc2626', fontSize: 14, lineHeight: 20 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f5f5f5' 
+  },
+  scrollContent: { 
+    flexGrow: 1, 
+    padding: 24, 
+    justifyContent: 'center' 
+  },
+  header: { 
+    alignItems: 'center', 
+    marginBottom: 28 
+
+  },
+  logoContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 10 
+  },
+  logoIcon: { 
+    fontSize: 36, 
+    marginRight: 8 
+  },
+  logoText: { 
+    fontSize: 28, 
+    fontWeight: 'bold', 
+    color: '#1f2937' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: '600',
+    color: '#1f2937' 
+  },
+  subtitle: { 
+    fontSize: 14, 
+    color: '#6b7280', 
+    marginTop: 4 
+  },
+  errorContainer: { 
+    backgroundColor: '#fee2e2', 
+    borderRadius: 8, 
+    padding: 12, 
+    marginBottom: 16 
+  },
+  errorText: { 
+    color: '#dc2626', 
+    fontSize: 14, 
+    lineHeight: 20 
+  },
   infoCard: {
-    backgroundColor: '#eff6ff', borderRadius: 12, padding: 16, marginBottom: 20,
-    borderWidth: 1, borderColor: '#bfdbfe',
+    backgroundColor: '#eff6ff', 
+    borderRadius: 12, 
+    padding: 16, 
+    marginBottom: 20,
+    borderWidth: 1, 
+    borderColor: '#bfdbfe',
   },
-  infoTitle: { fontSize: 14, fontWeight: '700', color: '#1d4ed8', marginBottom: 10 },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 },
-  infoBullet: { fontSize: 14, color: '#1d4ed8', marginRight: 8, marginTop: 1 },
-  infoText: { flex: 1, fontSize: 13, color: '#1e40af', lineHeight: 19 },
-  infoHighlight: { fontWeight: '700' },
+  infoTitle: { 
+    fontSize: 14, 
+    fontWeight: '700', 
+    color: '#1d4ed8', 
+    marginBottom: 10 
+  },
+  infoRow: { 
+    flexDirection: 'row', 
+    alignItems: 'flex-start', 
+    marginBottom: 6 
+  },
+  infoBullet: { 
+    fontSize: 14, 
+    color: '#1d4ed8', 
+    marginRight: 8, 
+    marginTop: 1 },
+  infoText: { 
+    flex: 1, 
+    fontSize: 13, 
+    color: '#1e40af', 
+    lineHeight: 19 
+  },
+  infoHighlight: { 
+    fontWeight: '700' 
+  },
   googleButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#d1d5db',
-    borderRadius: 10, padding: 16, marginBottom: 8, elevation: 1,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    backgroundColor: '#fff', 
+    borderWidth: 1.5, 
+    borderColor: '#d1d5db',
+    borderRadius: 10, 
+    padding: 16, 
+    marginBottom: 8, 
+    elevation: 1,
   },
-  googleIcon: { fontSize: 18, fontWeight: '700', color: '#4285F4', marginRight: 10 },
-  googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
-  domainHint: { textAlign: 'center', fontSize: 12, color: '#9ca3af', marginBottom: 16 },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginBottom: 16 },
-  divider: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { marginHorizontal: 12, fontSize: 13, color: '#9ca3af', fontWeight: '500' },
+  // googleIcon: { fontSize: 18, fontWeight: '700', color: '#4285F4', marginRight: 10 },
+  // googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
+  // domainHint: { textAlign: 'center', fontSize: 12, color: '#9ca3af', marginBottom: 16 },
+  // dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginBottom: 16 },
+  // divider: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
+  // dividerText: { marginHorizontal: 12, fontSize: 13, color: '#9ca3af', fontWeight: '500' },
   manualButton: {
-    backgroundColor: '#02327a', borderRadius: 10, padding: 16,
-    alignItems: 'center', marginBottom: 8,
+    backgroundColor: '#02327a', 
+    borderRadius: 10, 
+    padding: 16,
+    alignItems: 'center', 
+    marginBottom: 8,
   },
-  manualButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  buttonDisabled: { opacity: 0.5 },
-  loginLinkContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 12 },
-  loginLinkText: { color: '#6b7280', fontSize: 14 },
-  loginLink: { color: '#6366f1', fontSize: 14, fontWeight: '600' },
-  successContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
+  manualButtonText: { 
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: '600' 
+  },
+  buttonDisabled: { 
+    opacity: 0.5 
+  },
+  loginLinkContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    marginTop: 12 
+  },
+  loginLinkText: { 
+    color: '#6b7280', 
+    fontSize: 14 
+  },
+  loginLink: { 
+    color: '#02327a', 
+    fontSize: 14, 
+    fontWeight: '600' },
+  successContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 30 },
   successIconContainer: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: '#10b981',
-    justifyContent: 'center', alignItems: 'center', marginBottom: 24,
+    width: 80, 
+    height: 80, 
+    borderRadius: 40, 
+    backgroundColor: '#10b981',
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginBottom: 24,
   },
-  successIcon: { fontSize: 40, color: '#fff' },
-  successTitle: { fontSize: 24, fontWeight: '700', color: '#1f2937', marginBottom: 12 },
-  successMessage: { fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 22, marginBottom: 8 },
-  successSubMessage: { fontSize: 13, color: '#9ca3af', textAlign: 'center', lineHeight: 20, marginBottom: 32 },
-  loginButton: { backgroundColor: '#02327a', borderRadius: 8, paddingVertical: 14, paddingHorizontal: 32 },
-  loginButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  successIcon: { 
+    fontSize: 40, 
+    color: '#fff' 
+  },
+  successTitle: { 
+    fontSize: 24, 
+    fontWeight: '700', 
+    color: '#1f2937', 
+    marginBottom: 12 
+  },
+  successMessage: { 
+    fontSize: 15, 
+    color: '#6b7280', 
+    textAlign: 'center', 
+    lineHeight: 22, 
+    marginBottom: 8 },
+  successSubMessage: { 
+    fontSize: 13,
+    color: '#9ca3af', 
+    textAlign: 'center', 
+    lineHeight: 20, 
+    marginBottom: 32 
+  },
+  loginButton: { 
+    backgroundColor: '#02327a', 
+    borderRadius: 8, 
+    paddingVertical: 14, 
+    paddingHorizontal: 32 
+  },
+  loginButtonText: { 
+    color: '#fff', 
+    fontSize: 16,
+     fontWeight: '600' 
+    },
 });

@@ -48,13 +48,13 @@ export default function AMONotifications() {
     return () => window.removeEventListener('mousedown', dismiss);
   }, [contextMenu.visible]);
 
-  const handleCardClick = async (notification) => {
+  const handleCardClick = (notification) => {
     if (!notification.is_read) {
-      await amoService.markNotificationRead(notification.id);
       setNotifications(prev =>
         prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
       );
       if (fetchUnreadCount) fetchUnreadCount();
+      amoService.markNotificationRead(notification.id).catch(console.error);
     }
   };
 
@@ -125,12 +125,12 @@ export default function AMONotifications() {
                 display: 'flex',
                 gap: '1rem',
                 alignItems: 'flex-start',
-                cursor: n.is_read ? 'default' : 'pointer',
+                cursor: 'pointer',
                 transition: 'box-shadow 0.15s',
                 userSelect: 'none',
               }}
-              onMouseEnter={e => { if (!n.is_read) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)'; }}
-              onMouseLeave={e => { if (!n.is_read) e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.07)'; }}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.07)')}
             >
               <div style={{ width: 40, height: 40, borderRadius: '50%', background: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.2rem' }}>
                 {cfg.icon}

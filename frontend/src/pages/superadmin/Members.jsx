@@ -25,6 +25,9 @@ export default function Members() {
   const [selected, setSelected] = useState(null); // case history modal
   const [caseHistory, setCaseHistory] = useState(null);
   const [caseLoading, setCaseLoading] = useState(false);
+  const [faceModal, setFaceModal] = useState(null); // member id for face verification modal
+  const [faceData, setFaceData] = useState(null);
+  const [faceLoading, setFaceLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -40,6 +43,20 @@ export default function Members() {
   }, [activeTab]);
 
   useEffect(() => { load(); }, [load]);
+
+  const openFaceVerification = async (memberId) => {
+    setFaceModal(memberId);
+    setFaceLoading(true);
+    setFaceData(null);
+    try {
+      const data = await superadminService.getMemberFaceVerifications(memberId);
+      setFaceData(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFaceLoading(false);
+    }
+  };
 
   const openCaseHistory = async (memberId) => {
     setSelected(memberId);
@@ -95,7 +112,13 @@ export default function Members() {
             </thead>
             <tbody>
               {members.map((m) => (
-                <tr key={m.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                <tr
+                  key={m.id}
+                  onClick={() => openCaseHistory(m.id)}
+                  style={{ borderBottom: '1px solid #f3f4f6', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}
+                >
                   <td style={{ padding: '0.875rem 1rem' }}>
                     <div style={{ fontWeight: 600, color: '#1f2937' }}>{m.name}</div>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{m.email}</div>
@@ -119,18 +142,109 @@ export default function Members() {
                   <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: '#6b7280' }}>
                     {new Date(m.member_since).toLocaleDateString()}
                   </td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
-                    <button
-                      onClick={() => openCaseHistory(m.id)}
-                      style={{ padding: '0.3rem 0.7rem', background: '#02327a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      Case History
-                    </button>
+                  <td style={{ padding: '0.875rem 1rem' }} onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => openCaseHistory(m.id)}
+                        style={{ padding: '0.3rem 0.7rem', background: '#02327a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Case History
+                      </button>
+                      <button
+                        onClick={() => openFaceVerification(m.id)}
+                        style={{ padding: '0.3rem 0.7rem', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Face Verify
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Face Verification Modal */}
+      {faceModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '720px', maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff' }}>
+              <h3 style={{ margin: 0, color: '#1f2937' }}>Face Verification Records</h3>
+              <button onClick={() => { setFaceModal(null); setFaceData(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '1.25rem' }}>✕</button>
+            </div>
+            <div style={{ padding: '1.5rem' }}>
+              {faceLoading ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>Loading...</div>
+              ) : !faceData || faceData.verifications?.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>No face verification records found for this member.</div>
+              ) : (
+                faceData.verifications.map((fv) => (
+                  <div key={fv.id} style={{ border: '1px solid #e5e7eb', borderRadius: '10px', padding: '1.25rem', marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <div style={{ fontWeight: 600, color: '#1f2937', fontSize: '0.9rem' }}>
+                        Loan #{fv.loan_application_id} — {fv.loan_type}
+                      </div>
+                      <span style={{
+                        background: fv.verification_status === 'Verified' ? '#d1fae5' : fv.verification_status === 'Failed' ? '#fee2e2' : '#fef3c7',
+                        color: fv.verification_status === 'Verified' ? '#065f46' : fv.verification_status === 'Failed' ? '#991b1b' : '#92400e',
+                        padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600,
+                      }}>{fv.verification_status}</span>
+                    </div>
+
+                    {/* Photos */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: '0.4rem' }}>ID PHOTO</div>
+                        {fv.id_photo_url
+                          ? <img src={fv.id_photo_url} alt="ID" style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                          : <div style={{ height: 160, background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: '0.8rem' }}>No image</div>
+                        }
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: '0.4rem' }}>SELFIE</div>
+                        {fv.selfie_url
+                          ? <img src={fv.selfie_url} alt="Selfie" style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                          : <div style={{ height: 160, background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: '0.8rem' }}>No image</div>
+                        }
+                      </div>
+                    </div>
+
+                    {/* Scores */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', fontSize: '0.8rem' }}>
+                      <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                        <div style={{ color: '#6b7280', marginBottom: '0.25rem' }}>Similarity</div>
+                        <div style={{ fontWeight: 700, fontSize: '1.25rem', color: fv.similarity_score >= 80 ? '#10b981' : fv.similarity_score >= 60 ? '#f59e0b' : '#ef4444' }}>
+                          {fv.similarity_score != null ? `${fv.similarity_score}%` : '—'}
+                        </div>
+                      </div>
+                      <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                        <div style={{ color: '#6b7280', marginBottom: '0.25rem' }}>Match</div>
+                        <div style={{ fontWeight: 700, color: fv.is_match ? '#10b981' : '#ef4444' }}>
+                          {fv.is_match == null ? '—' : fv.is_match ? 'MATCH' : 'NO MATCH'}
+                        </div>
+                      </div>
+                      <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                        <div style={{ color: '#6b7280', marginBottom: '0.25rem' }}>Model</div>
+                        <div style={{ fontWeight: 600 }}>{fv.comparison_model || '—'}</div>
+                      </div>
+                    </div>
+
+                    {fv.error_message && (
+                      <div style={{ marginTop: '0.75rem', background: '#fee2e2', color: '#991b1b', padding: '0.6rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem' }}>
+                        <strong>Error:</strong> {fv.error_message}
+                      </div>
+                    )}
+                    {fv.processed_at && (
+                      <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#9ca3af' }}>
+                        Processed: {new Date(fv.processed_at).toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
 

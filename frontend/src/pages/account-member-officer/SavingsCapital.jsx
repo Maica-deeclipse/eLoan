@@ -142,7 +142,7 @@ export default function SavingsCapital() {
                   </div>
                   <div>
                     <label style={labelStyle}>Reference Number</label>
-                    <input value={form.reference_number} onChange={e => setForm({ ...form, reference_number: e.target.value })} style={inputStyle} placeholder="Optional" />
+                    <input required value={form.reference_number} onChange={e => setForm({ ...form, reference_number: e.target.value })} style={inputStyle} placeholder="e.g. OR-2024-001" />
                   </div>
                   <div>
                     <label style={labelStyle}>Remarks</label>

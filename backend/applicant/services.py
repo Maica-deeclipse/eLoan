@@ -345,10 +345,11 @@ class LoanApplicationService:
         1 - Loan Type (already set on create)
         2 - Personal Details (stored in ApplicantProfile)
         3 - Loan Details (amount, term, purpose)
-        4 - Co-Makers (handled separately)
-        5 - Documents (handled separately)
-        6 - Face Verification (handled separately)
-        7 - Review & Submit
+        4 - Loan-type extra fields (loan_form_data) — only for ATM/Gadget/LAD/Emergency
+        5 - Co-Makers (handled separately)
+        6 - Documents (handled separately)
+        7 - Face Verification (handled separately)
+        8 - Review & Submit
         """
         if application.current_status.status_name not in [
             ApplicationStatuses.DRAFT,
@@ -398,6 +399,16 @@ class LoanApplicationService:
             application.total_payable = calc['total_payable']
             application.save()
 
+            return True, None
+
+        if step_number == 4:
+            # Loan-type-specific extra fields (ATM, Gadget, LAD, Emergency)
+            incoming = data.get('loan_form_data')
+            if incoming and isinstance(incoming, dict):
+                existing = application.loan_form_data or {}
+                existing.update(incoming)
+                application.loan_form_data = existing
+                application.save(update_fields=['loan_form_data'])
             return True, None
 
         return True, None
@@ -783,7 +794,11 @@ class ProfileService:
             'employer_address': profile.employer_address or '',
             'position': profile.position or '',
             'monthly_income': str(profile.monthly_income) if profile.monthly_income else '',
+            'employment_status': profile.employment_status or '',
             'years_employed': profile.years_employed or '',
+            'civil_status': profile.civil_status or '',
+            'date_of_birth': profile.date_of_birth.isoformat() if profile.date_of_birth else '',
+            'tin': profile.tin or '',
             'emergency_contact_name': profile.emergency_contact_name or '',
             'emergency_contact_number': profile.emergency_contact_number or '',
             'emergency_contact_relationship': profile.emergency_contact_relationship or '',

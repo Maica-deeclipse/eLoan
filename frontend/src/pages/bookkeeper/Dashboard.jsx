@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import bookkeeperService from '../../services/bookkeeper.service';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState({
@@ -71,18 +72,21 @@ export default function Dashboard() {
           label="Verified Today"
           value={stats.verified_today || 0}
           color="#10b981"
+          link="/bookkeeper/applications"
         />
         <StatCard
           icon="&#10006;"
           label="Rejected Today"
           value={stats.rejected_today || 0}
           color="#ef4444"
+          link="/bookkeeper/applications"
         />
         <StatCard
           icon="&#9203;"
           label="Waiting Treasurer"
           value={stats.waiting_treasurer || 0}
           color="#f59e0b"
+          link="/bookkeeper/applications"
         />
       </div>
 
@@ -93,8 +97,8 @@ export default function Dashboard() {
             <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#1f2937', margin: 0 }}>
               Recent Applications
             </h2>
-            <Link to="/bookkeeper/applications" style={{ color: '#6366f1', fontSize: '0.875rem', textDecoration: 'none' }}>
-              View All &rarr;
+            <Link to="/bookkeeper/applications" style={{ color: '#6366f1', fontSize: '0.875rem', textDecoration: 'none' }}> 
+              &rarr;
             </Link>
           </div>
           <div style={{ overflowX: 'auto' }}>
@@ -104,19 +108,24 @@ export default function Dashboard() {
                   <th style={thStyle}>Applicant</th>
                   <th style={thStyle}>Loan Type</th>
                   <th style={thStyle}>Amount</th>
-                  <th style={thStyle}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {recent_applications.length === 0 ? (
                   <tr>
-                    <td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+                    <td colSpan="3" style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
                       No pending applications
                     </td>
                   </tr>
                 ) : (
                   recent_applications.map((app) => (
-                    <tr key={app.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <tr
+                      key={app.id}
+                      onClick={() => navigate(`/bookkeeper/applications/${app.id}`)}
+                      style={{ borderBottom: '1px solid #e5e7eb', cursor: 'pointer' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#f5f3ff')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '')}
+                    >
                       <td style={tdStyle}>
                         <div style={{ fontWeight: 500 }}>{app.applicant.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{app.applicant.email}</div>
@@ -128,22 +137,6 @@ export default function Dashboard() {
                       </td>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>
                         &#8369;{parseFloat(app.amount_requested).toLocaleString()}
-                      </td>
-                      <td style={tdStyle}>
-                        <Link
-                          to={`/bookkeeper/applications/${app.id}`}
-                          style={{
-                            background: '#6366f1',
-                            color: '#fff',
-                            padding: '0.375rem 0.75rem',
-                            borderRadius: '0.375rem',
-                            fontSize: '0.75rem',
-                            textDecoration: 'none',
-                            display: 'inline-block',
-                          }}
-                        >
-                          View
-                        </Link>
                       </td>
                     </tr>
                   ))
@@ -209,7 +202,12 @@ function StatCard({ icon, label, value, color, link }) {
       borderRadius: '0.75rem',
       padding: '1.5rem',
       boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    }}>
+      cursor: link ? 'pointer' : 'default',
+      transition: 'box-shadow 0.15s',
+    }}
+    onMouseEnter={link ? e => (e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)') : undefined}
+    onMouseLeave={link ? e => (e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)') : undefined}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>{label}</div>

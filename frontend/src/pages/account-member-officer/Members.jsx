@@ -68,7 +68,7 @@ export default function Members() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Name', 'Membership', 'Status', 'Savings', 'Capital', ''].map(h => (
+                {['Name', 'Membership', 'Status', 'Savings', 'Capital'].map(h => (
                   <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>{h}</th>
                 ))}
               </tr>
@@ -77,7 +77,13 @@ export default function Members() {
               {loading && <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>Loading...</td></tr>}
               {!loading && members.length === 0 && <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>No members found.</td></tr>}
               {members.map((m, i) => (
-                <tr key={m.id} style={{ borderTop: '1px solid #f3f4f6', background: selected?.id === m.id ? '#f0fdf4' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <tr
+                  key={m.id}
+                  onClick={() => openDetail(m.id)}
+                  style={{ borderTop: '1px solid #f3f4f6', background: selected?.id === m.id ? '#f0fdf4' : i % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}
+                  onMouseEnter={e => { if (selected?.id !== m.id) e.currentTarget.style.background = '#f0fdf4'; }}
+                  onMouseLeave={e => { if (selected?.id !== m.id) e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#fafafa'; }}
+                >
                   <td style={{ padding: '0.875rem 1rem' }}>
                     <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{m.name}</div>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{m.email}</div>
@@ -98,12 +104,6 @@ export default function Members() {
                   </td>
                   <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#4b5563' }}>₱{parseFloat(m.total_savings).toLocaleString()}</td>
                   <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#4b5563' }}>₱{parseFloat(m.total_shared_capital).toLocaleString()}</td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
-                    <button onClick={() => openDetail(m.id)} style={{
-                      background: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '0.35rem 0.75rem',
-                      borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 500,
-                    }}>View</button>
-                  </td>
                 </tr>
               ))}
             </tbody>

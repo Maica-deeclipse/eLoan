@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
 import { clearLoanTypeDraft } from '../../utils/applicationDraftStorage';
+import { getLoanTypeConfig, hasExtraStep } from '../../config/loanTypeConfig';
 
 const REQUIRED_DOCUMENT_KEYS = ['buksu_id', 'proof_of_income', 'membership_certificate'];
 
@@ -52,6 +53,7 @@ const ReviewSubmitScreen = ({ navigation }) => {
   const [applicationData, setApplicationData] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
     loanDetails: true,
+    loanSpecific: false,
     personalInfo: false,
     coMakers: false,
     documents: false,
@@ -325,6 +327,29 @@ const ReviewSubmitScreen = ({ navigation }) => {
             </View>
           )}
         </View>
+
+        {/* Loan-Specific Details Section (ATM, Gadget, LAD, Emergency) */}
+        {hasExtraStep(loanType?.loan_name) && Object.keys(state.loanFormData || {}).length > 0 && (
+          <View style={styles.section}>
+            {renderSectionHeader(
+              getLoanTypeConfig(loanType.loan_name).extraStepTitle || 'Additional Details',
+              'loanSpecific',
+              'list',
+              true
+            )}
+            {expandedSections.loanSpecific && (
+              <View style={styles.sectionContent}>
+                {getLoanTypeConfig(loanType.loan_name).extraFields?.map((field) => {
+                  const val = (state.loanFormData || {})[field.key];
+                  const display = field.type === 'currency'
+                    ? val ? `₱${parseFloat(val).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : '-'
+                    : val || '-';
+                  return renderInfoRow(field.label, display);
+                })}
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Personal Information Section */}
         <View style={styles.section}>

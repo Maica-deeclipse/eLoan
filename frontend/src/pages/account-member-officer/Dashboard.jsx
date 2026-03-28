@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import amoService from '../../services/amo.service';
 
-const statCard = (label, value, color, icon) => (
-  <div style={{
-    background: '#fff', borderRadius: '12px', padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderLeft: `4px solid ${color}`,
-    display: 'flex', alignItems: 'center', gap: '1rem',
-  }}>
-    <div style={{ fontSize: '2rem' }}>{icon}</div>
-    <div>
-      <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#1f2937' }}>{value}</div>
-      <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>{label}</div>
+const StatCard = ({ label, value, color, icon, path }) => {
+  const navigate = useNavigate();
+  return (
+    <div
+      onClick={() => path && navigate(path)}
+      style={{
+        background: '#fff', borderRadius: '12px', padding: '1.5rem',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderLeft: `4px solid ${color}`,
+        display: 'flex', alignItems: 'center', gap: '1rem',
+        cursor: path ? 'pointer' : 'default', transition: 'box-shadow 0.15s',
+      }}
+      onMouseEnter={path ? e => (e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)') : undefined}
+      onMouseLeave={path ? e => (e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)') : undefined}
+    >
+      <div style={{ fontSize: '2rem' }}>{icon}</div>
+      <div>
+        <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#02327a' }}>{value}</div>
+        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>{label}</div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default function AMODashboard() {
   const [data, setData] = useState(null);
@@ -33,11 +42,36 @@ export default function AMODashboard() {
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1f2937', marginBottom: '0.25rem' }}>Dashboard</h1>
       <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>Overview of member management activities</p>
 
+      {/* New Applicant Alert */}
+      {(stats.pending_applications ?? 0) > 0 && (
+        <div style={{
+          background: '#fffbeb', border: '1px solid #fcd34d', borderLeft: '4px solid #f59e0b',
+          borderRadius: '10px', padding: '0.875rem 1.25rem', marginBottom: '1.5rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.25rem' }}>👤</span>
+            <div>
+              <span style={{ fontWeight: 600, color: '#92400e', fontSize: '0.9rem' }}>
+                {stats.pending_applications} new applicant{stats.pending_applications > 1 ? 's' : ''} awaiting approval
+              </span>
+              <div style={{ fontSize: '0.775rem', color: '#b45309', marginTop: '0.1rem' }}>
+                Review and approve or reject from Member Applications.
+              </div>
+            </div>
+          </div>
+          <Link to="/amo/applications" style={{
+            background: '#f59e0b', color: '#fff', padding: '0.4rem 1rem',
+            borderRadius: '8px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 600, whiteSpace: 'nowrap',
+          }}>Review Now</Link>
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        {statCard('Pending Applications', stats.pending_applications ?? 0, '#f59e0b', '📋')}
-        {statCard('Total Members', stats.total_members ?? 0, '#10b981', '👥')}
-        {statCard('Approved This Week', stats.recently_approved ?? 0, '#6366f1', '✅')}
+        <StatCard label="Pending Applications" value={stats.pending_applications ?? 0} color="#f59e0b" icon="📋" path="/amo/applications" />
+        <StatCard label="Total Members" value={stats.total_members ?? 0} color="#10b981" icon="👥" path="/amo/members" />
+        <StatCard label="Approved This Week" value={stats.recently_approved ?? 0} color="#6366f1" icon="✅" path="/amo/applications?filter=approved" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>

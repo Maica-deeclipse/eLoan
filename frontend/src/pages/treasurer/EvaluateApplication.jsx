@@ -159,40 +159,34 @@ export default function EvaluateApplication() {
               <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>No documents uploaded</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {documents.map((doc) => (
-                  <div key={doc.id} style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0.5rem',
-                    background: '#f9fafb',
-                    borderRadius: '0.375rem',
-                  }}>
-                    <div>
-                      <span style={{ fontWeight: 500 }}>{doc.document_type}</span>
-                      {doc.verified && (
-                        <span style={{ marginLeft: '0.5rem', color: '#10b981', fontSize: '0.75rem' }}>&#10004; Verified</span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/media/${doc.file_path}`, '_blank')}
+                {documents.map((doc) => {
+                  const mediaBase = new URL(import.meta.env.VITE_API_URL || 'http://localhost:8000').origin;
+                  const fileUrl = `${mediaBase}/media/${doc.file_path}`;
+                  return (
+                    <div
+                      key={doc.id}
+                      onClick={() => window.open(fileUrl, '_blank')}
+                      title="Click to open document"
                       style={{
-                        background: '#10b981',
-                        color: 'white',
-                        border: 'none',
-                        padding: '0.375rem 0.75rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '0.5rem 0.75rem',
+                        background: '#f9fafb',
                         borderRadius: '0.375rem',
                         cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
+                        transition: 'background 0.15s',
                       }}
-                      onMouseOver={(e) => e.target.style.background = '#059669'}
-                      onMouseOut={(e) => e.target.style.background = '#10b981'}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#ecfdf5')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#f9fafb')}
                     >
-                      &#128065; View
-                    </button>
-                  </div>
-                ))}
+                      <span style={{ fontWeight: 500 }}>&#128196; {doc.document_type}</span>
+                      {doc.verified && (
+                        <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>&#10004; Verified</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </Card>

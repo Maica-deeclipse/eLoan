@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, useReducer } from 'react';
+import { hasExtraStep } from '../config/loanTypeConfig';
 
 const ApplicationContext = createContext();
 
@@ -53,6 +54,9 @@ const initialState = {
     calculatedTotal: null,
     calculatedInterest: null,
   },
+
+  // Step 3b: Loan-type-specific extra fields (ATM, Gadget, LAD, Emergency)
+  loanFormData: {},
 
   // Step 4: Co-Makers (conditional)
   coMakers: [],
@@ -127,6 +131,12 @@ function applicationReducer(state, action) {
       return {
         ...state,
         stepValidation: { ...state.stepValidation, 3: action.payload },
+      };
+
+    case 'SET_LOAN_FORM_DATA':
+      return {
+        ...state,
+        loanFormData: { ...state.loanFormData, ...action.payload },
       };
 
     case 'ADD_COMAKER':
@@ -267,6 +277,10 @@ export function ApplicationProvider({ children }) {
     dispatch({ type: 'SET_LOAN_DETAILS', payload: details });
   };
 
+  const setLoanFormData = (data) => {
+    dispatch({ type: 'SET_LOAN_FORM_DATA', payload: data });
+  };
+
   const addCoMaker = (comaker) => {
     dispatch({ type: 'ADD_COMAKER', payload: comaker });
   };
@@ -308,18 +322,35 @@ export function ApplicationProvider({ children }) {
   };
 
   const getNextStep = (currentStep) => {
-    // Determine next step based on co-maker requirement
     if (currentStep === 3 && state.coMakerRequirement === 0) {
-      return 5; // Skip co-maker step
+      return 5; // Skip co-maker step (LoanFormData navigates directly, not via this)
     }
     return currentStep + 1;
   };
 
   const getPreviousStep = (currentStep) => {
     if (currentStep === 5 && state.coMakerRequirement === 0) {
-      return 3; // Skip co-maker step
+      return 3; // Skip co-maker step going back
     }
     return currentStep - 1;
+  };
+
+  /**
+   * Returns the route name the wizard should navigate to after LoanDetails (step 3).
+   * Accounts for the optional LoanFormData step and the conditional CoMaker step.
+   */
+  const getPostLoanDetailsRoute = () => {
+    if (hasExtraStep(state.loanType?.loan_name)) return 'LoanFormData';
+    if (state.coMakerRequirement > 0) return 'CoMaker';
+    return 'DocumentUpload';
+  };
+
+  /**
+   * Returns the route name LoanFormData should navigate to after saving.
+   */
+  const getPostLoanFormDataRoute = () => {
+    if (state.coMakerRequirement > 0) return 'CoMaker';
+    return 'DocumentUpload';
   };
 
   return (
@@ -330,6 +361,7 @@ export function ApplicationProvider({ children }) {
         setLoanType,
         setPersonalDetails,
         setLoanDetails,
+        setLoanFormData,
         addCoMaker,
         removeCoMaker,
         addDocument,
@@ -340,6 +372,8 @@ export function ApplicationProvider({ children }) {
         canProceedToStep,
         getNextStep,
         getPreviousStep,
+        getPostLoanDetailsRoute,
+        getPostLoanFormDataRoute,
       }}
     >
       {children}

@@ -65,7 +65,12 @@ const DocumentUploadScreen = ({ navigation }) => {
     try {
       const docs = await applicationService.getRequiredDocuments(loanTypeId);
       if (docs && docs.length > 0) {
-        setRequiredDocs(docs);
+        // Normalize snake_case `accepted_types` from API → camelCase used by this screen
+        const normalized = docs.map((d) => ({
+          ...d,
+          acceptedTypes: d.acceptedTypes || d.accepted_types || ['image', 'pdf'],
+        }));
+        setRequiredDocs(normalized);
       }
     } catch (error) {
       console.error('Load required documents error:', error);

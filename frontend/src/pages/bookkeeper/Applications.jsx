@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import bookkeeperService from '../../services/bookkeeper.service';
 
 export default function Applications() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [applications, setApplications] = useState([]);
@@ -91,13 +92,12 @@ export default function Applications() {
                 <th style={thStyle}>Term</th>
                 <th style={thStyle}>Date Submitted</th>
                 <th style={thStyle}>Status</th>
-                <th style={thStyle}>Action</th>
               </tr>
             </thead>
             <tbody>
               {applications.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan="7" style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
                     <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#128229;</div>
                     <h3 style={{ margin: 0, marginBottom: '0.5rem' }}>No Pending Applications</h3>
                     <p style={{ margin: 0, fontSize: '0.875rem' }}>All submitted applications have been reviewed.</p>
@@ -105,7 +105,13 @@ export default function Applications() {
                 </tr>
               ) : (
                 applications.map((app) => (
-                  <tr key={app.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                  <tr
+                    key={app.id}
+                    onClick={() => navigate(`/bookkeeper/applications/${app.id}`)}
+                    style={{ borderBottom: '1px solid #e5e7eb', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f5f3ff')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}
+                  >
                     <td style={tdStyle}>
                       <span style={{ background: '#f3f4f6', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
                         #{app.id}
@@ -164,22 +170,6 @@ export default function Applications() {
                       }}>
                         {app.status}
                       </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <Link
-                        to={`/bookkeeper/applications/${app.id}`}
-                        style={{
-                          background: '#6366f1',
-                          color: '#fff',
-                          padding: '0.5rem 1rem',
-                          borderRadius: '0.375rem',
-                          fontSize: '0.875rem',
-                          textDecoration: 'none',
-                          display: 'inline-block',
-                        }}
-                      >
-                        View
-                      </Link>
                     </td>
                   </tr>
                 ))

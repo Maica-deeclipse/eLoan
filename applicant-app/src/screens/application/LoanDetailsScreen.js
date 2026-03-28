@@ -20,6 +20,10 @@ import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
 import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraftStorage';
 import DropdownPicker from '../../components/DropdownPicker';
+import { isSemiMonthlyAllowed } from '../../config/loanTypeConfig';
+
+// Fixed term options — only show values that don't exceed the loan type's max term
+const FIXED_TERM_MONTHS = [3, 6, 12, 24, 36, 48];
 
 // Fixed loan purpose options
 const LOAN_PURPOSES = [
@@ -37,9 +41,6 @@ const INSTALLMENT_TYPE_OPTIONS = [
   { label: 'Monthly', value: 'monthly' },
   { label: 'Semi-Monthly (Every 15 days)', value: 'semi_monthly' },
 ];
-
-// Loan types that support semi-monthly payment
-const SEMI_MONTHLY_LOAN_TYPES = ['ATM Loan', 'Enhanced Regular Loan', 'Regular Loan', 'Grace Loan', 'Gadget/Appliance Loan'];
 
 /**
  * Generate stepped amount options between min and max.
@@ -74,7 +75,7 @@ function generateAmountOptions(minAmount, maxAmount) {
 }
 
 export default function LoanDetailsScreen({ navigation }) {
-  const { state, setLoanDetails, dispatch, getNextStep } = useApplication();
+  const { state, setLoanDetails, dispatch, getNextStep, getPostLoanDetailsRoute } = useApplication();
   const { loanType, applicationId, coMakerRequirement, loanDetails: savedLoanDetails } = state;
 
   const [amount, setAmount] = useState(''); // stored as string for API; value from dropdown is a number
@@ -88,7 +89,7 @@ export default function LoanDetailsScreen({ navigation }) {
 
   // Show installment type picker only for loan types that support semi-monthly
   const showInstallmentType = useMemo(
-    () => loanType && SEMI_MONTHLY_LOAN_TYPES.includes(loanType.loan_name),
+    () => loanType && isSemiMonthlyAllowed(loanType.loan_name),
     [loanType?.loan_name]
   );
 
@@ -279,7 +280,8 @@ export default function LoanDetailsScreen({ navigation }) {
 
       dispatch({ type: 'VALIDATE_LOAN_DETAILS', payload: true });
 
-      // Navigate to next step
+      // Navigate to next step (LoanFormData, CoMaker, or DocumentUpload)
+      const nextRoute = getPostLoanDetailsRoute();
       const nextStep = getNextStep(3);
       dispatch({ type: 'SET_CURRENT_STEP', payload: nextStep });
 
@@ -296,11 +298,7 @@ export default function LoanDetailsScreen({ navigation }) {
         });
       }
 
-      if (nextStep === 5) {
-        navigation.navigate('DocumentUpload');
-      } else {
-        navigation.navigate('CoMaker');
-      }
+      navigation.navigate(nextRoute);
     } catch (error) {
       console.error('Save loan details error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Failed to save loan details');
@@ -370,10 +368,9 @@ export default function LoanDetailsScreen({ navigation }) {
               <DropdownPicker
                 placeholder={`Select term (max ${loanType.max_term_months} months)`}
                 value={termMonths ? parseInt(termMonths) : null}
-                options={Array.from({ length: loanType.max_term_months }, (_, i) => ({
-                  label: `${i + 1} month${i + 1 > 1 ? 's' : ''}`,
-                  value: i + 1,
-                }))}
+                options={FIXED_TERM_MONTHS
+                  .filter((t) => t <= loanType.max_term_months)
+                  .map((t) => ({ label: `${t} months`, value: t }))}
                 onChange={(val) => handleTermChange(String(val))}
                 hasError={!!errors.term}
                 errorMessage={errors.term}

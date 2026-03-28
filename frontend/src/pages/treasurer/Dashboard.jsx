@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import treasurerService from '../../services/treasurer.service';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState({
@@ -100,7 +101,6 @@ export default function Dashboard() {
             Applications Pending Evaluation
           </h2>
           <Link to="/treasurer/applications" style={{ color: '#10b981', fontSize: '0.875rem', textDecoration: 'none' }}>
-            View All &rarr;
           </Link>
         </div>
         <div style={{ overflowX: 'auto' }}>
@@ -111,19 +111,24 @@ export default function Dashboard() {
                 <th style={thStyle}>Loan Type</th>
                 <th style={thStyle}>Amount</th>
                 <th style={thStyle}>Date</th>
-                <th style={thStyle}>Action</th>
               </tr>
             </thead>
             <tbody>
               {recent_forwarded.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
                     No applications pending evaluation
                   </td>
                 </tr>
               ) : (
                 recent_forwarded.map((app) => (
-                  <tr key={app.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                  <tr
+                    key={app.id}
+                    onClick={() => navigate(`/treasurer/applications/${app.id}`)}
+                    style={{ borderBottom: '1px solid #e5e7eb', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f0fdf4')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}
+                  >
                     <td style={tdStyle}>
                       <div style={{ fontWeight: 500 }}>{app.applicant.name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{app.applicant.email}</div>
@@ -138,22 +143,6 @@ export default function Dashboard() {
                     </td>
                     <td style={{ ...tdStyle, color: '#6b7280', fontSize: '0.875rem' }}>
                       {new Date(app.application_date).toLocaleDateString()}
-                    </td>
-                    <td style={tdStyle}>
-                      <Link
-                        to={`/treasurer/applications/${app.id}`}
-                        style={{
-                          background: '#10b981',
-                          color: '#fff',
-                          padding: '0.375rem 0.75rem',
-                          borderRadius: '0.375rem',
-                          fontSize: '0.75rem',
-                          textDecoration: 'none',
-                          display: 'inline-block',
-                        }}
-                      >
-                        Evaluate
-                      </Link>
                     </td>
                   </tr>
                 ))
@@ -195,7 +184,7 @@ function StatCard({ icon, label, value, color, link }) {
       </div>
       {link && (
         <div style={{ marginTop: '0.5rem' }}>
-          <span style={{ color: '#10b981', fontSize: '0.75rem' }}>View details &rarr;</span>
+          <span style={{ color: '#10b981', fontSize: '0.75rem' }}></span>
         </div>
       )}
     </div>
