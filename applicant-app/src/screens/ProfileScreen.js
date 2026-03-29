@@ -145,7 +145,7 @@ export default function ProfileScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#17236a" />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </SafeAreaView>
     );
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   editButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#17236a',
     borderRadius: 8,
   },
   editButtonText: {
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#17236a',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   },
   roleText: {
     fontSize: 12,
-    color: '#6366f1',
+    color: '#17236a',
     fontWeight: '500',
   },
   section: {
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   saveButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#17236a',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modalSubmit: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#17236a',
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 16,

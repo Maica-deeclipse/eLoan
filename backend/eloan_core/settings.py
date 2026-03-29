@@ -111,11 +111,11 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         # Read DB connection from environment variables so you can point
         # this Django project to any local or remote MySQL/MariaDB server.
-        'NAME': os.environ.get('DB_NAME', 'eloan'),
-        'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
+        'NAME': config('DB_NAME', default='eloan'),
+        'USER': config('DB_USER', default='root'),
+        'PASSWORD': config('DB_PASSWORD', default=''),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='3306'),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
         }

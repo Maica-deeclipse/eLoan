@@ -122,7 +122,7 @@ export default function Applications() {
                         <div style={{
                           width: '36px',
                           height: '36px',
-                          background: '#6366f1',
+                          background: '#17236a',
                           color: '#fff',
                           borderRadius: '50%',
                           display: 'flex',
@@ -170,6 +170,22 @@ export default function Applications() {
                       }}>
                         {app.status}
                       </span>
+                    </td>
+                    <td style={tdStyle}>
+                      <Link
+                        to={`/bookkeeper/applications/${app.id}`}
+                        style={{
+                          background: '#17236a',
+                          color: '#fff',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '0.375rem',
+                          fontSize: '0.875rem',
+                          textDecoration: 'none',
+                          display: 'inline-block',
+                        }}
+                      >
+                        View
+                      </Link>
                     </td>
                   </tr>
                 ))

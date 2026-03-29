@@ -184,7 +184,7 @@ export default function MyApplicationsScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#17236a" />
         <Text style={styles.loadingText}>Loading applications...</Text>
       </SafeAreaView>
     );
@@ -220,7 +220,7 @@ export default function MyApplicationsScreen({ navigation }) {
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#6366f1']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#17236a']} />
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -283,8 +283,8 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   filterButtonActive: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
+    backgroundColor: '#17236a',
+    borderColor: '#17236a',
   },
   filterButtonText: {
     fontSize: 13,
