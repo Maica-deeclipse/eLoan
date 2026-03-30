@@ -1581,6 +1581,16 @@ class ProfileView(ApplicantBaseView):
         profile = ProfileService.get_or_create_profile(user)
         profile_data = ProfileService.profile_to_dict(profile)
 
+        # Membership info (set by AMO after approval)
+        member = getattr(user, 'member_profile', None)
+        membership_data = {
+            'membership_type': member.membership_type if member else None,
+            'membership_status': member.membership_status if member else None,
+            'subscribed_shares': member.subscribed_shares if member else None,
+            'paid_shares': member.paid_shares if member else None,
+            'member_since': member.member_since.isoformat() if member else None,
+        }
+
         return Response({
             'user': {
                 'id': user.id,
@@ -1589,6 +1599,7 @@ class ProfileView(ApplicantBaseView):
                 'lastname': user.lastname,
             },
             'profile': profile_data,
+            'membership': membership_data,
         })
 
     def put(self, request):
