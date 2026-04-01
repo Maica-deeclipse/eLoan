@@ -14,6 +14,10 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config, Csv
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,7 +35,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '10.0.0.48',
+    '192.168.1.13',
     '10.0.0.52',
 ]
 
@@ -72,6 +76,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'eloan_core.middleware.CORSAndCoopMiddleware',  # COOP headers for Google OAuth popups
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.gzip.GZipMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -258,9 +263,9 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',       # Web frontend
     'http://127.0.0.1:3000',       # Web frontend
-    'http://10.0.0.48:3000',   # Web frontend (network access)
+    'http://192.168.1.13:3000',   # WEB FRONTEND (network access)
     'http://localhost:8081',       # Expo dev server (default)
-    'http://10.0.0.48:8081',       # Expo dev server
+    'http://192.168.1.13:8081',       # EXPO DEV SERVER
     'http://localhost:19000',      # Expo dev server (alternative port)
     'http://localhost:19006',      # Expo web
 ]
