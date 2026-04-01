@@ -25,10 +25,16 @@ const getStatusColor = (status) => {
     'Verified by Bookkeeper': '#3b82f6',
     'Pending Credit Committee': '#8b5cf6',
     'Approved by Credit Committee': '#10b981',
+    'Approved \u2013 For Disbursement': '#7c3aed',
+    'Active': '#059669',
+    'Overdue': '#dc2626',
+    'Completed': '#22c55e',
     'Rejected by Bookkeeper': '#ef4444',
+    'Rejected by Treasurer': '#ef4444',
     'Rejected by Credit Committee': '#ef4444',
     'Disbursed': '#059669',
     'Paid': '#22c55e',
+    'Closed': '#6b7280',
     'Withdrawn': '#6b7280',
   };
   return colors[status] || '#6b7280';

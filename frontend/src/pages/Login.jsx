@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import authService from '../services/auth.service';
+import PasswordInput from '../components/PasswordInput';
 import '../styles/Login.css';
 
 function Login() {
@@ -106,8 +107,8 @@ function Login() {
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
-              type="password" id="password" name="password"
+            <PasswordInput
+              id="password" name="password"
               value={formData.password} onChange={handleChange}
               placeholder="••••••••" required disabled={loading || googleLoading}
             />

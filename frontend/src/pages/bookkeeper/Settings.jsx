@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import bookkeeperService from '../../services/bookkeeper.service';
 import authService from '../../services/auth.service';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -383,8 +384,7 @@ export default function Settings() {
             <form onSubmit={handlePasswordSubmit}>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>Current Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   name="old_password"
                   value={passwordForm.old_password}
                   onChange={handlePasswordChange}
@@ -394,8 +394,7 @@ export default function Settings() {
               </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>New Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   name="new_password"
                   value={passwordForm.new_password}
                   onChange={handlePasswordChange}
@@ -409,8 +408,7 @@ export default function Settings() {
               </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>Confirm New Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   name="confirm_password"
                   value={passwordForm.confirm_password}
                   onChange={handlePasswordChange}
@@ -524,12 +522,12 @@ export default function Settings() {
                 This will disable your login. Your data will be preserved. Contact an administrator to reactivate.
               </p>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input
-                  type="password"
+                <PasswordInput
                   value={deactivatePassword}
                   onChange={(e) => setDeactivatePassword(e.target.value)}
                   placeholder="Enter password to confirm"
-                  style={{ ...inputStyle, flex: 1, marginBottom: 0 }}
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                  wrapperStyle={{ flex: 1 }}
                 />
                 <button
                   onClick={handleDeactivateAccount}

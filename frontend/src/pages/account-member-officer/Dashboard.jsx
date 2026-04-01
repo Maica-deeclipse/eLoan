@@ -69,9 +69,9 @@ export default function AMODashboard() {
 
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        {statCard('Pending Applications', stats.pending_applications ?? 0, '#f59e0b', '📋')}
-        {statCard('Total Members', stats.total_members ?? 0, '#10b981', '👥')}
-        {statCard('Approved This Week', stats.recently_approved ?? 0, '#17236a', '✅')}
+        <StatCard label="Pending Applications" value={stats.pending_applications ?? 0} color="#f59e0b" icon="📋" path="/amo/applications" />
+        <StatCard label="Total Members" value={stats.total_members ?? 0} color="#10b981" icon="👥" path="/amo/members" />
+        <StatCard label="Approved This Week" value={stats.recently_approved ?? 0} color="#17236a" icon="✅" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
