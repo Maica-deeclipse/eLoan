@@ -20,7 +20,8 @@ from .services import (
     AppealService,
 )
 from users.models import User
-from applicant.models import Member, Savings, SharedCapital, MembershipAppeal
+from users.models import Applicant
+from applicant.models import Savings, SharedCapital, MembershipAppeal
 from decimal import Decimal
 
 
@@ -142,7 +143,7 @@ class MemberApplicationDetailView(AMOBaseView):
         profile_data = {}
         beneficiaries = []
         try:
-            p = u.applicant_profile
+            p = u  # Applicant instance has all profile fields directly
 
             def file_url(field):
                 return request.build_absolute_uri(field.url) if field else None
@@ -301,7 +302,7 @@ class MemberDetailView(AMOBaseView):
     def get(self, request, pk):
         try:
             m = MemberService.get_member(pk)
-        except Member.DoesNotExist:
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         verified_by = None
@@ -337,9 +338,9 @@ class MemberStatusView(AMOBaseView):
         if new_status not in ('active', 'suspended'):
             return Response({'error': 'Invalid status. Use "active" or "suspended".'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            m = Member.objects.select_related('user').get(pk=pk)
-            MemberService.set_user_status(m.user.id, new_status)
-        except Member.DoesNotExist:
+            m = Applicant.objects.get(pk=pk)
+            MemberService.set_user_status(m.id, new_status)
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         return Response({'message': f"Member status set to {new_status}."})
@@ -359,7 +360,7 @@ class MemberEmploymentStatusView(AMOBaseView):
 
         try:
             member = MemberService.set_employment_status(pk, employment_status, request.user)
-        except Member.DoesNotExist:
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         return Response({
@@ -388,7 +389,7 @@ class MemberFixedDepositView(AMOBaseView):
 
         try:
             member = MemberService.set_fixed_deposit(pk, amount, request.user)
-        except Member.DoesNotExist:
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         return Response({
@@ -423,7 +424,7 @@ class MemberSharesView(AMOBaseView):
 
         try:
             member = MemberService.set_shares(pk, subscribed, paid)
-        except Member.DoesNotExist:
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -532,7 +533,7 @@ class MemberSavingsView(AMOBaseView):
                 remarks=data.get('remarks', ''),
                 recorded_by=request.user,
             )
-        except Member.DoesNotExist:
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -571,7 +572,7 @@ class MemberCapitalView(AMOBaseView):
                 remarks=data.get('remarks', ''),
                 recorded_by=request.user,
             )
-        except Member.DoesNotExist:
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

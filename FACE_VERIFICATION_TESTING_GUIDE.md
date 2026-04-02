@@ -48,7 +48,6 @@ This guide provides step-by-step testing scenarios to validate the face verifica
 - ✅ Green checkmark displayed
 - ✅ Score bar shown in green
 - ✅ Message: "Excellent match!" or "Good match"
-- ✅ Can proceed to Step 7 (E-Signature)
 
 ### Backend Logs to Check:
 ```

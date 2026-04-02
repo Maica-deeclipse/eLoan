@@ -119,7 +119,7 @@ class LoanTypeListView(ApplicantBaseView):
 
     def get(self, request):
         # Cache per membership type — loan types change rarely
-        member = getattr(request.user, 'member_profile', None)
+        member = getattr(request.user, 'applicant', None)
         membership = getattr(member, 'membership_type', 'none')
         cache_key = f'loan_types_{membership}'
         loan_types = cache.get(cache_key)
@@ -1593,7 +1593,7 @@ class ProfileView(ApplicantBaseView):
         profile_data = ProfileService.profile_to_dict(profile)
 
         # Membership info (set by AMO after approval)
-        member = getattr(user, 'member_profile', None)
+        member = getattr(user, 'applicant', None)
         membership_data = {
             'membership_type': member.membership_type if member else None,
             'membership_status': member.membership_status if member else None,

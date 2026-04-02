@@ -18,9 +18,9 @@ from django.conf import settings
 
 from loans.models import LoanApplication, LoanType, LoanCoMaker, LoanDocument, ApplicationStatus, FaceVerification, LivenessCheck, AuditLog
 from bookkeeper.models import Notification
-from users.models import User
+from users.models import User, Applicant
 
-from .models import ApplicantProfile, CoMakerInfo, LoanTypeCoMakerRequirement
+from .models import CoMakerInfo, LoanTypeCoMakerRequirement
 from .utils import (
     calculate_monthly_amortization,
     validate_loan_amount,
@@ -31,10 +31,6 @@ from .utils import (
     ApplicationStatuses
 )
 
-# Import membership models (now in applicant app)
-from .models import Member
-
-# Flag to indicate membership is enabled (always True now since models are in this app)
 MEMBERSHIP_ENABLED = True
 
 
@@ -134,7 +130,7 @@ class LoanApplicationService:
         membership_info = None
         if MEMBERSHIP_ENABLED:
             try:
-                member = user.member_profile
+                member = user.applicant
                 membership_info = {
                     'membership_type': member.membership_type,
                     'membership_status': member.membership_status,
@@ -160,10 +156,10 @@ class LoanApplicationService:
                         'membership_info': membership_info,
                     }
 
-            except Member.DoesNotExist:
+            except Applicant.DoesNotExist:
                 return {
                     'can_apply': False,
-                    'reason': 'Member profile not found. Please contact the administrator to set up your membership.',
+                    'reason': 'Applicant profile not found. Please contact the administrator.',
                 }
 
         # Check for active loans
@@ -224,9 +220,9 @@ class LoanApplicationService:
         member_max_amount = None
         if MEMBERSHIP_ENABLED and user:
             try:
-                member = user.member_profile
+                member = user.applicant
                 member_max_amount = member.max_loan_amount  # None for Regular, 20k for Associate
-            except Member.DoesNotExist:
+            except Applicant.DoesNotExist:
                 pass
 
         result = []
@@ -371,14 +367,14 @@ class LoanApplicationService:
             # Validate amount against membership limits (if enabled)
             if MEMBERSHIP_ENABLED:
                 try:
-                    member = application.user.member_profile
+                    member = application.user.applicant
                     eligibility = MembershipService.check_loan_eligibility(
                         member, application.loan_type, amount
                     )
                     if not eligibility['eligible']:
                         return False, eligibility['reason']
-                except Member.DoesNotExist:
-                    return False, "Member profile not found. Please contact the administrator."
+                except Applicant.DoesNotExist:
+                    return False, "Applicant profile not found. Please contact the administrator."
 
             # Validate term
             is_valid, error = validate_loan_term(term, application.loan_type)
@@ -748,9 +744,8 @@ class ProfileService:
 
     @staticmethod
     def get_or_create_profile(user):
-        """Get or create applicant profile."""
-        profile, created = ApplicantProfile.objects.get_or_create(user=user)
-        return profile
+        """Get the applicant profile (Applicant IS the profile now)."""
+        return user.applicant
 
     @staticmethod
     def update_profile(user, profile_data):

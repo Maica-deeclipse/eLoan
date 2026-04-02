@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.db import transaction
-from .models import Member, Savings, SharedCapital
+from users.models import Applicant
+from applicant.models import Savings, SharedCapital
 
 
 class MembershipService:
@@ -109,11 +110,11 @@ class MembershipService:
         """
         # Check if user has a member profile
         try:
-            member = user.member_profile
-        except Member.DoesNotExist:
+            member = user.applicant
+        except Applicant.DoesNotExist:
             return {
                 'can_apply': False,
-                'reason': 'Member profile not found. Please contact the administrator.'
+                'reason': 'Applicant profile not found. Please contact the administrator.'
             }
 
         # Check minimum savings

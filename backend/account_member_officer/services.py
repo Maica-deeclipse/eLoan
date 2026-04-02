@@ -7,8 +7,8 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 
-from users.models import User
-from applicant.models import Member, Savings, SharedCapital, MembershipApprovalLog, MembershipAppeal
+from users.models import User, Applicant
+from applicant.models import Savings, SharedCapital, MembershipApprovalLog, MembershipAppeal
 from loans.models import AuditLog
 from .models import AMONotification
 
@@ -18,50 +18,48 @@ class MemberApplicationService:
 
     @staticmethod
     def get_pending_applicants():
-        return User.objects.filter(
+        return Applicant.objects.filter(
             account_status='pending',
-            role__name='Applicant',
-        ).select_related('role').order_by('-date_joined')
+        ).order_by('-date_joined')
 
     @staticmethod
     def get_all_applicants():
-        return User.objects.filter(
-            role__name='Applicant',
-        ).select_related('role').order_by('-date_joined')
+        return Applicant.objects.order_by('-date_joined')
 
     @staticmethod
     def approve(user_id, performed_by, ip_address=None):
-        user = User.objects.get(pk=user_id, role__name='Applicant')
-        user.account_status = 'approved'
-        user.approved_by = performed_by
-        user.approved_at = timezone.now()
-        user.save()
-
-        Member.objects.get_or_create(user=user)
+        from datetime import date
+        applicant = Applicant.objects.get(pk=user_id)
+        applicant.account_status = 'approved'
+        applicant.approved_by = performed_by
+        applicant.approved_at = timezone.now()
+        if applicant.member_since is None:
+            applicant.member_since = date.today()
+        applicant.save()
 
         MembershipApprovalLog.objects.create(
-            user=user,
+            user=applicant,
             action='approved',
             performed_by=performed_by,
             ip_address=ip_address,
         )
-        return user
+        return applicant
 
     @staticmethod
     def reject(user_id, performed_by, reason='', ip_address=None):
-        user = User.objects.get(pk=user_id, role__name='Applicant')
-        user.account_status = 'rejected'
-        user.rejection_reason = reason
-        user.save()
+        applicant = Applicant.objects.get(pk=user_id)
+        applicant.account_status = 'rejected'
+        applicant.rejection_reason = reason
+        applicant.save()
 
         MembershipApprovalLog.objects.create(
-            user=user,
+            user=applicant,
             action='rejected',
             performed_by=performed_by,
             rejection_reason=reason,
             ip_address=ip_address,
         )
-        return user
+        return applicant
 
 
 class MemberService:
@@ -69,19 +67,18 @@ class MemberService:
 
     @staticmethod
     def get_all_members(search=None):
-        qs = Member.objects.select_related('user').order_by('-member_since')
+        qs = Applicant.objects.order_by('-member_since')
         if search:
             qs = qs.filter(
-                Q(user__firstname__icontains=search) |
-                Q(user__lastname__icontains=search) |
-                Q(user__email__icontains=search) |
-                Q(user__employee_id__icontains=search)
+                Q(firstname__icontains=search) |
+                Q(lastname__icontains=search) |
+                Q(email__icontains=search)
             )
         return qs
 
     @staticmethod
     def get_member(member_id):
-        return Member.objects.select_related('user').get(pk=member_id)
+        return Applicant.objects.get(pk=member_id)
 
     @staticmethod
     def set_user_status(user_id, new_status):
@@ -93,30 +90,28 @@ class MemberService:
     @staticmethod
     def set_employment_status(member_id, employment_status, performed_by):
         """AMO verifies and sets the employment status after reviewing COE documents."""
-        member = Member.objects.select_related('user').get(pk=member_id)
-        member.verified_employment_status = employment_status
-        member.employment_status_verified_at = timezone.now()
-        member.employment_status_verified_by = performed_by
-        member.save(update_fields=[
+        applicant = Applicant.objects.get(pk=member_id)
+        applicant.verified_employment_status = employment_status
+        applicant.employment_status_verified_at = timezone.now()
+        applicant.employment_status_verified_by = performed_by
+        applicant.save(update_fields=[
             'verified_employment_status',
             'employment_status_verified_at',
             'employment_status_verified_by',
-            'updated_at',
+            'profile_updated_at',
         ])
-        # Recalculate membership type after employment status update
-        member.update_membership_classification()
-        return member
+        applicant.update_membership_classification()
+        return applicant
 
     @staticmethod
     def set_fixed_deposit(member_id, fixed_deposit_amount, performed_by):
         """AMO enters the fixed deposit amount for a member."""
         from decimal import Decimal
-        member = Member.objects.select_related('user').get(pk=member_id)
-        member.fixed_deposit = Decimal(str(fixed_deposit_amount))
-        member.save(update_fields=['fixed_deposit', 'updated_at'])
-        # Recalculate membership type after deposit update
-        member.update_membership_classification()
-        return member
+        applicant = Applicant.objects.get(pk=member_id)
+        applicant.fixed_deposit = Decimal(str(fixed_deposit_amount))
+        applicant.save(update_fields=['fixed_deposit', 'profile_updated_at'])
+        applicant.update_membership_classification()
+        return applicant
 
     @staticmethod
     def set_shares(member_id, subscribed_shares, paid_shares):
@@ -130,28 +125,27 @@ class MemberService:
         - member will not exceed 10% of total cooperative subscribed share capital
         """
         from django.core.exceptions import ValidationError as DjangoValidationError
-        member = Member.objects.select_related('user').get(pk=member_id)
-        member.subscribed_shares = subscribed_shares
-        member.paid_shares = paid_shares
+        applicant = Applicant.objects.get(pk=member_id)
+        applicant.subscribed_shares = subscribed_shares
+        applicant.paid_shares = paid_shares
         try:
-            member.full_clean(validate_unique=False)
+            applicant.full_clean(validate_unique=False)
         except DjangoValidationError as exc:
             messages = []
             for errs in exc.message_dict.values():
                 messages.extend(errs)
             raise ValueError(' '.join(messages))
-        member.save(update_fields=['subscribed_shares', 'paid_shares', 'updated_at'])
-        return member
+        applicant.save(update_fields=['subscribed_shares', 'paid_shares', 'profile_updated_at'])
+        return applicant
 
     @staticmethod
     def get_pending_with_deadline():
         """Return pending applications with days remaining for 30-day decision rule."""
         from datetime import date, timedelta
         deadline_days = 30
-        applicants = User.objects.filter(
+        applicants = Applicant.objects.filter(
             account_status='pending',
-            role__name='Applicant',
-        ).select_related('role').order_by('date_joined')
+        ).order_by('date_joined')
 
         result = []
         today = date.today()
@@ -214,14 +208,16 @@ class AppealService:
         appeal.review_notes = notes
         appeal.save()
 
+        from datetime import date
         # Re-approve the user account
         user.account_status = 'approved'
         user.approved_by = performed_by
         user.approved_at = timezone.now()
         user.rejection_reason = None
+        if hasattr(user, 'applicant') and user.applicant.member_since is None:
+            user.applicant.member_since = date.today()
+            user.applicant.save(update_fields=['member_since'])
         user.save()
-
-        Member.objects.get_or_create(user=user)
 
         MembershipApprovalLog.objects.create(
             user=user,
@@ -264,7 +260,7 @@ class SavingsCapitalService:
 
     @staticmethod
     def add_savings(member_id, amount, transaction_type, reference_number, remarks, recorded_by):
-        member = Member.objects.get(pk=member_id)
+        member = Applicant.objects.get(pk=member_id)
         if transaction_type == 'withdrawal':
             amount = -abs(Decimal(str(amount)))
         else:
@@ -280,7 +276,7 @@ class SavingsCapitalService:
 
     @staticmethod
     def add_capital(member_id, amount, transaction_type, reference_number, remarks, recorded_by):
-        member = Member.objects.get(pk=member_id)
+        member = Applicant.objects.get(pk=member_id)
         if transaction_type == 'withdrawal':
             amount = -abs(Decimal(str(amount)))
         else:
@@ -300,11 +296,10 @@ class DashboardService:
 
     @staticmethod
     def get_stats():
-        pending = User.objects.filter(account_status='pending', role__name='Applicant').count()
-        total_members = Member.objects.count()
-        recent_approved = User.objects.filter(
+        pending = Applicant.objects.filter(account_status='pending').count()
+        total_members = Applicant.objects.filter(account_status='approved').count()
+        recent_approved = Applicant.objects.filter(
             account_status='approved',
-            role__name='Applicant',
             approved_at__gte=timezone.now() - timedelta(days=7),
         ).count()
         return {
@@ -315,14 +310,13 @@ class DashboardService:
 
     @staticmethod
     def get_recent_applicants(limit=5):
-        return User.objects.filter(
+        return Applicant.objects.filter(
             account_status='pending',
-            role__name='Applicant',
         ).order_by('-date_joined')[:limit]
 
     @staticmethod
     def get_recent_members(limit=5):
-        return Member.objects.select_related('user').order_by('-member_since')[:limit]
+        return Applicant.objects.order_by('-member_since')[:limit]
 
 
 class ActivityLogService:
@@ -359,22 +353,23 @@ class ReportService:
     @staticmethod
     def get_registration_summary():
         return {
-            'pending': User.objects.filter(account_status='pending', role__name='Applicant').count(),
-            'approved': User.objects.filter(account_status='approved', role__name='Applicant').count(),
-            'rejected': User.objects.filter(account_status='rejected', role__name='Applicant').count(),
-            'total': User.objects.filter(role__name='Applicant').count(),
+            'pending': Applicant.objects.filter(account_status='pending').count(),
+            'approved': Applicant.objects.filter(account_status='approved').count(),
+            'rejected': Applicant.objects.filter(account_status='rejected').count(),
+            'total': Applicant.objects.count(),
         }
 
     @staticmethod
     def get_savings_capital_summary():
         savings_total = Savings.objects.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         capital_total = SharedCapital.objects.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        total_members = Applicant.objects.filter(account_status='approved').count()
         return {
             'total_savings': str(savings_total),
             'total_capital': str(capital_total),
-            'total_members': Member.objects.count(),
-            'regular_members': Member.objects.filter(membership_type='regular').count(),
-            'associate_members': Member.objects.filter(membership_type='associate').count(),
+            'total_members': total_members,
+            'regular_members': Applicant.objects.filter(membership_type='regular').count(),
+            'associate_members': Applicant.objects.filter(membership_type='associate').count(),
         }
 
 

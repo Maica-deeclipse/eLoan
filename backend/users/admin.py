@@ -30,7 +30,7 @@ from django.conf import settings
 from unfold.admin import ModelAdmin
 from unfold.decorators import display
 from unfold.contrib.filters.admin import RangeDateFilter
-from .models import User, Role
+from .models import User, Role, Applicant, AdminUser
 from authentication.password_reset import generate_password_reset_link
 
 
@@ -39,7 +39,7 @@ class UserCreationForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ('email', 'firstname', 'lastname', 'role', 'status', 'employee_id', 'account_status')
+        fields = ('email', 'firstname', 'lastname', 'role', 'status', 'account_status')
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -106,7 +106,7 @@ class UserChangeForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ('email', 'firstname', 'lastname', 'role', 'status', 'is_active', 'is_staff', 'employee_id', 'account_status')
+        fields = ('email', 'firstname', 'lastname', 'role', 'status', 'is_active', 'is_staff', 'account_status')
 
 
 @admin.register(User)
@@ -114,11 +114,11 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
 
-    list_display = ('email', 'get_full_name', 'employee_id', 'role', 'account_status_display', 'status', 'is_staff', 'date_joined')
+    list_display = ('email', 'get_full_name', 'role', 'account_status_display', 'status', 'is_staff', 'date_joined')
     list_filter = ('role', 'status', 'account_status', 'is_staff', 'is_superuser', 'date_joined')
 
     fieldsets = (
-        (None, {'fields': ('email', 'employee_id')}),
+        (None, {'fields': ('email',)}),
         ('Personal Info', {'fields': ('firstname', 'lastname')}),
         ('Role & Status', {'fields': ('role', 'status', 'account_status')}),
         ('Approval Info', {'fields': ('approved_by', 'approved_at', 'rejection_reason'), 'classes': ('collapse',)}),
@@ -129,7 +129,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'firstname', 'lastname', 'employee_id', 'role', 'status', 'account_status'),
+            'fields': ('email', 'firstname', 'lastname', 'role', 'status', 'account_status'),
             'description': 'An invitation email will be sent to the user to set their password.'
         }),
     )
@@ -144,7 +144,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
             return 'Rejected', 'danger'
         return 'Pending', 'warning'
 
-    search_fields = ('email', 'firstname', 'lastname', 'employee_id')
+    search_fields = ('email', 'firstname', 'lastname')
     ordering = ('-date_joined',)
     filter_horizontal = ('groups', 'user_permissions',)
 
@@ -186,13 +186,16 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
             user.approved_at = timezone.now()
             user.save()
 
-            # Create Member profile if user is an Applicant
+            # Set member_since date if applicant and not yet set
             if user.role and user.role.name == 'Applicant':
                 try:
-                    from applicant.models import Member
-                    Member.objects.get_or_create(user=user)
+                    from datetime import date
+                    applicant = user.applicant
+                    if applicant.member_since is None:
+                        applicant.member_since = date.today()
+                        applicant.save(update_fields=['member_since'])
                 except Exception as e:
-                    print(f"Could not create member profile for {user.email}: {e}")
+                    print(f"Could not set member_since for {user.email}: {e}")
 
             # Log the approval
             try:
@@ -257,3 +260,69 @@ class RoleAdmin(ModelAdmin):
     def user_count(self, obj):
         return obj.user_set.count()
     user_count.short_description = 'Number of Users'
+
+
+@admin.register(Applicant)
+class ApplicantAdmin(ModelAdmin):
+    """Combined applicant profile and membership view."""
+
+    list_display = ('email', 'get_full_name', 'membership_type', 'membership_status', 'account_status_display', 'member_since')
+    list_filter = ('membership_type', 'membership_status', 'account_status', 'member_since')
+    search_fields = ('email', 'firstname', 'lastname', 'contact_number')
+    readonly_fields = ('profile_created_at', 'profile_updated_at', 'member_since')
+    ordering = ['-profile_created_at']
+
+    fieldsets = (
+        ('Account', {'fields': ('email', 'firstname', 'lastname', 'role', 'status', 'account_status')}),
+        ('Contact', {'fields': ('contact_number', 'secondary_contact')}),
+        ('Present Address', {'fields': ('address_line1', 'address_line2', 'city', 'province', 'zip_code')}),
+        ('Personal', {'fields': ('gender', 'middle_name', 'date_of_birth', 'civil_status', 'citizenship')}),
+        ('Employment', {'fields': ('employment_category', 'employment_status', 'employer_name', 'position', 'monthly_income')}),
+        ('Membership', {'fields': ('membership_type', 'membership_status', 'fixed_deposit', 'subscribed_shares', 'paid_shares', 'member_since')}),
+        ('Timestamps', {'fields': ('profile_created_at', 'profile_updated_at'), 'classes': ('collapse',)}),
+    )
+
+    def get_full_name(self, obj):
+        return f"{obj.firstname} {obj.lastname}"
+    get_full_name.short_description = 'Full Name'
+
+    @display(description='Account Status', label=True)
+    def account_status_display(self, obj):
+        if obj.account_status == 'approved':
+            return 'Approved', 'success'
+        elif obj.account_status == 'rejected':
+            return 'Rejected', 'danger'
+        return 'Pending', 'warning'
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(AdminUser)
+class AdminUserAdmin(ModelAdmin):
+    """Staff/admin user management."""
+
+    list_display = ('email', 'get_full_name', 'employee_id', 'role', 'account_status_display', 'status', 'department')
+    list_filter = ('role', 'status', 'account_status')
+    search_fields = ('email', 'firstname', 'lastname', 'employee_id')
+    readonly_fields = ('date_joined',)
+
+    fieldsets = (
+        (None, {'fields': ('email', 'employee_id', 'department')}),
+        ('Personal Info', {'fields': ('firstname', 'lastname')}),
+        ('Role & Status', {'fields': ('role', 'status', 'account_status')}),
+        ('Permissions', {'fields': ('is_active', 'is_staff')}),
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
+    )
+
+    def get_full_name(self, obj):
+        return f"{obj.firstname} {obj.lastname}"
+    get_full_name.short_description = 'Full Name'
+
+    @display(description='Account Status', label=True)
+    def account_status_display(self, obj):
+        if obj.account_status == 'approved':
+            return 'Approved', 'success'
+        elif obj.account_status == 'rejected':
+            return 'Rejected', 'danger'
+        return 'Pending', 'warning'

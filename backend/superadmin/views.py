@@ -14,8 +14,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 
 from .models import Violation, DisciplinaryAction, TerminationRecord
-from applicant.models import Member
-from users.models import User
+from users.models import User, Applicant
 
 STAFF_ROLES = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Officer']
 
@@ -58,8 +57,8 @@ class StatsView(SuperAdminBaseView):
         suspended_staff = User.objects.filter(
             role__name__in=STAFF_ROLES, status='suspended'
         ).count()
-        total_members = Member.objects.count()
-        active_members = Member.objects.filter(membership_status='active').count()
+        total_members = Applicant.objects.count()
+        active_members = Applicant.objects.filter(membership_status='active').count()
         open_violations = Violation.objects.filter(status='open').count()
         total_violations = Violation.objects.count()
         total_disciplinary = DisciplinaryAction.objects.count()
@@ -217,8 +216,8 @@ class ViolationListView(SuperAdminBaseView):
             )
 
         try:
-            member = Member.objects.get(pk=member_id)
-        except Member.DoesNotExist:
+            member = Applicant.objects.get(pk=member_id)
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         violation = Violation.objects.create(
@@ -237,8 +236,8 @@ class ViolationListView(SuperAdminBaseView):
         return {
             'id': v.id,
             'member_id': v.member.id,
-            'member_name': f"{v.member.user.firstname} {v.member.user.lastname}",
-            'member_email': v.member.user.email,
+            'member_name': f"{v.member.firstname} {v.member.lastname}",
+            'member_email': v.member.email,
             'violation_type': v.violation_type,
             'violation_type_display': v.get_violation_type_display(),
             'description': v.description,
@@ -306,8 +305,8 @@ class DisciplinaryActionListView(SuperAdminBaseView):
             )
 
         try:
-            member = Member.objects.select_related('user').get(pk=member_id)
-        except Member.DoesNotExist:
+            member = Applicant.objects.get(pk=member_id)
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         action = DisciplinaryAction.objects.create(
@@ -335,8 +334,8 @@ class DisciplinaryActionListView(SuperAdminBaseView):
         return {
             'id': a.id,
             'member_id': a.member.id,
-            'member_name': f"{a.member.user.firstname} {a.member.user.lastname}",
-            'member_email': a.member.user.email,
+            'member_name': f"{a.member.firstname} {a.member.lastname}",
+            'member_email': a.member.email,
             'action_type': a.action_type,
             'action_type_display': a.get_action_type_display(),
             'reason': a.reason,
@@ -371,8 +370,8 @@ class TerminateMemberView(SuperAdminBaseView):
             )
 
         try:
-            member = Member.objects.select_related('user').get(pk=member_id)
-        except Member.DoesNotExist:
+            member = Applicant.objects.get(pk=member_id)
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         if hasattr(member, 'termination_record'):
@@ -397,11 +396,11 @@ class TerminateMemberView(SuperAdminBaseView):
 
         # Disable user account (except deceased)
         if termination_type != 'deceased':
-            member.user.status = 'suspended'
-            member.user.save(update_fields=['status'])
+            member.status = 'suspended'
+            member.save(update_fields=['status'])
 
         return Response({
-            'message': f"Member {member.user.email} has been {member.get_membership_status_display().lower()}.",
+            'message': f"Member {member.email} has been {member.get_membership_status_display().lower()}.",
             'termination_type': record.termination_type,
             'membership_status': member.membership_status,
             'effective_date': record.effective_date.isoformat(),
@@ -415,7 +414,7 @@ class TerminateMemberView(SuperAdminBaseView):
 class MemberOverviewView(SuperAdminBaseView):
     def get(self, request):
         membership_status = request.query_params.get('membership_status')
-        qs = Member.objects.select_related('user').order_by('-member_since')
+        qs = Applicant.objects.order_by('-member_since')
         if membership_status:
             qs = qs.filter(membership_status=membership_status)
 
@@ -442,8 +441,8 @@ class MemberCaseHistoryView(SuperAdminBaseView):
 
     def get(self, request, member_id):
         try:
-            member = Member.objects.select_related('user').get(pk=member_id)
-        except Member.DoesNotExist:
+            member = Applicant.objects.get(pk=member_id)
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         violations = Violation.objects.filter(member=member).select_related('logged_by').order_by('-logged_at')
@@ -464,8 +463,8 @@ class MemberCaseHistoryView(SuperAdminBaseView):
         return Response({
             'member': {
                 'id': member.id,
-                'name': f"{member.user.firstname} {member.user.lastname}",
-                'email': member.user.email,
+                'name': f"{member.firstname} {member.lastname}",
+                'email': member.email,
                 'membership_status': member.membership_status,
                 'membership_status_display': member.get_membership_status_display(),
                 'open_violations': violations.filter(status='open').count(),
@@ -486,8 +485,8 @@ class MemberFaceVerificationsView(SuperAdminBaseView):
         from django.conf import settings as django_settings
 
         try:
-            member = Member.objects.select_related('user').get(pk=member_id)
-        except Member.DoesNotExist:
+            member = Applicant.objects.get(pk=member_id)
+        except Applicant.DoesNotExist:
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         verifications = FaceVerification.objects.filter(

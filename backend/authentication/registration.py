@@ -6,7 +6,7 @@ from rest_framework import serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from users.models import User, Role
+from users.models import User, Role, Applicant, AdminUser
 
 STAFF_ROLES = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Officer']
 
@@ -32,7 +32,7 @@ class StaffRegistrationSerializer(serializers.Serializer):
         except Role.DoesNotExist:
             raise serializers.ValidationError({'error': f'Role "{role_name}" not found.'})
 
-        user = User.objects.create_user(
+        admin_user = AdminUser.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password'],
             firstname=validated_data['firstname'],
@@ -43,7 +43,7 @@ class StaffRegistrationSerializer(serializers.Serializer):
             status='active',
             is_staff=True,
         )
-        return user
+        return admin_user
 
 
 class StaffRegistrationView(APIView):
@@ -56,16 +56,16 @@ class StaffRegistrationView(APIView):
     def post(self, request):
         serializer = StaffRegistrationSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
+            admin_user = serializer.save()
             return Response({
                 'message': 'Registration submitted. Your account is pending Super Admin approval.',
                 'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'firstname': user.firstname,
-                    'lastname': user.lastname,
-                    'role': user.role.name,
-                    'account_status': user.account_status,
+                    'id': admin_user.id,
+                    'email': admin_user.email,
+                    'firstname': admin_user.firstname,
+                    'lastname': admin_user.lastname,
+                    'role': admin_user.role.name,
+                    'account_status': admin_user.account_status,
                 }
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -127,7 +127,7 @@ class StaffGoogleRegistrationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if User.objects.filter(employee_id=employee_id).exists():
+        if AdminUser.objects.filter(employee_id=employee_id).exists():
             return Response(
                 {'error': f"Employee ID '{employee_id}' is already registered. Please use a different Employee ID."},
                 status=status.HTTP_400_BAD_REQUEST
@@ -146,7 +146,7 @@ class StaffGoogleRegistrationView(APIView):
             secrets.choice(string.ascii_letters + string.digits) for _ in range(48)
         )
 
-        user = User.objects.create_user(
+        admin_user = AdminUser.objects.create_user(
             email=email,
             password=random_password,
             firstname=firstname,
@@ -161,12 +161,12 @@ class StaffGoogleRegistrationView(APIView):
         return Response({
             'message': 'Registration submitted. Your account is pending Super Admin approval.',
             'user': {
-                'id': user.id,
-                'email': user.email,
-                'firstname': user.firstname,
-                'lastname': user.lastname,
-                'role': user.role.name,
-                'account_status': user.account_status,
+                'id': admin_user.id,
+                'email': admin_user.email,
+                'firstname': admin_user.firstname,
+                'lastname': admin_user.lastname,
+                'role': admin_user.role.name,
+                'account_status': admin_user.account_status,
             }
         }, status=status.HTTP_201_CREATED)
 
@@ -198,16 +198,16 @@ class ApplicantRegistrationSerializer(serializers.Serializer):
                 'error': 'System configuration error: Applicant role not found.'
             })
 
-        user = User.objects.create_user(
+        applicant = Applicant.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password'],
             firstname=validated_data['firstname'],
             lastname=validated_data['lastname'],
             role=applicant_role,
             account_status='pending',
-            status='active'
+            status='active',
         )
-        return user
+        return applicant
 
 
 class ApplicantRegistrationView(APIView):
@@ -220,17 +220,16 @@ class ApplicantRegistrationView(APIView):
 
     def post(self, request):
         import json
-        from applicant.models import ApplicantProfile, ApplicantBeneficiary
+        from decimal import Decimal
+        from applicant.models import ApplicantBeneficiary
 
         serializer = ApplicantRegistrationSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        user = serializer.save()
+        applicant = serializer.save()
 
-        # Build profile data from request
-        profile, _ = ApplicantProfile.objects.get_or_create(user=user)
-
+        # Set profile fields directly on the Applicant instance
         str_fields = [
             'middle_name', 'gender', 'citizenship', 'civil_status', 'spouse_name',
             'contact_number', 'tin', 'sss_number', 'highest_education',
@@ -245,31 +244,30 @@ class ApplicantRegistrationView(APIView):
         for field in str_fields:
             val = request.data.get(field, '').strip()
             if val:
-                setattr(profile, field, val)
+                setattr(applicant, field, val)
 
         # Date of birth
         dob = request.data.get('date_of_birth', '').strip()
         if dob:
-            profile.date_of_birth = dob
+            applicant.date_of_birth = dob
 
         # Monthly income
         income = request.data.get('monthly_income', '').strip()
         if income:
             try:
-                from decimal import Decimal
-                profile.monthly_income = Decimal(income)
+                applicant.monthly_income = Decimal(income)
             except Exception:
                 pass
 
         # File uploads
         if 'id_photo' in request.FILES:
-            profile.id_photo = request.FILES['id_photo']
+            applicant.id_photo = request.FILES['id_photo']
         if 'payslip' in request.FILES:
-            profile.payslip = request.FILES['payslip']
+            applicant.payslip = request.FILES['payslip']
         if 'coe_document' in request.FILES:
-            profile.coe_document = request.FILES['coe_document']
+            applicant.coe_document = request.FILES['coe_document']
 
-        profile.save()
+        applicant.save()
 
         # Beneficiaries (sent as JSON string)
         beneficiaries_raw = request.data.get('beneficiaries', '[]')
@@ -280,7 +278,7 @@ class ApplicantRegistrationView(APIView):
                 if not name:
                     continue
                 ApplicantBeneficiary.objects.create(
-                    profile=profile,
+                    profile=applicant,
                     name=name,
                     relationship=b.get('relationship', ''),
                     date_of_birth=b.get('date_of_birth') or None,
@@ -292,10 +290,10 @@ class ApplicantRegistrationView(APIView):
         return Response({
             'message': 'Registration successful. Your account is pending approval by the Account Member Officer.',
             'user': {
-                'id': user.id,
-                'email': user.email,
-                'firstname': user.firstname,
-                'lastname': user.lastname,
-                'account_status': user.account_status,
+                'id': applicant.id,
+                'email': applicant.email,
+                'firstname': applicant.firstname,
+                'lastname': applicant.lastname,
+                'account_status': applicant.account_status,
             }
         }, status=status.HTTP_201_CREATED)

@@ -34,9 +34,9 @@ class Violation(models.Model):
     ]
 
     member = models.ForeignKey(
-        'applicant.Member',
+        'users.Applicant',
         on_delete=models.CASCADE,
-        related_name='violations'
+        related_name='violations',
     )
     violation_type = models.CharField(max_length=30, choices=VIOLATION_TYPE_CHOICES)
     description = models.TextField()
@@ -73,7 +73,7 @@ class Violation(models.Model):
         member = self.member
         if member.membership_status == 'active':
             member.membership_status = 'under_review'
-            member.save(update_fields=['membership_status', 'updated_at'])
+            member.save(update_fields=['membership_status', 'profile_updated_at'])
 
 
 class DisciplinaryAction(models.Model):
@@ -90,9 +90,9 @@ class DisciplinaryAction(models.Model):
     ]
 
     member = models.ForeignKey(
-        'applicant.Member',
+        'users.Applicant',
         on_delete=models.CASCADE,
-        related_name='disciplinary_actions'
+        related_name='disciplinary_actions',
     )
     violations = models.ManyToManyField(
         Violation,
@@ -138,7 +138,7 @@ class DisciplinaryAction(models.Model):
         new_status = status_map.get(self.action_type)
         if new_status:
             member.membership_status = new_status
-            member.save(update_fields=['membership_status', 'updated_at'])
+            member.save(update_fields=['membership_status', 'profile_updated_at'])
 
             # Disable user account for termination/suspension
             if self.action_type == 'termination':
@@ -162,9 +162,9 @@ class TerminationRecord(models.Model):
     ]
 
     member = models.OneToOneField(
-        'applicant.Member',
+        'users.Applicant',
         on_delete=models.CASCADE,
-        related_name='termination_record'
+        related_name='termination_record',
     )
     termination_type = models.CharField(max_length=15, choices=TERMINATION_TYPE_CHOICES)
     reason = models.TextField()
