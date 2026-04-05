@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   statusBannerText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   sectionCard: {
     backgroundColor: '#fff',
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#6b7280',
     marginBottom: 12,
     textTransform: 'uppercase',
@@ -401,11 +401,11 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     color: '#1f2937',
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
   },
   infoValueHighlight: {
     color: '#6366f1',
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   purposeText: {
     fontSize: 14,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   },
   comakerName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#1f2937',
   },
   comakerEmail: {
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   },
   verifiedText: {
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
   },
   verificationRow: {
     flexDirection: 'row',
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   },
   verificationStatus: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
   },
   withdrawButton: {
     backgroundColor: '#ef4444',
@@ -526,6 +526,6 @@ const styles = StyleSheet.create({
   withdrawButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

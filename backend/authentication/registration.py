@@ -130,7 +130,7 @@ class StaffGoogleRegistrationView(APIView):
         try:
             role = Role.objects.get(name=role_name)
         except Role.DoesNotExist:
-            return Response({'error': f'Role "{role_name}" not found.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': f'Role "{role_name}" not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
         firstname = google_user.get('given_name', '') or email.split('@')[0]
         lastname = google_user.get('family_name', '') or ''

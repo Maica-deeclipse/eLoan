@@ -405,7 +405,7 @@ export default function LoanDetailsScreen({ navigation }) {
             <View style={styles.calculationCard}>
               <Text style={styles.calculationTitle}>Loan Calculation</Text>
               {calculating ? (
-                <ActivityIndicator color="#6366f1" />
+                <ActivityIndicator color="#0f1c52" />
               ) : (
                 <>
                   <View style={styles.calcRow}>
@@ -474,7 +474,7 @@ export default function LoanDetailsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#EEF4FF',
   },
   keyboardView: {
     flex: 1,
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#EEF4FF',
   },
   progressContainer: {
     padding: 16,
@@ -491,12 +491,12 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: 'rgba(15,28,82,0.1)',
     borderRadius: 2,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#0f1c52',
     borderRadius: 2,
   },
   progressText: {
@@ -511,14 +511,14 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   loanTypeCard: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#0f1c52',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   loanTypeName: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     color: '#fff',
     marginBottom: 8,
   },
@@ -528,12 +528,12 @@ const styles = StyleSheet.create({
   },
   loanTypeInfo: {
     fontSize: 13,
-    color: '#c7d2fe',
+    color: 'rgba(255,255,255,0.70)',
     marginRight: 16,
   },
   loanTypeRange: {
     fontSize: 12,
-    color: '#e0e7ff',
+    color: 'rgba(255,255,255,0.55)',
   },
   section: {
     backgroundColor: '#fff',
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#6b7280',
     marginBottom: 16,
     textTransform: 'uppercase',
@@ -558,18 +558,18 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: '#374151',
+    color: '#0f1c52',
     marginBottom: 6,
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: 'rgba(15,28,82,0.15)',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#1f2937',
+    color: '#0f1c52',
     backgroundColor: '#fff',
   },
   inputError: {
@@ -586,21 +586,21 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: '#6366f1',
+    color: '#0f1c52',
     marginTop: 8,
   },
   calculationCard: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#EEF4FF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: 'rgba(77,128,228,0.3)',
   },
   calculationTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#166534',
+    fontFamily: 'Poppins_600SemiBold',
+    color: '#0f1c52',
     marginBottom: 12,
   },
   calcRow: {
@@ -610,17 +610,17 @@ const styles = StyleSheet.create({
   },
   calcLabel: {
     fontSize: 14,
-    color: '#166534',
+    color: '#0f1c52',
   },
   calcValue: {
     fontSize: 14,
-    color: '#166534',
-    fontWeight: '500',
+    color: '#0f1c52',
+    fontFamily: 'Poppins_500Medium',
   },
   calcValueMain: {
     fontSize: 18,
-    color: '#166534',
-    fontWeight: '700',
+    color: '#0f1c52',
+    fontFamily: 'Poppins_700Bold',
   },
   noticeCard: {
     flexDirection: 'row',
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: 'rgba(15,28,82,0.1)',
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -653,20 +653,20 @@ const styles = StyleSheet.create({
   },
   backButton: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#EEF4FF',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     marginRight: 8,
   },
   backButtonText: {
-    color: '#374151',
+    color: '#0f1c52',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   continueButton: {
     flex: 2,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#0f1c52',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -677,6 +677,6 @@ const styles = StyleSheet.create({
   continueButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

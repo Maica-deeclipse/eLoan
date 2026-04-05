@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   topBarTitle: {
     color: '#fff',
     fontSize: 17,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   iconButton: {
     padding: 8,
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   instructionText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   },
   countdownText: {
     fontSize: 96,
-    fontWeight: '900',
+    fontFamily: 'Poppins_800ExtraBold',
     color: 'rgba(255,255,255,0.9)',
     textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 0, height: 2 },
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   // Permission screen
   permissionContainer: {
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   permissionTitle: {
     color: '#fff',
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     marginTop: 20,
     marginBottom: 10,
   },
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   permissionButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   closeTextButton: {
     paddingVertical: 10,

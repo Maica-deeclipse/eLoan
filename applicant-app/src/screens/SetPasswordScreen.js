@@ -226,12 +226,12 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#1f2937',
   },
   title: {
     fontSize: 24,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#1f2937',
     marginBottom: 8,
   },
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
     color: '#374151',
     marginBottom: 8,
   },
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   footer: {
     marginTop: 40,
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     fontSize: 24,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#1f2937',
     marginBottom: 16,
   },
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   errorContainer: {
     alignItems: 'center',
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: 24,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#1f2937',
     marginBottom: 16,
   },
@@ -382,6 +382,6 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#28a745',
     textAlign: 'center',
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   content: {
     flex: 1,
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#212529',
     marginBottom: 8,
   },
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   },
   loanTypeName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#fff',
   },
   applicationId: {
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#fff',
   },
   section: {
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#212529',
   },
   sectionContent: {
@@ -672,13 +672,13 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     color: '#212529',
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
     maxWidth: '60%',
     textAlign: 'right',
   },
   infoValueImportant: {
     color: '#0d6efd',
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   coMakerItem: {
     flexDirection: 'row',
@@ -698,14 +698,14 @@ const styles = StyleSheet.create({
   },
   coMakerNumberText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
   },
   coMakerDetails: {
     flex: 1,
   },
   coMakerName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#212529',
   },
   coMakerContact: {
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
   },
   coMakerStatusText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#856404',
   },
   noDataText: {
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
   },
   verificationTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#212529',
     marginBottom: 12,
   },
@@ -787,7 +787,7 @@ const styles = StyleSheet.create({
   },
   noticeTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#856404',
     marginBottom: 8,
   },
@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#666',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginLeft: 4,
   },
   submitButton: {
@@ -833,7 +833,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginRight: 8,
   },
 });

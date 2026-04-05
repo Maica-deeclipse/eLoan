@@ -878,7 +878,7 @@ export default function RegisterWizardScreen({ navigation }) {
 // ─── Dropdown Styles ──────────────────────────────────────────────────────────
 const dd = StyleSheet.create({
   wrapper: { marginBottom: 0 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  label: { fontSize: 13, fontFamily: 'Poppins_600SemiBold', color: '#374151', marginBottom: 6 },
   btn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#d1d5db',
@@ -898,14 +898,14 @@ const dd = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12,
   },
   menuTitle: {
-    fontSize: 13, fontWeight: '700', color: '#6b7280',
+    fontSize: 13, fontFamily: 'Poppins_700Bold', color: '#6b7280',
     paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
   item: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   itemActive: { backgroundColor: '#eff6ff' },
   itemText: { flex: 1, fontSize: 15, color: '#1f2937' },
-  itemTextActive: { color: '#02327a', fontWeight: '600' },
-  check: { fontSize: 14, color: '#02327a', fontWeight: '700' },
+  itemTextActive: { color: '#02327a', fontFamily: 'Poppins_600SemiBold' },
+  check: { fontSize: 14, color: '#02327a', fontFamily: 'Poppins_700Bold' },
 });
 
 // ─── Main Styles ──────────────────────────────────────────────────────────────
@@ -921,8 +921,8 @@ const s = StyleSheet.create({
   backBtn: { width: 36, alignItems: 'flex-start' },
   backArrow: { fontSize: 28, color: '#02327a', lineHeight: 32 },
   headerCenter: { flex: 1, alignItems: 'center' },
-  stepLabel: { fontSize: 11, color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  stepTitle: { fontSize: 16, fontWeight: '700', color: '#1f2937', marginTop: 2 },
+  stepLabel: { fontSize: 11, color: '#9ca3af', fontFamily: 'Poppins_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5 },
+  stepTitle: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: '#1f2937', marginTop: 2 },
 
   // Progress
   progressTrack: { height: 4, backgroundColor: '#e5e7eb' },
@@ -943,7 +943,7 @@ const s = StyleSheet.create({
 
   // Fields
   fieldWrap: { marginBottom: 14 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  fieldLabel: { fontSize: 13, fontFamily: 'Poppins_600SemiBold', color: '#374151', marginBottom: 6 },
   req: { color: '#dc2626' },
   input: {
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#d1d5db',
@@ -951,7 +951,7 @@ const s = StyleSheet.create({
     fontSize: 15, color: '#1f2937',
   },
   sectionTitle: {
-    fontSize: 14, fontWeight: '700', color: '#02327a',
+    fontSize: 14, fontFamily: 'Poppins_700Bold', color: '#02327a',
     marginTop: 8, marginBottom: 12, paddingBottom: 6,
     borderBottomWidth: 1.5, borderBottomColor: '#dbeafe',
   },
@@ -963,7 +963,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
   checkboxActive: { backgroundColor: '#02327a', borderColor: '#02327a' },
-  checkmark: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  checkmark: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_700Bold' },
   checkboxLabel: { fontSize: 15, color: '#1f2937' },
 
   // Step note
@@ -976,10 +976,10 @@ const s = StyleSheet.create({
     borderRadius: 10, padding: 14, marginBottom: 8,
     borderWidth: 1, borderColor: '#e5e7eb', elevation: 1,
   },
-  benefName: { fontSize: 15, fontWeight: '600', color: '#1f2937' },
+  benefName: { fontSize: 15, fontFamily: 'Poppins_600SemiBold', color: '#1f2937' },
   benefSub: { fontSize: 13, color: '#6b7280', marginTop: 2 },
   removeBtn: { padding: 4 },
-  removeBtnText: { fontSize: 16, color: '#ef4444', fontWeight: '700' },
+  removeBtnText: { fontSize: 16, color: '#ef4444', fontFamily: 'Poppins_700Bold' },
   benefForm: {
     backgroundColor: '#fff', borderRadius: 12, padding: 16,
     borderWidth: 1, borderColor: '#dbeafe', marginBottom: 12,
@@ -989,17 +989,17 @@ const s = StyleSheet.create({
     flex: 1, backgroundColor: '#02327a', borderRadius: 8,
     paddingVertical: 12, alignItems: 'center',
   },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  addBtnText: { color: '#fff', fontFamily: 'Poppins_700Bold', fontSize: 15 },
   cancelBtn: {
     flex: 1, backgroundColor: '#f3f4f6', borderRadius: 8,
     paddingVertical: 12, alignItems: 'center',
   },
-  cancelBtnText: { color: '#6b7280', fontWeight: '600', fontSize: 15 },
+  cancelBtnText: { color: '#6b7280', fontFamily: 'Poppins_600SemiBold', fontSize: 15 },
   addBenefBtn: {
     borderWidth: 2, borderColor: '#02327a', borderStyle: 'dashed',
     borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 4,
   },
-  addBenefBtnText: { color: '#02327a', fontWeight: '700', fontSize: 15 },
+  addBenefBtnText: { color: '#02327a', fontFamily: 'Poppins_700Bold', fontSize: 15 },
 
   // Documents
   docHint: { fontSize: 13, color: '#6b7280', marginBottom: 12, lineHeight: 19 },
@@ -1009,13 +1009,13 @@ const s = StyleSheet.create({
     alignItems: 'center', borderWidth: 1.5, borderColor: '#d1d5db', elevation: 1,
   },
   docBtnIcon: { fontSize: 28, marginBottom: 8 },
-  docBtnText: { fontSize: 13, color: '#374151', fontWeight: '600', textAlign: 'center' },
+  docBtnText: { fontSize: 13, color: '#374151', fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
   docBtnSub: { fontSize: 11, color: '#9ca3af', marginTop: 3, textAlign: 'center' },
   photoPreviewWrap: { alignItems: 'center', marginBottom: 20 },
   idPhotoPreview: { width: 150, height: 150, borderRadius: 8, borderWidth: 2, borderColor: '#02327a' },
   payslipPreview: { width: '100%', height: 180, borderRadius: 8, borderWidth: 2, borderColor: '#02327a', resizeMode: 'cover' },
   retakeBtn: { marginTop: 10, paddingVertical: 8, paddingHorizontal: 20, backgroundColor: '#fee2e2', borderRadius: 8 },
-  retakeBtnText: { color: '#dc2626', fontWeight: '600', fontSize: 14 },
+  retakeBtnText: { color: '#dc2626', fontFamily: 'Poppins_600SemiBold', fontSize: 14 },
 
   // Bottom nav bar
   navBar: {
@@ -1026,13 +1026,13 @@ const s = StyleSheet.create({
     flex: 1, paddingVertical: 14, alignItems: 'center',
     borderRadius: 8, borderWidth: 1.5, borderColor: '#d1d5db',
   },
-  navBackText: { fontSize: 15, fontWeight: '600', color: '#6b7280' },
+  navBackText: { fontSize: 15, fontFamily: 'Poppins_600SemiBold', color: '#6b7280' },
   navNext: {
     flex: 2, paddingVertical: 14, alignItems: 'center',
     borderRadius: 8, backgroundColor: '#02327a',
   },
   navNextDisabled: { opacity: 0.5 },
-  navNextText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  navNextText: { fontSize: 15, fontFamily: 'Poppins_700Bold', color: '#fff' },
 
   // Success
   successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
@@ -1041,14 +1041,14 @@ const s = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginBottom: 24,
   },
   successIconText: { fontSize: 40, color: '#fff' },
-  successTitle: { fontSize: 24, fontWeight: '700', color: '#1f2937', marginBottom: 12, textAlign: 'center' },
+  successTitle: { fontSize: 24, fontFamily: 'Poppins_700Bold', color: '#1f2937', marginBottom: 12, textAlign: 'center' },
   successMsg: { fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 22, marginBottom: 8 },
   successSub: { fontSize: 13, color: '#9ca3af', textAlign: 'center', lineHeight: 20, marginBottom: 32 },
   backToLoginBtn: {
     backgroundColor: '#02327a', borderRadius: 8,
     paddingVertical: 14, paddingHorizontal: 32,
   },
-  backToLoginText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  backToLoginText: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
 });
 
 // ─── Camera Frame Modal Styles ────────────────────────────────────────────────
@@ -1062,13 +1062,13 @@ const cam = StyleSheet.create({
 
   // Permission screen
   permWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: '#111' },
-  permTitle: { fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 10, textAlign: 'center' },
+  permTitle: { fontSize: 20, fontFamily: 'Poppins_700Bold', color: '#fff', marginBottom: 10, textAlign: 'center' },
   permMsg: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginBottom: 28, lineHeight: 20 },
   permBtn: {
     backgroundColor: '#02327a', borderRadius: 8,
     paddingVertical: 14, paddingHorizontal: 32, marginBottom: 14,
   },
-  permBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  permBtnText: { color: '#fff', fontFamily: 'Poppins_700Bold', fontSize: 15 },
   cancelLink: { paddingVertical: 10 },
   cancelLinkText: { color: '#9ca3af', fontSize: 14 },
 
@@ -1079,7 +1079,7 @@ const cam = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center', justifyContent: 'center',
   },
-  closeBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  closeBtnText: { color: '#fff', fontSize: 18, fontFamily: 'Poppins_700Bold' },
 
   // Hint text (above the frame)
   hintWrap: {
@@ -1087,7 +1087,7 @@ const cam = StyleSheet.create({
     alignItems: 'center',
   },
   hintText: {
-    color: '#fff', fontSize: 13, fontWeight: '600',
+    color: '#fff', fontSize: 13, fontFamily: 'Poppins_600SemiBold',
     backgroundColor: 'rgba(0,0,0,0.4)',
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
     overflow: 'hidden',

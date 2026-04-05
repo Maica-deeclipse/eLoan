@@ -231,12 +231,12 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#1f2937',
   },
   title: {
     fontSize: 24,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#1f2937',
     marginBottom: 6,
   },
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -313,14 +313,14 @@ const styles = StyleSheet.create({
   },
   googleIcon: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     color: '#4285F4',
     marginRight: 10,
   },
   googleButtonText: {
     color: '#374151',
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   googleHint: {
     textAlign: 'center',
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   registerLink: {
     color: '#02327a',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   footer: {
     marginTop: 36,

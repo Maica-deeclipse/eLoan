@@ -200,7 +200,7 @@ export default function PersonalDetailsScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#0f1c52" />
         <Text style={styles.loadingText}>Loading your information...</Text>
       </SafeAreaView>
     );
@@ -387,17 +387,17 @@ export default function PersonalDetailsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: '#f9fafb' },
+  container:        { flex: 1, backgroundColor: '#EEF4FF' },
   keyboardView:     { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9fafb' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#EEF4FF' },
   loadingText:      { marginTop: 12, fontSize: 16, color: '#6b7280' },
   progressContainer:{ padding: 16, paddingBottom: 0 },
-  progressBar:      { height: 4, backgroundColor: '#e5e7eb', borderRadius: 2 },
-  progressFill:     { height: '100%', backgroundColor: '#6366f1', borderRadius: 2 },
+  progressBar:      { height: 4, backgroundColor: 'rgba(15,28,82,0.1)', borderRadius: 2 },
+  progressFill:     { height: '100%', backgroundColor: '#0f1c52', borderRadius: 2 },
   progressText:     { fontSize: 12, color: '#9ca3af', marginTop: 8, textAlign: 'right' },
   scrollContent:    { padding: 16, paddingTop: 8, paddingBottom: 100 },
   instructions:     { marginBottom: 16 },
-  instructionTitle: { fontSize: 20, fontWeight: '700', color: '#1f2937' },
+  instructionTitle: { fontSize: 20, fontFamily: 'Poppins_700Bold', color: '#0f1c52' },
   instructionText:  { fontSize: 14, color: '#6b7280', marginTop: 4 },
   section: {
     backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16,
@@ -405,25 +405,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03, shadowRadius: 2, elevation: 1,
   },
   sectionTitle: {
-    fontSize: 14, fontWeight: '600', color: '#6b7280',
+    fontSize: 14, fontFamily: 'Poppins_600SemiBold', color: '#6b7280',
     marginBottom: 16, textTransform: 'uppercase',
   },
   field:  { marginBottom: 16 },
   row:    { flexDirection: 'row' },
-  label:  { fontSize: 13, color: '#374151', marginBottom: 6, fontWeight: '500' },
+  label:  { fontSize: 13, color: '#0f1c52', marginBottom: 6, fontFamily: 'Poppins_500Medium' },
   input: {
-    borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8,
+    borderWidth: 1, borderColor: 'rgba(15,28,82,0.15)', borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 12,
-    fontSize: 15, color: '#1f2937', backgroundColor: '#fff',
+    fontSize: 15, color: '#0f1c52', backgroundColor: '#fff',
   },
   footer: {
     flexDirection: 'row', padding: 16, paddingTop: 12,
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb',
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: 'rgba(15,28,82,0.1)',
     position: 'absolute', bottom: 0, left: 0, right: 0,
   },
-  backButton:             { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 12, padding: 16, alignItems: 'center', marginRight: 8 },
-  backButtonText:         { color: '#374151', fontSize: 16, fontWeight: '600' },
-  continueButton:         { flex: 2, backgroundColor: '#6366f1', borderRadius: 12, padding: 16, alignItems: 'center' },
+  backButton:             { flex: 1, backgroundColor: '#EEF4FF', borderRadius: 12, padding: 16, alignItems: 'center', marginRight: 8 },
+  backButtonText:         { color: '#0f1c52', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
+  continueButton:         { flex: 2, backgroundColor: '#0f1c52', borderRadius: 12, padding: 16, alignItems: 'center' },
   continueButtonDisabled: { backgroundColor: '#9ca3af' },
-  continueButtonText:     { color: '#fff', fontSize: 16, fontWeight: '600' },
+  continueButtonText:     { color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
 });

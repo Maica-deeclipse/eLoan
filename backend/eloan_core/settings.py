@@ -35,7 +35,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '192.168.1.13',
+    '192.168.1.21',
     '10.0.0.52',
 ]
 
@@ -263,9 +263,9 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',       # Web frontend
     'http://127.0.0.1:3000',       # Web frontend
-    'http://192.168.1.13:3000',   # WEB FRONTEND (network access)
+    'http://192.168.1.21:3000',   # WEB FRONTEND (network access)
     'http://localhost:8081',       # Expo dev server (default)
-    'http://192.168.1.13:8081',       # EXPO DEV SERVER
+    'http://192.168.1.21:8081',       # EXPO DEV SERVER
     'http://localhost:19000',      # Expo dev server (alternative port)
     'http://localhost:19006',      # Expo web
 ]

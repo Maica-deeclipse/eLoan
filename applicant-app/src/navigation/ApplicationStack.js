@@ -21,17 +21,22 @@ const Stack = createStackNavigator();
 
 const screenOptions = {
   headerStyle: {
-    backgroundColor: '#6366f1',
-    elevation: 0,
-    shadowOpacity: 0,
+    backgroundColor: '#0f1c52',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(77,128,228,0.35)',
   },
   headerTintColor: '#ffffff',
   headerTitleStyle: {
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   headerBackTitle: 'Back',
   cardStyle: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#EEF4FF',
   },
 };
 

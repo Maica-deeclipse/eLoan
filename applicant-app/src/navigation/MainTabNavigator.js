@@ -1,49 +1,56 @@
 /**
  * Main Tab Navigator
- * Bottom tab navigation for the main app screens
+ * Bottom tab navigation — Modern fintech navy theme
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 // Screens
-import DashboardScreen from '../screens/DashboardScreen';
-import MyApplicationsScreen from '../screens/MyApplicationsScreen';
-import NotificationsScreen from '../screens/NotificationsScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import DashboardScreen       from '../screens/DashboardScreen';
+import MyApplicationsScreen  from '../screens/MyApplicationsScreen';
+import NotificationsScreen   from '../screens/NotificationsScreen';
+import ProfileScreen         from '../screens/ProfileScreen';
 
 // Services
 import notificationService from '../services/notificationService';
 
 const Tab = createBottomTabNavigator();
 
-// Custom icon component (using text-based icons)
-const TabIcon = ({ name, focused, color }) => {
-  const icons = {
-    home: focused ? '🏠' : '🏡',
-    applications: focused ? '📋' : '📄',
-    apply: '➕',
-    notifications: focused ? '🔔' : '🔕',
-    settings: focused ? '⚙️' : '⚙️',
-  };
+// ── Design Tokens ──────────────────────────────────────────────────────────────
+const NAVY  = '#0f1c52';
+const WHITE = '#FFFFFF';
+const MUTED = '#94A3B8';
 
-  return (
-    <Text style={[styles.icon, { color }]}>
-      {icons[name] || '•'}
-    </Text>
-  );
+// ── Tab Icon Component ─────────────────────────────────────────────────────────
+const ICONS = {
+  home:          require('../../assets/house.png'),
+  applications:  require('../../assets/loans.png'),
+  notifications: require('../../assets/alerts.png'),
+  settings:      require('../../assets/settings.png'),
 };
 
-// Apply button placeholder component
+const TabIcon = ({ name, focused }) => (
+  <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+    <Image
+      source={ICONS[name]}
+      style={[styles.iconImg, { opacity: focused ? 1 : 0.45 }]}
+      resizeMode="contain"
+    />
+  </View>
+);
+
+// ── Apply Placeholder ──────────────────────────────────────────────────────────
 const ApplyPlaceholder = () => null;
 
+// ── Navigator ─────────────────────────────────────────────────────────────────
 export default function MainTabNavigator({ navigation }) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     loadUnreadCount();
-    const interval = setInterval(loadUnreadCount, 120000); // Refresh every 2 minutes
+    const interval = setInterval(loadUnreadCount, 120000);
     return () => clearInterval(interval);
   }, []);
 
@@ -60,10 +67,10 @@ export default function MainTabNavigator({ navigation }) {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#6366f1',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: NAVY,
+        tabBarInactiveTintColor: MUTED,
         tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarLabelStyle: styles.tabLabel,
       }}
     >
       <Tab.Screen
@@ -71,30 +78,29 @@ export default function MainTabNavigator({ navigation }) {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="home" focused={focused} color={color} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
         }}
       />
+
       <Tab.Screen
         name="MyApplications"
         component={MyApplicationsScreen}
         options={{
           tabBarLabel: 'My Loans',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="applications" focused={focused} color={color} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="applications" focused={focused} />,
         }}
       />
+
+      {/* ── Floating Action Button ── */}
       <Tab.Screen
         name="Apply"
         component={ApplyPlaceholder}
         options={{
           tabBarLabel: '',
-          tabBarIcon: ({ focused }) => (
-            <View style={styles.applyButtonContainer}>
-              <View style={styles.applyButton}>
-                <Text style={styles.applyButtonText}>+</Text>
+          tabBarIcon: () => (
+            <View style={styles.fabOuter}>
+              <View style={styles.fab}>
+                <Text style={styles.fabIcon}>+</Text>
               </View>
             </View>
           ),
@@ -106,75 +112,100 @@ export default function MainTabNavigator({ navigation }) {
           },
         }}
       />
+
       <Tab.Screen
         name="Notifications"
         component={NotificationsScreen}
         options={{
           tabBarLabel: 'Alerts',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="notifications" focused={focused} color={color} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="notifications" focused={focused} />,
           tabBarBadge: unreadCount > 0 ? unreadCount : null,
           tabBarBadgeStyle: styles.badge,
         }}
       />
+
       <Tab.Screen
         name="Settings"
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Settings',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="settings" focused={focused} color={color} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="settings" focused={focused} />,
         }}
       />
     </Tab.Navigator>
   );
 }
 
+// ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    height: 70,
+    backgroundColor: WHITE,
+    borderTopWidth: 0,
+    height: 72,
     paddingBottom: 10,
-    paddingTop: 10,
+    paddingTop: 8,
+    shadowColor: NAVY,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 16,
   },
-  tabBarLabel: {
+  tabLabel: {
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: 'Poppins_600SemiBold',
+    letterSpacing: 0.2,
   },
-  icon: {
-    fontSize: 22,
+  iconWrap: {
+    width: 36,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
   },
-  applyButtonContainer: {
+  iconWrapActive: {
+    backgroundColor: NAVY + '12',
+  },
+  iconImg: {
+    width: 22,
+    height: 22,
+    tintColor: NAVY,
+  },
+
+  // ── FAB ──
+  fabOuter: {
     position: 'absolute',
-    top: -20,
+    top: -24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  applyButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#6366f1',
+  fab: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: NAVY,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowColor: NAVY,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 10,
+    borderWidth: 3,
+    borderColor: WHITE,
   },
-  applyButtonText: {
-    fontSize: 30,
-    color: '#ffffff',
-    fontWeight: '300',
-    marginTop: -2,
+  fabIcon: {
+    fontSize: 32,
+    color: WHITE,
+    fontFamily: 'Poppins_300Light',
+    lineHeight: 36,
+    includeFontPadding: false,
   },
+
   badge: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#EF4444',
     fontSize: 10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
   },
 });
