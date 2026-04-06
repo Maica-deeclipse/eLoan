@@ -1,6 +1,6 @@
 /**
  * Personal Details Screen (Step 2)
- * Pre-fills from registration profile data. Fields are editable to allow corrections.
+ * Pre-fills from registration profile data. Fields are read-only during application.
  */
 
 import { useState, useEffect } from 'react';
@@ -23,10 +23,9 @@ import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraf
 import DropdownPicker from '../../components/DropdownPicker';
 
 const EMPLOYMENT_STATUS_OPTIONS = [
-  { label: 'Permanent', value: 'permanent' },
-  { label: 'Temporary', value: 'temporary' },
+  { label: 'Regular', value: 'regular' },
   { label: 'Casual', value: 'casual' },
-  { label: 'Part-Time', value: 'part_time' },
+  { label: 'Part-time', value: 'part_time' },
   { label: 'Job Order', value: 'job_order' },
 ];
 
@@ -155,21 +154,6 @@ export default function PersonalDetailsScreen({ navigation }) {
 
     setSaving(true);
     try {
-      await profileService.updateProfile({
-        contact_number:    contactNumber,
-        address_line1:     addressLine1,
-        city,
-        province,
-        zip_code:          zipCode,
-        employer_name:     employerName,
-        position,
-        monthly_income:    monthlyIncome || null,
-        employment_status: employmentStatus || null,
-        civil_status:      civilStatus || null,
-        tin:               tin || null,
-        date_of_birth:     dateOfBirth || null,
-      });
-
       const details = {
         contactNumber, addressLine1, city, province, zipCode,
         employerName, position, monthlyIncome,
@@ -190,8 +174,8 @@ export default function PersonalDetailsScreen({ navigation }) {
 
       navigation.navigate('LoanDetails');
     } catch (error) {
-      console.error('Save profile error:', error);
-      Alert.alert('Error', 'Failed to save personal details');
+      console.error('Personal details error:', error);
+      Alert.alert('Error', 'Failed to proceed. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -224,7 +208,7 @@ export default function PersonalDetailsScreen({ navigation }) {
           <View style={styles.instructions}>
             <Text style={styles.instructionTitle}>Personal Details</Text>
             <Text style={styles.instructionText}>
-              Your registration details are pre-filled below. Please verify and update if needed.
+              Your registration details are shown below. Contact the office to make changes.
             </Text>
           </View>
 
@@ -236,7 +220,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={contactNumber}
-                onChangeText={setContactNumber}
+                editable={false}
                 placeholder="09XX XXX XXXX"
                 keyboardType="phone-pad"
               />
@@ -251,7 +235,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={addressLine1}
-                onChangeText={setAddressLine1}
+                editable={false}
                 placeholder="House/Unit No., Street, Barangay"
               />
             </View>
@@ -261,7 +245,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 <TextInput
                   style={styles.input}
                   value={city}
-                  onChangeText={setCity}
+                  editable={false}
                   placeholder="City"
                 />
               </View>
@@ -270,7 +254,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 <TextInput
                   style={styles.input}
                   value={province}
-                  onChangeText={setProvince}
+                  editable={false}
                   placeholder="Province"
                 />
               </View>
@@ -280,7 +264,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={[styles.input, { width: 120 }]}
                 value={zipCode}
-                onChangeText={setZipCode}
+                editable={false}
                 placeholder="ZIP"
                 keyboardType="numeric"
               />
@@ -297,6 +281,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 value={civilStatus || null}
                 options={CIVIL_STATUS_OPTIONS}
                 onChange={(val) => setCivilStatus(val)}
+                disabled={true}
               />
             </View>
             <View style={styles.field}>
@@ -304,7 +289,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={dateOfBirth}
-                onChangeText={setDateOfBirth}
+                editable={false}
                 placeholder="YYYY-MM-DD"
                 keyboardType="numbers-and-punctuation"
               />
@@ -314,7 +299,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={tin}
-                onChangeText={setTin}
+                editable={false}
                 placeholder="XXX-XXX-XXX"
                 keyboardType="numbers-and-punctuation"
               />
@@ -331,6 +316,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 value={employmentStatus || null}
                 options={EMPLOYMENT_STATUS_OPTIONS}
                 onChange={(val) => setEmploymentStatus(val)}
+                disabled={true}
               />
             </View>
             <View style={styles.field}>
@@ -338,7 +324,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={employerName}
-                onChangeText={setEmployerName}
+                editable={false}
                 placeholder="Office/Department Name"
               />
             </View>
@@ -347,7 +333,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={position}
-                onChangeText={setPosition}
+                editable={false}
                 placeholder="Your Position/Title"
               />
             </View>
@@ -356,7 +342,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={monthlyIncome}
-                onChangeText={setMonthlyIncome}
+                editable={false}
                 placeholder="₱0.00"
                 keyboardType="numeric"
               />

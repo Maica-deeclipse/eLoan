@@ -126,6 +126,20 @@ class LoanApplicationService:
                 'reason': 'Only registered applicants can apply for loans.'
             }
 
+        # Check 6-month profile update requirement
+        profile_updated_at = getattr(user, 'profile_updated_at', None)
+        if profile_updated_at:
+            months_since = (timezone.now() - profile_updated_at).days // 30
+            if months_since >= 6:
+                return {
+                    'can_apply': False,
+                    'reason': f'Your profile information needs to be updated (last updated {months_since} month(s) ago). Please update your profile before applying for a loan.',
+                    'needs_profile_update': True,
+                    'months_since_update': months_since,
+                    'last_updated': profile_updated_at.date().isoformat(),
+                    'membership_info': None,
+                }
+
         # Check membership eligibility (if membership module is enabled)
         membership_info = None
         if MEMBERSHIP_ENABLED:
@@ -350,6 +364,8 @@ class LoanApplicationService:
         if application.current_status.status_name not in [
             ApplicationStatuses.DRAFT,
             ApplicationStatuses.SUBMITTED,
+            ApplicationStatuses.REJECTED_BOOKKEEPER,
+            ApplicationStatuses.REJECTED_CREDIT,
         ]:
             return False, "Cannot modify this application at its current status."
 
@@ -549,6 +565,41 @@ class LoanApplicationService:
         AuditLog.objects.create(
             user=user,
             action=f"Deleted draft application #{app_id}."
+        )
+
+        return True, None
+
+    @staticmethod
+    def reopen_application(application, user):
+        """
+        Reopen a rejected application for editing and resubmission.
+        Transitions: Rejected by Bookkeeper / Rejected by Credit Committee → Draft
+        """
+        status_name = application.current_status.status_name if application.current_status else None
+        if status_name not in ApplicationStatuses.REOPENABLE_STATUSES:
+            return False, "Only rejected applications can be reopened."
+
+        from loans.models import ApplicationStatus, StatusChangeLog
+        old_status = application.current_status
+        draft_status, _ = ApplicationStatus.objects.get_or_create(
+            status_name=ApplicationStatuses.DRAFT
+        )
+
+        application.current_status = draft_status
+        application.save(update_fields=['current_status'])
+
+        StatusChangeLog.objects.create(
+            application=application,
+            changed_by=user,
+            changed_by_role='Applicant',
+            from_status=old_status,
+            to_status=draft_status,
+            remarks='Application reopened by applicant for editing and resubmission.',
+        )
+
+        AuditLog.objects.create(
+            user=user,
+            action=f"Reopened rejected application #{application.id} for editing.",
         )
 
         return True, None
@@ -785,7 +836,7 @@ class ProfileService:
             'city': profile.city or '',
             'province': profile.province or '',
             'zip_code': profile.zip_code or '',
-            'employer_name': profile.employer_name or '',
+            'employer_name': profile.office or profile.employer_name or '',
             'employer_address': profile.employer_address or '',
             'position': profile.position or '',
             'monthly_income': str(profile.monthly_income) if profile.monthly_income else '',
