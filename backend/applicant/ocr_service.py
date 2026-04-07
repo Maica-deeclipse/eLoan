@@ -1,11 +1,12 @@
 """
 ID OCR Service
 
-Provides OCR scanning for Philippine government IDs:
+Provides OCR scanning for Philippine government IDs and school IDs:
 - Philippine National ID (PhilID/PhilSys)
 - Driver's License
 - UMID (Unified Multi-Purpose ID)
 - Passport
+- BukSU ID (Bukidnon State University)
 
 Uses Tesseract OCR for text extraction and regex patterns for field parsing.
 """
@@ -33,6 +34,7 @@ class IDType:
     UMID = 'umid'
     PASSPORT = 'passport'
     PHILIPPINE_ID = 'philippine_id'
+    BUKSU_ID = 'buksu_id'
     UNKNOWN = 'unknown'
 
 
@@ -45,6 +47,7 @@ class IDOCRService:
     - Driver's License (LTO)
     - UMID (SSS, GSIS, PhilHealth, Pag-IBIG)
     - Passport
+    - BukSU ID (Bukidnon State University)
     """
 
     # ID type detection patterns
@@ -86,6 +89,12 @@ class IDOCRService:
             r"\bPSA\b",
             r"PCN\s*:?\s*\d",
             r"PSN\s*:?\s*\d",
+        ],
+        IDType.BUKSU_ID: [
+            r"BUKIDNON\s*STATE\s*UNIVERSITY",
+            r"\bBUKSU\b",
+            r"BUKIDNON\s*STATE",
+            r"STATE\s*UNIVERSITY\s*OF\s*BUKIDNON",
         ],
     }
 
@@ -155,6 +164,20 @@ class IDOCRService:
             'address': [
                 r"(?:ADDRESS|TIRAHAN)[\s.:]*([A-Z0-9][A-Z0-9\s,.-]+(?:CITY|PROVINCE|MANILA|QUEZON|CEBU|DAVAO)[A-Z\s]*)",
             ],
+        },
+        IDType.BUKSU_ID: {
+            'id_number': [
+                r"(?:ID\s*NO|STUDENT\s*NO|EMPLOYEE\s*NO|NO)[\s.:]*(\d{4}[-\s]?\d{4,6})",
+                r"(\d{4}[-\s]\d{4,6})",
+            ],
+            'full_name': [
+                r"(?:NAME|SURNAME|LAST\s*NAME)[\s.:]*([A-Z][A-Z\s,.-]+)",
+                r"(?:GIVEN\s*NAME|FIRST\s*NAME)[\s.:]*([A-Z][A-Z\s.-]+)",
+            ],
+            'birthdate': [
+                r"(?:DATE\s*OF\s*BIRTH|BIRTH\s*DATE|DOB)[\s.:]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
+            ],
+            'address': [],
         },
     }
 

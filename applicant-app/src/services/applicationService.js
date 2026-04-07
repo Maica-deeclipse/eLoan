@@ -292,6 +292,16 @@ class ApplicationService {
   }
 
   /**
+   * Reopen a rejected application for editing and resubmission
+   */
+  async reopenApplication(applicationId) {
+    const response = await apiService.post(
+      `/applicant/applications/${applicationId}/reopen/`
+    );
+    return response.data;
+  }
+
+  /**
    * Search users for co-maker
    */
   async searchUsers(query) {

@@ -15,7 +15,7 @@ import applicationService from '../../services/applicationService';
 import { clearLoanTypeDraft } from '../../utils/applicationDraftStorage';
 import { getLoanTypeConfig, hasExtraStep } from '../../config/loanTypeConfig';
 
-const REQUIRED_DOCUMENT_KEYS = ['buksu_id', 'proof_of_income', 'membership_certificate'];
+const REQUIRED_DOCUMENT_KEYS = ['proof_of_income', 'membership_certificate'];
 
 const toNumber = (value) => {
   const parsed = Number(value);

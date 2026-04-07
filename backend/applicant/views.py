@@ -348,6 +348,28 @@ class ApplicationDetailView(ApplicantBaseView):
         # Get verification status
         verification_status = FaceVerificationService.get_verification_status(application)
 
+        # Get rejection info if applicable
+        current_status_name = application.current_status.status_name if application.current_status else ''
+        rejection_info = None
+        if current_status_name == ApplicationStatuses.REJECTED_BOOKKEEPER:
+            bv = application.bookkeeper_verifications.filter(action='rejected').order_by('-verified_at').first()
+            if bv:
+                rejection_info = {
+                    'reason': bv.rejection_reason,
+                    'category': bv.rejection_category,
+                    'rejected_at': bv.verified_at.isoformat(),
+                    'role': 'Bookkeeper',
+                }
+        elif current_status_name == ApplicationStatuses.REJECTED_CREDIT:
+            cc = application.credit_committee_decisions.filter(decision='rejected').order_by('-decided_at').first()
+            if cc:
+                rejection_info = {
+                    'reason': cc.remarks,
+                    'category': cc.rejection_category,
+                    'rejected_at': cc.decided_at.isoformat(),
+                    'role': 'Credit Committee',
+                }
+
         return Response({
             'id': application.id,
             'loan_type': {
@@ -374,6 +396,7 @@ class ApplicationDetailView(ApplicantBaseView):
                 'completed': verification_status['liveness_check']['completed'],
                 'verified': verification_status['liveness_check']['verified'],
             },
+            'rejection_info': rejection_info,
         })
 
 
@@ -490,6 +513,32 @@ class DeleteDraftApplicationView(ApplicantBaseView):
 
         return Response({
             'message': 'Draft application deleted successfully',
+        })
+
+
+class ReopenApplicationView(ApplicantBaseView):
+    """POST /api/applicant/applications/<id>/reopen/"""
+
+    def post(self, request, pk):
+        application = LoanApplicationService.get_application_by_id(pk, request.user)
+        if not application:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        success, error = LoanApplicationService.reopen_application(application, request.user)
+
+        if not success:
+            return Response(
+                {'error': error},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response({
+            'message': 'Application reopened for editing. You may now edit and resubmit.',
+            'status': 'Draft',
+            'application_id': application.id,
         })
 
 
@@ -1708,6 +1757,23 @@ class AutofillDataView(ApplicantBaseView):
     def get(self, request):
         data = ProfileService.get_autofill_data(request.user)
         return Response(data)
+
+
+class ProfileUpdateRequiredView(ApplicantBaseView):
+    """GET /api/applicant/profile/update-required/"""
+
+    def get(self, request):
+        from django.utils import timezone
+        user = request.user
+        profile_updated_at = getattr(user, 'profile_updated_at', None)
+        if not profile_updated_at:
+            return Response({'update_required': False, 'months_since_update': 0})
+        months_since = (timezone.now() - profile_updated_at).days // 30
+        return Response({
+            'update_required': months_since >= 6,
+            'last_updated': profile_updated_at.date().isoformat(),
+            'months_since_update': months_since,
+        })
 
 
 # =============================================================================

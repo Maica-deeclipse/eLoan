@@ -144,6 +144,15 @@ class BookkeeperVerification(models.Model):
         ('rejected', 'Rejected'),
     ]
 
+    REJECTION_CATEGORY_CHOICES = [
+        ('incomplete_docs', 'Incomplete Documentation'),
+        ('invalid_docs', 'Invalid/Expired Documents'),
+        ('insufficient_savings', 'Insufficient Savings'),
+        ('insufficient_income', 'Insufficient Income'),
+        ('employment_not_verified', 'Employment Not Verified'),
+        ('others', 'Others'),
+    ]
+
     application = models.ForeignKey(
         LoanApplication,
         on_delete=models.CASCADE,
@@ -165,6 +174,13 @@ class BookkeeperVerification(models.Model):
         blank=True,
         null=True,
         help_text='Required if action is rejected'
+    )
+    rejection_category = models.CharField(
+        max_length=30,
+        choices=REJECTION_CATEGORY_CHOICES,
+        blank=True,
+        null=True,
+        help_text='Structured rejection category'
     )
     notes = models.TextField(
         blank=True,

@@ -67,10 +67,10 @@ class DashboardView(AMOBaseView):
             'recent_members': [
                 {
                     'id': m.id,
-                    'name': f"{m.user.firstname} {m.user.lastname}",
-                    'email': m.user.email,
+                    'name': f"{m.firstname} {m.lastname}",
+                    'email': m.email,
                     'membership_type': m.membership_type,
-                    'member_since': m.member_since.isoformat(),
+                    'member_since': m.member_since.isoformat() if m.member_since else None,
                 }
                 for m in recent_members
             ],
@@ -94,7 +94,7 @@ class MemberApplicationListView(AMOBaseView):
                     'id': item['user'].id,
                     'name': f"{item['user'].firstname} {item['user'].lastname}",
                     'email': item['user'].email,
-                    'employee_id': item['user'].employee_id,
+                    'buksu_id_number': item['user'].buksu_id_number,
                     'account_status': item['user'].account_status,
                     'date_joined': item['user'].date_joined.isoformat(),
                     'days_since_applied': item['days_since_applied'],
@@ -117,7 +117,7 @@ class MemberApplicationListView(AMOBaseView):
                 'id': u.id,
                 'name': f"{u.firstname} {u.lastname}",
                 'email': u.email,
-                'employee_id': u.employee_id,
+                'buksu_id_number': u.buksu_id_number,
                 'account_status': u.account_status,
                 'date_joined': u.date_joined.isoformat(),
                 'approved_at': u.approved_at.isoformat() if u.approved_at else None,
@@ -130,8 +130,8 @@ class MemberApplicationListView(AMOBaseView):
 class MemberApplicationDetailView(AMOBaseView):
     def get(self, request, pk):
         try:
-            u = User.objects.select_related('role', 'approved_by').get(pk=pk, role__name='Applicant')
-        except User.DoesNotExist:
+            u = Applicant.objects.select_related('role', 'approved_by').get(pk=pk)
+        except Applicant.DoesNotExist:
             return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Calculate 30-day deadline
@@ -219,7 +219,7 @@ class MemberApplicationDetailView(AMOBaseView):
             'firstname': u.firstname,
             'lastname': u.lastname,
             'email': u.email,
-            'employee_id': u.employee_id,
+            'buksu_id_number': u.buksu_id_number,
             'account_status': u.account_status,
             'date_joined': u.date_joined.isoformat(),
             'approved_at': u.approved_at.isoformat() if u.approved_at else None,
@@ -284,15 +284,14 @@ class MemberListView(AMOBaseView):
         return Response([
             {
                 'id': m.id,
-                'user_id': m.user.id,
-                'name': f"{m.user.firstname} {m.user.lastname}",
-                'email': m.user.email,
-                'employee_id': m.user.employee_id,
+                'name': f"{m.firstname} {m.lastname}",
+                'email': m.email,
+                'buksu_id_number': m.buksu_id_number,
                 'membership_type': m.membership_type,
-                'status': m.user.status,
+                'status': m.status,
                 'total_savings': str(m.total_savings),
                 'total_shared_capital': str(m.total_shared_capital),
-                'member_since': m.member_since.isoformat(),
+                'member_since': m.member_since.isoformat() if m.member_since else None,
             }
             for m in members
         ])
@@ -311,14 +310,13 @@ class MemberDetailView(AMOBaseView):
 
         return Response({
             'id': m.id,
-            'user_id': m.user.id,
-            'firstname': m.user.firstname,
-            'lastname': m.user.lastname,
-            'email': m.user.email,
-            'employee_id': m.user.employee_id,
+            'firstname': m.firstname,
+            'lastname': m.lastname,
+            'email': m.email,
+            'buksu_id_number': m.buksu_id_number,
             'membership_type': m.membership_type,
             'membership_status': m.membership_status,
-            'status': m.user.status,
+            'status': m.status,
             'total_savings': str(m.total_savings),
             'total_shared_capital': str(m.total_shared_capital),
             'fixed_deposit': str(m.fixed_deposit) if m.fixed_deposit is not None else None,
@@ -327,7 +325,7 @@ class MemberDetailView(AMOBaseView):
             'verified_employment_status': m.verified_employment_status,
             'employment_status_verified_at': m.employment_status_verified_at.isoformat() if m.employment_status_verified_at else None,
             'employment_status_verified_by': verified_by,
-            'member_since': m.member_since.isoformat(),
+            'member_since': m.member_since.isoformat() if m.member_since else None,
             'calculated_membership_type': m.calculated_membership_type,
         })
 
@@ -928,16 +926,22 @@ class ArchiveNotificationView(AMOBaseView):
 
 class ProfileView(AMOBaseView):
     def get(self, request):
+        from users.models import AdminUser
         user = request.user
         profile_picture_url = None
         if user.profile_picture:
             profile_picture_url = request.build_absolute_uri(user.profile_picture.url)
+        # request.user is a base User instance from JWT; employee_id lives on AdminUser (MTI)
+        try:
+            employee_id = user.adminuser.employee_id
+        except Exception:
+            employee_id = None
         return Response({
             'id': user.id,
             'firstname': user.firstname,
             'lastname': user.lastname,
             'email': user.email,
-            'employee_id': user.employee_id,
+            'employee_id': employee_id,
             'role': user.role.name if user.role else None,
             'status': user.status,
             'profile_picture': profile_picture_url,

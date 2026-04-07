@@ -438,9 +438,10 @@ export default function RegisterWizardScreen({ navigation }) {
       if (!contact.trim()) return setError('Contact number is required.') || false;
       if (!email.trim()) return setError('Email is required.') || false;
       const emailLower = email.toLowerCase();
-      const validDomain = emailLower.endsWith('buksu.edu.ph') || (__DEV__ && emailLower.endsWith('gmail.com'));
-      if (!validDomain)
-        return setError('Only buksu.edu.ph email addresses are allowed.') || false;
+      // In dev mode any email domain is accepted to ease testing.
+      // In production, @buksu.edu.ph and @student.buksu.edu.ph (+ aliases) are both valid.
+      if (!__DEV__ && !emailLower.endsWith('buksu.edu.ph'))
+        return setError('Only @buksu.edu.ph or @student.buksu.edu.ph email addresses are allowed.') || false;
       if (!password) return setError('Password is required.') || false;
       if (password.length < 8) return setError('Password must be at least 8 characters.') || false;
       if (password !== confirmPassword) return setError('Passwords do not match.') || false;
@@ -695,7 +696,7 @@ export default function RegisterWizardScreen({ navigation }) {
       </Field>
       <Field label="Email Address" required>
         <Input
-          placeholder="you@staff.buksu.edu.ph" value={email} onChangeText={setEmail}
+          placeholder="you@buksu.edu.ph" value={email} onChangeText={setEmail}
           keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
         />
       </Field>
@@ -804,7 +805,7 @@ export default function RegisterWizardScreen({ navigation }) {
         />
       </Field>
       <Field label="Office / Department" required>
-        <Input placeholder="e.g. College of Computing Education" value={office} onChangeText={setOffice} />
+        <Input placeholder="e.g. College of Technologies" value={office} onChangeText={setOffice} />
       </Field>
       <Field label="Monthly Income (PHP)" required>
         <Input
@@ -912,9 +913,9 @@ export default function RegisterWizardScreen({ navigation }) {
 
   const renderStep6 = () => (
     <View>
-      {/* 2×2 ID Photo */}
-      <SectionTitle title="2×2 ID Photo" />
-      <Text style={s.docHint}>Use a plain background. Face must be clearly visible.</Text>
+      {/* BukSU ID Photo (Front) */}
+      <SectionTitle title="BukSU ID Photo (Front)" />
+      <Text style={s.docHint}>Photograph the front of your BukSU ID card. Ensure your name and photo on the ID are clearly visible.</Text>
       {idPhoto ? (
         <View style={s.photoPreviewWrap}>
           <Image source={{ uri: idPhoto.uri }} style={s.idPhotoPreview} />
@@ -924,10 +925,10 @@ export default function RegisterWizardScreen({ navigation }) {
         </View>
       ) : (
         <View style={s.docBtns}>
-          <TouchableOpacity style={s.docBtn} onPress={() => openCamera(setIdPhoto, 'square')}>
+          <TouchableOpacity style={s.docBtn} onPress={() => openCamera(setIdPhoto, 'rect')}>
             <Text style={s.docBtnIcon}>📷</Text>
             <Text style={s.docBtnText}>Take Photo</Text>
-            <Text style={s.docBtnSub}>with frame guide</Text>
+            <Text style={s.docBtnSub}>ID card frame guide</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.docBtn} onPress={() => pickImage(setIdPhoto, true)}>
             <Text style={s.docBtnIcon}>🖼️</Text>

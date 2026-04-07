@@ -8,15 +8,63 @@ const VALID_ROLES = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Mem
 
 export default function StaffRegister() {
   const { role: urlRole } = useParams();
-  const role = VALID_ROLES.includes(urlRole) ? urlRole : '';
+  const presetRole = VALID_ROLES.includes(urlRole) ? urlRole : '';
 
-  // step: 'google' → show Google button | 'details' → show employee_id form | 'success'
-  const [step, setStep] = useState('google');
-  const [googleData, setGoogleData] = useState(null); // { access_token, firstname, lastname, email }
-  const [employeeId, setEmployeeId] = useState('');
+  // step: 'form' | 'google-details' | 'success'
+  const [step, setStep] = useState('form');
+  const [googleData, setGoogleData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Manual form state
+  const [firstname, setFirstname] = useState('');
+  const [lastname, setLastname] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [selectedRole, setSelectedRole] = useState(presetRole);
+
+  // Google details step state
+  const [googleEmployeeId, setGoogleEmployeeId] = useState('');
+
+  // ── Manual registration ───────────────────────────────────────────────────
+  const handleManualSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!selectedRole) return setError('Please select a role.');
+    if (!firstname.trim()) return setError('First name is required.');
+    if (!lastname.trim()) return setError('Last name is required.');
+    if (!email.trim()) return setError('Email is required.');
+    if (!password) return setError('Password is required.');
+    if (password.length < 8) return setError('Password must be at least 8 characters.');
+    if (password !== confirmPassword) return setError('Passwords do not match.');
+    if (!employeeId.trim()) return setError('Employee ID is required.');
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/staff/register/`, {
+        firstname: firstname.trim(),
+        lastname: lastname.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role: selectedRole,
+        employee_id: employeeId.trim(),
+      });
+      setStep('success');
+    } catch (err) {
+      const data = err.response?.data;
+      const firstError = data && typeof data === 'object'
+        ? Object.values(data).flat()[0]
+        : null;
+      setError(firstError || data?.error || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Google registration ───────────────────────────────────────────────────
   const googleAuth = useGoogleLogin({
     prompt: 'select_account',
     onSuccess: async (tokenResponse) => {
@@ -32,7 +80,7 @@ export default function StaffRegister() {
           lastname: info.family_name || '',
           email: info.email || '',
         });
-        setStep('details');
+        setStep('google-details');
       } catch {
         setError('Could not retrieve your Google account info. Please try again.');
       }
@@ -40,25 +88,19 @@ export default function StaffRegister() {
     onError: () => setError('Google sign-in was cancelled or failed.'),
   });
 
-  const handleSubmit = async (e) => {
+  const handleGoogleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!role) {
-      setError('Role not detected. Please go back and select your role from the Role Selection page.');
-      return;
-    }
-    if (!employeeId.trim()) {
-      setError('Employee ID is required.');
-      return;
-    }
+    if (!selectedRole) return setError('Please select a role.');
+    if (!googleEmployeeId.trim()) return setError('Employee ID is required.');
 
     setLoading(true);
     try {
       await axios.post(`${API_URL}/staff/register/google/`, {
         access_token: googleData.access_token,
-        role,
-        employee_id: employeeId.trim(),
+        role: selectedRole,
+        employee_id: googleEmployeeId.trim(),
       });
       setStep('success');
     } catch (err) {
@@ -68,6 +110,8 @@ export default function StaffRegister() {
       setLoading(false);
     }
   };
+
+  const displayRole = selectedRole || 'Staff';
 
   return (
     <div className="login-container">
@@ -79,12 +123,13 @@ export default function StaffRegister() {
           </div>
           <h1 className="login-title">Staff Registration</h1>
           <p className="login-subtitle">
-            Registering as{' '}
-            <span style={{ fontWeight: 700, color: '#17236a' }}>{role || 'Staff'}</span>
+            {selectedRole
+              ? <>Registering as <span style={{ fontWeight: 700, color: '#17236a' }}>{selectedRole}</span></>
+              : 'Create a staff account'}
           </p>
         </div>
 
-        {/* Step: success */}
+        {/* ── Success ─────────────────────────────────────────────────────── */}
         {step === 'success' && (
           <div style={{ padding: '1.5rem 0' }}>
             <div style={{
@@ -100,31 +145,153 @@ export default function StaffRegister() {
           </div>
         )}
 
-        {/* Step: google — show Google sign-in button */}
-        {step === 'google' && (
-          <div className="login-form">
+        {/* ── Manual form ─────────────────────────────────────────────────── */}
+        {step === 'form' && (
+          <form onSubmit={handleManualSubmit} className="login-form">
             {error && <div className="error-message">{error}</div>}
-            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1.25rem', textAlign: 'center' }}>
-              Use your Google account to register. Your name and email will be filled automatically.
-            </p>
+
+            {/* Role — dropdown when no URL role, locked display when pre-set */}
+            {!presetRole && (
+              <div className="form-group">
+                <label htmlFor="role">Role</label>
+                <select
+                  id="role"
+                  value={selectedRole}
+                  onChange={(e) => { setSelectedRole(e.target.value); setError(''); }}
+                  disabled={loading}
+                  style={{
+                    width: '100%', padding: '0.75rem 1rem', border: '1.5px solid #e0e0e0',
+                    borderRadius: '8px', fontSize: '0.95rem', color: selectedRole ? '#1f2937' : '#9ca3af',
+                    background: '#fff', appearance: 'none', cursor: 'pointer',
+                  }}
+                >
+                  <option value="" disabled>Select a role</option>
+                  {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label htmlFor="firstname">First Name</label>
+                <input
+                  id="firstname"
+                  value={firstname}
+                  onChange={(e) => { setFirstname(e.target.value); setError(''); }}
+                  disabled={loading}
+                  placeholder="Juan"
+                />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label htmlFor="lastname">Last Name</label>
+                <input
+                  id="lastname"
+                  value={lastname}
+                  onChange={(e) => { setLastname(e.target.value); setError(''); }}
+                  disabled={loading}
+                  placeholder="Dela Cruz"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                disabled={loading}
+                placeholder="you@buksu.edu.ph"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                disabled={loading}
+                placeholder="Minimum 8 characters"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm Password</label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
+                disabled={loading}
+                placeholder="Re-enter password"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="employeeId">Employee ID</label>
+              <input
+                id="employeeId"
+                value={employeeId}
+                onChange={(e) => { setEmployeeId(e.target.value); setError(''); }}
+                disabled={loading}
+                placeholder="EMP-001"
+              />
+            </div>
+
+            <button type="submit" className="login-button" disabled={loading}>
+              {loading ? 'Submitting...' : 'Register'}
+            </button>
+
+            {/* Google as secondary option */}
+            <div className="auth-divider" style={{ margin: '1.25rem 0' }}>
+              <div className="auth-divider-line" />
+              <span className="auth-divider-text">or</span>
+              <div className="auth-divider-line" />
+            </div>
+
             <button
               type="button"
               className="google-button"
               onClick={() => { setError(''); googleAuth(); }}
+              disabled={loading}
             >
               <span className="google-icon">G</span>
               Continue with Google
             </button>
+
             <Link to="/" className="back-to-login" style={{ marginTop: '1.25rem' }}>
               ← Back to Role Selection
             </Link>
-          </div>
+          </form>
         )}
 
-        {/* Step: details — show locked Google info + employee ID input */}
-        {step === 'details' && googleData && (
-          <form onSubmit={handleSubmit} className="login-form">
+        {/* ── Google details (after OAuth) ─────────────────────────────────── */}
+        {step === 'google-details' && googleData && (
+          <form onSubmit={handleGoogleSubmit} className="login-form">
             {error && <div className="error-message">{error}</div>}
+
+            {!presetRole && (
+              <div className="form-group">
+                <label htmlFor="g-role">Role</label>
+                <select
+                  id="g-role"
+                  value={selectedRole}
+                  onChange={(e) => { setSelectedRole(e.target.value); setError(''); }}
+                  disabled={loading}
+                  style={{
+                    width: '100%', padding: '0.75rem 1rem', border: '1.5px solid #e0e0e0',
+                    borderRadius: '8px', fontSize: '0.95rem', color: selectedRole ? '#1f2937' : '#9ca3af',
+                    background: '#fff', appearance: 'none', cursor: 'pointer',
+                  }}
+                >
+                  <option value="" disabled>Select a role</option>
+                  {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div className="form-group" style={{ margin: 0 }}>
@@ -143,11 +310,11 @@ export default function StaffRegister() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="employee_id">Employee ID</label>
+              <label htmlFor="g-employee-id">Employee ID</label>
               <input
-                id="employee_id"
-                value={employeeId}
-                onChange={(e) => { setEmployeeId(e.target.value); setError(''); }}
+                id="g-employee-id"
+                value={googleEmployeeId}
+                onChange={(e) => { setGoogleEmployeeId(e.target.value); setError(''); }}
                 required
                 disabled={loading}
                 placeholder="EMP-001"
@@ -160,13 +327,13 @@ export default function StaffRegister() {
 
             <button
               type="button"
-              onClick={() => { setStep('google'); setGoogleData(null); setError(''); }}
+              onClick={() => { setStep('form'); setGoogleData(null); setError(''); }}
               style={{
                 display: 'block', width: '100%', marginTop: '0.75rem', background: 'none',
                 border: 'none', color: '#6b7280', fontSize: '0.875rem', cursor: 'pointer',
               }}
             >
-              Use a different Google account
+              ← Back to registration form
             </button>
           </form>
         )}

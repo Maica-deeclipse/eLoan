@@ -169,6 +169,36 @@ export default function ApplicationDetailScreen({ route, navigation }) {
 
   const canWithdraw = application.status === 'Submitted';
   const canDeleteDraft = application.status === 'Draft';
+  const canReopen = ['Rejected by Bookkeeper', 'Rejected by Credit Committee'].includes(application.status);
+
+  const handleReopen = () => {
+    Alert.alert(
+      'Edit & Resubmit',
+      'This will reopen your rejected application for editing. You can make changes and resubmit for review.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reopen',
+          onPress: async () => {
+            setWithdrawing(true);
+            try {
+              await applicationService.reopenApplication(id);
+              navigation.navigate('ApplicationWizard', {
+                screen: 'SelectLoanType',
+                params: {
+                  resumeLoanTypeId: application.loan_type?.id,
+                  resumeApplicationId: application.id,
+                },
+              });
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.error || 'Failed to reopen application');
+              setWithdrawing(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -177,6 +207,32 @@ export default function ApplicationDetailScreen({ route, navigation }) {
         <View style={[styles.statusBanner, { backgroundColor: getStatusColor(application.status) }]}>
           <Text style={styles.statusBannerText}>{application.status}</Text>
         </View>
+
+        {/* Rejection Info Card */}
+        {application.rejection_info && (
+          <View style={styles.rejectionCard}>
+            <Text style={styles.rejectionTitle}>Reason for Rejection</Text>
+            {application.rejection_info.category && application.rejection_info.category !== 'others' && (
+              <Text style={styles.rejectionCategory}>
+                {({
+                  incomplete_docs: 'Incomplete Documentation',
+                  invalid_docs: 'Invalid/Expired Documents',
+                  insufficient_savings: 'Insufficient Savings',
+                  insufficient_income: 'Insufficient Income',
+                  employment_not_verified: 'Employment Not Verified',
+                  high_dti: 'High Debt-to-Income Ratio',
+                  does_not_meet_credit: 'Does Not Meet Credit Requirements',
+                })[application.rejection_info.category] || application.rejection_info.category}
+              </Text>
+            )}
+            {application.rejection_info.reason && (
+              <Text style={styles.rejectionReason}>{application.rejection_info.reason}</Text>
+            )}
+            <Text style={styles.rejectionMeta}>
+              Rejected by {application.rejection_info.role} · {new Date(application.rejection_info.rejected_at).toLocaleDateString()}
+            </Text>
+          </View>
+        )}
 
         {/* Loan Type Card */}
         <SectionCard title="Loan Information">
@@ -368,6 +424,21 @@ export default function ApplicationDetailScreen({ route, navigation }) {
             </Text>
           </View>
         </SectionCard>
+
+        {/* Reopen Action */}
+        {canReopen && (
+          <TouchableOpacity
+            style={[styles.reopenButton, withdrawing && styles.withdrawButtonDisabled]}
+            onPress={handleReopen}
+            disabled={withdrawing}
+          >
+            {withdrawing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.withdrawButtonText}>Edit &amp; Resubmit</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         {/* Actions */}
         {canWithdraw && (
@@ -578,6 +649,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  reopenButton: {
+    backgroundColor: '#dc2626',
+    marginHorizontal: 16,
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
   withdrawButton: {
     backgroundColor: '#ef4444',
     marginHorizontal: 16,
@@ -609,6 +688,38 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  rejectionCard: {
+    backgroundColor: '#fee2e2',
+    borderLeftWidth: 4,
+    borderLeftColor: '#dc2626',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 8,
+    padding: 14,
+  },
+  rejectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#991b1b',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  rejectionCategory: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#dc2626',
+    marginBottom: 4,
+  },
+  rejectionReason: {
+    fontSize: 14,
+    color: '#1f2937',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  rejectionMeta: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   overdueAlert: {
     backgroundColor: '#fff5f5',

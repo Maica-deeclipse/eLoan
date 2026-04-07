@@ -290,6 +290,7 @@ class SubmitDecisionView(CreditCommitteeBaseView):
         decision = request.data.get('decision')
         remarks = request.data.get('remarks', '').strip()
         meeting_date_str = request.data.get('meeting_date')
+        rejection_category = request.data.get('rejection_category', '').strip() or None
 
         if not decision:
             return Response(
@@ -302,6 +303,19 @@ class SubmitDecisionView(CreditCommitteeBaseView):
                 {'error': 'Invalid decision value. Must be: approved, rejected, or returned'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Validate rejection category when decision is rejected
+        if decision == 'rejected':
+            if rejection_category == 'others' and not remarks:
+                return Response(
+                    {'error': 'Please provide remarks when selecting "Others".'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if not rejection_category and not remarks:
+                return Response(
+                    {'error': 'Remarks are required for rejection decisions.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         if not remarks:
             return Response(
@@ -335,6 +349,7 @@ class SubmitDecisionView(CreditCommitteeBaseView):
                 application=application,
                 committee_member=request.user,
                 decision=decision,
+                rejection_category=rejection_category if decision == 'rejected' else None,
                 remarks=remarks,
                 meeting_date=meeting_date,
                 ip_address=ip_address

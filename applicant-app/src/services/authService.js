@@ -118,26 +118,38 @@ class AuthService {
    * @returns {Promise<Object>} { success: boolean, message?: string, error?: string }
    */
   async registerFull(formData) {
+    // Use fetch instead of axios — axios has known issues with multipart/FormData
+    // in React Native (Content-Type boundary can be mishandled by the XHR layer).
+    // fetch lets the native networking layer set the correct boundary automatically.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
     try {
-      const response = await axios.post(
-        `${API_URL}/register/`,
-        formData,
-        { timeout: 60000 }
-      );
-      if (response.data.user) {
-        return { success: true, message: response.data.message, user: response.data.user };
-      }
-      return { success: false, error: 'Invalid response from server' };
-    } catch (error) {
-      console.error('[registerFull] error:', error?.message, '| code:', error?.code, '| status:', error?.response?.status);
-      console.error('[registerFull] response data:', JSON.stringify(error?.response?.data));
-      if (error.response?.data) {
-        const errors = error.response.data;
+      const response = await fetch(`${API_URL}/register/`, {
+        method: 'POST',
+        body: formData,
+        // Do NOT set Content-Type — fetch sets it with the correct multipart boundary
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const data = await response.json();
+      if (!response.ok) {
+        const errors = data;
         const firstKey = Object.keys(errors)[0];
         if (firstKey) {
           const msg = errors[firstKey];
           return { success: false, error: Array.isArray(msg) ? msg[0] : String(msg) };
         }
+        return { success: false, error: 'Registration failed. Please try again.' };
+      }
+      if (data.user) {
+        return { success: true, message: data.message, user: data.user };
+      }
+      return { success: false, error: 'Invalid response from server' };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error('[registerFull] error:', error?.message, '| name:', error?.name);
+      if (error.name === 'AbortError') {
+        return { success: false, error: 'Request timed out. Please try again.' };
       }
       return { success: false, error: 'Unable to register. Please check your internet connection.' };
     }

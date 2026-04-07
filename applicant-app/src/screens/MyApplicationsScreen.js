@@ -40,7 +40,9 @@ const getStatusColor = (status) => {
   return colors[status] || '#6b7280';
 };
 
-const ApplicationItem = ({ application, onPress, onResume, onDeleteDraft }) => (
+const REJECTED_STATUSES = ['Rejected by Bookkeeper', 'Rejected by Credit Committee'];
+
+const ApplicationItem = ({ application, onPress, onResume, onDeleteDraft, onReopen }) => (
   <TouchableOpacity style={styles.applicationCard} onPress={onPress}>
     <View style={styles.cardHeader}>
       <View>
@@ -92,6 +94,13 @@ const ApplicationItem = ({ application, onPress, onResume, onDeleteDraft }) => (
         </TouchableOpacity>
       </View>
     )}
+    {REJECTED_STATUSES.includes(application.status) && (
+      <View style={styles.draftActions}>
+        <TouchableOpacity style={[styles.resumeButton, { backgroundColor: '#dc2626' }]} onPress={onReopen}>
+          <Text style={styles.draftActionText}>Edit &amp; Resubmit</Text>
+        </TouchableOpacity>
+      </View>
+    )}
   </TouchableOpacity>
 );
 
@@ -135,6 +144,33 @@ export default function MyApplicationsScreen({ navigation }) {
         resumeApplicationId: application.id,
       },
     });
+  };
+
+  const handleReopen = async (application) => {
+    Alert.alert(
+      'Edit & Resubmit',
+      'This will reopen your rejected application for editing. You can then make changes and resubmit for review.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reopen',
+          onPress: async () => {
+            try {
+              await applicationService.reopenApplication(application.id);
+              navigation.navigate('ApplicationWizard', {
+                screen: 'SelectLoanType',
+                params: {
+                  resumeLoanTypeId: application.loan_type_id,
+                  resumeApplicationId: application.id,
+                },
+              });
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.error || 'Failed to reopen application');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteDraft = (application) => {
@@ -222,6 +258,7 @@ export default function MyApplicationsScreen({ navigation }) {
             onPress={() => handleApplicationPress(item)}
             onResume={() => handleResumeDraft(item)}
             onDeleteDraft={() => handleDeleteDraft(item)}
+            onReopen={() => handleReopen(item)}
           />
         )}
         contentContainerStyle={styles.listContent}

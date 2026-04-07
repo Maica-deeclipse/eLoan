@@ -54,6 +54,12 @@ urlpatterns = [
     path('loans/monitoring/', views.LoanMonitoringView.as_view(), name='loan_monitoring'),
 
     # ==========================================================================
+    # Applicant Loan History
+    # ==========================================================================
+    path('applicants/search/', views.ApplicantSearchView.as_view(), name='applicant_search'),
+    path('applicants/<int:pk>/loan-history/', views.ApplicantLoanHistoryView.as_view(), name='applicant_loan_history'),
+
+    # ==========================================================================
     # Reports
     # ==========================================================================
     path('reports/', views.ReportsView.as_view(), name='reports'),

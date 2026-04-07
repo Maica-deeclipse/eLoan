@@ -10,6 +10,7 @@ export default function ApplicationDetail() {
   const [data, setData] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionCategory, setRejectionCategory] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [notes, setNotes] = useState('');
   const [disbursementNotes, setDisbursementNotes] = useState('');
@@ -64,13 +65,17 @@ export default function ApplicationDetail() {
   };
 
   const handleReject = async () => {
-    if (!rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
+    if (!rejectionCategory) {
+      alert('Please select a rejection category');
+      return;
+    }
+    if (rejectionCategory === 'others' && !rejectionReason.trim()) {
+      alert('Please provide a reason when selecting "Others"');
       return;
     }
     try {
       setProcessing(true);
-      await bookkeeperService.rejectApplication(id, rejectionReason, notes);
+      await bookkeeperService.rejectApplication(id, rejectionReason, notes, rejectionCategory);
       alert('Application rejected successfully!');
       navigate('/bookkeeper/applications');
     } catch (err) {
@@ -593,17 +598,39 @@ export default function ApplicationDetail() {
             <h3 style={{ margin: '0 0 1rem', color: '#ef4444' }}>Reject Application</h3>
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem' }}>
-                Rejection Reason <span style={{ color: '#ef4444' }}>*</span>
+                Rejection Category <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Provide a clear reason for rejection..."
-                rows={3}
-                style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'none' }}
+              <select
+                value={rejectionCategory}
+                onChange={(e) => { setRejectionCategory(e.target.value); setRejectionReason(''); }}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem' }}
                 required
-              />
+              >
+                <option value="">-- Select a reason --</option>
+                <option value="incomplete_docs">Incomplete Documentation</option>
+                <option value="invalid_docs">Invalid/Expired Documents</option>
+                <option value="insufficient_savings">Insufficient Savings</option>
+                <option value="insufficient_income">Insufficient Income</option>
+                <option value="employment_not_verified">Employment Not Verified</option>
+                <option value="others">Others (specify below)</option>
+              </select>
             </div>
+            {rejectionCategory === 'others' && (
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem' }}>
+                  Specify Reason <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Provide a clear reason for rejection..."
+                  rows={3}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'none' }}
+                  required
+                />
+              </div>
+            )}
+
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem' }}>
                 Additional Notes (Optional)

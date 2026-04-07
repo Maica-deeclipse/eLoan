@@ -44,6 +44,7 @@ export default function TreasurerLayout() {
     { path: '/treasurer/applications', icon: 'file-text', label: 'Forwarded Applications' },
     { path: '/treasurer/payments', icon: 'credit-card', label: 'Payment Records' },
     { path: '/treasurer/monitoring', icon: 'activity', label: 'Loan Monitoring' },
+    { path: '/treasurer/member-history', icon: 'search', label: 'Member Loan History' },
     { path: '/treasurer/reports', icon: 'bar-chart-2', label: 'Reports' },
     { path: '/treasurer/notifications', icon: 'bell', label: 'Notifications', badge: unreadCount },
     { path: '/treasurer/settings', icon: 'settings', label: 'Settings' },
@@ -261,6 +262,12 @@ function Icon({ name }) {
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
         <polyline points="16 17 21 12 16 7"></polyline>
         <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
+    ),
+    'search': (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       </svg>
     ),
     'menu': (

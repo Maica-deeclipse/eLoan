@@ -408,30 +408,32 @@ class FaceComparisonService:
                 verification_status='Processing'
             )
 
-            # Get ID document (buksu_id)
+            # Get BukSU ID card photo from registration record (Applicant.id_photo)
+            from users.models import Applicant
             try:
-                id_document = LoanDocument.objects.filter(
-                    loan_application=application,
-                    document_type='buksu_id'
-                ).latest('uploaded_at')
-                logger.info(f"Found buksu_id document: id={id_document.id}, file_path={id_document.file_path}")
-                id_document_path = os.path.join(settings.MEDIA_ROOT, id_document.file_path)
-            except LoanDocument.DoesNotExist:
-                face_verification.error_message = "BukSu ID not found. Please upload your BukSu ID first."
+                applicant = Applicant.objects.get(pk=application.user_id)
+            except Applicant.DoesNotExist:
+                applicant = None
+
+            if not applicant or not applicant.id_photo:
+                face_verification.error_message = (
+                    "BukSU ID photo not found. "
+                    "Please contact the office to update your profile."
+                )
                 face_verification.verification_status = 'Failed'
                 face_verification.processed_at = timezone.now()
                 face_verification.save()
-                logger.error(f"No buksu_id document found for application {application_id}")
+                logger.error(f"No registration id_photo for user {application.user_id} (application {application_id})")
 
-                # Audit log: Missing BukSu ID
+                # Audit log: Missing BukSU ID photo from registration
                 from loans.models import AuditLog
                 AuditLog.objects.create(
                     user=application.user,
-                    action=f"Face verification failed for application #{application.id}: Missing BukSu ID",
+                    action=f"Face verification failed for application #{application.id}: Missing BukSU ID photo from registration",
                     action_type='FACE_VERIFY_FAIL',
                     severity='WARNING',
                     success=False,
-                    failure_reason="BukSu ID document not uploaded",
+                    failure_reason="BukSU ID photo not set on Applicant profile",
                     related_application=application
                 )
 
@@ -444,6 +446,8 @@ class FaceComparisonService:
                 )
 
                 return face_verification
+
+            id_document_path = os.path.join(settings.MEDIA_ROOT, str(applicant.id_photo))
 
             # Get selfie path
             if not face_verification.captured_image_path:
@@ -481,11 +485,11 @@ class FaceComparisonService:
             logger.info("=" * 50)
             logger.info(f"FACE VERIFICATION DEBUG for Application {application_id}")
             logger.info(f"MEDIA_ROOT: {settings.MEDIA_ROOT}")
-            logger.info(f"ID document file_path (from DB): {id_document.file_path}")
-            logger.info(f"ID document full path: {id_document_path}")
-            logger.info(f"ID document exists: {os.path.exists(id_document_path)}")
+            logger.info(f"ID photo (from registration): {applicant.id_photo}")
+            logger.info(f"ID photo full path: {id_document_path}")
+            logger.info(f"ID photo exists: {os.path.exists(id_document_path)}")
             if os.path.exists(id_document_path):
-                logger.info(f"ID document size: {os.path.getsize(id_document_path)} bytes")
+                logger.info(f"ID photo size: {os.path.getsize(id_document_path)} bytes")
             logger.info(f"Selfie captured_image_path (from DB): {face_verification.captured_image_path}")
             logger.info(f"Selfie full path: {selfie_path}")
             logger.info(f"Selfie exists: {os.path.exists(selfie_path)}")
@@ -509,8 +513,33 @@ class FaceComparisonService:
                 id_path_for_processing = temp_id_path
             else:
                 # File was not encrypted (or decryption key mismatch) — try using original
+                # Note: registration id_photo is saved without explicit encryption, so this is expected
                 logger.warning(f"Could not decrypt ID document ({decrypt_error}), attempting to use original path directly")
                 id_path_for_processing = id_document_path
+
+            # OCR Name Verification — extract name from registration BukSU ID photo
+            profile_name = f"{application.user.firstname} {application.user.lastname}".strip()
+            try:
+                from .ocr_service import IDOCRService
+                ocr_result = IDOCRService.process_id_image(id_path_for_processing, profile_name=profile_name)
+                if ocr_result.get('success') and ocr_result.get('name_validation'):
+                    nv = ocr_result['name_validation']
+                    face_verification.ocr_name_extracted = nv.get('ocr_name')
+                    face_verification.ocr_name_match = nv.get('match', False)
+                    face_verification.ocr_name_similarity = nv.get('similarity')
+                    logger.info(
+                        f"OCR name check: extracted='{nv.get('ocr_name')}', "
+                        f"match={nv.get('match')}, similarity={nv.get('similarity')}"
+                    )
+                else:
+                    logger.warning(
+                        f"OCR name extraction inconclusive for application {application_id}: "
+                        f"{ocr_result.get('error', 'No name found')}"
+                    )
+                    face_verification.ocr_name_match = None
+            except Exception as ocr_exc:
+                logger.warning(f"OCR step raised exception (non-fatal): {ocr_exc}")
+                face_verification.ocr_name_match = None
 
             try:
                 # Step 1: Extract face from ID document
@@ -697,6 +726,29 @@ class FaceComparisonService:
                         user=application.user,
                         application=application,
                         failure_type='FACE_VERIFY_FAIL'
+                    )
+
+                # Name mismatch downgrade: face matched but OCR says name differs → flag for manual review
+                # Only downgrades if OCR explicitly returned False (not None/indeterminate)
+                if face_verification.verification_status == 'Verified' and face_verification.ocr_name_match is False:
+                    face_verification.verification_status = 'Needs Review'
+                    face_verification.error_message = (
+                        "Face match succeeded but the name on the BukSU ID could not be confirmed. "
+                        "Manual review required."
+                    )
+                    logger.warning(
+                        f"Application {application_id}: Face matched but OCR name mismatch "
+                        f"(similarity={face_verification.ocr_name_similarity}) — downgraded to Needs Review."
+                    )
+                    from loans.models import AuditLog
+                    AuditLog.objects.create(
+                        user=application.user,
+                        action=f"Face verification flagged for review (name mismatch) for application #{application.id}",
+                        action_type='FACE_VERIFY_REVIEW',
+                        severity='WARNING',
+                        success=True,
+                        failure_reason="OCR name on BukSU ID does not match profile name",
+                        related_application=application
                     )
 
                 face_verification.processed_at = timezone.now()

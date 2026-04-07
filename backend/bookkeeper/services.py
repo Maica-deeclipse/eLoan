@@ -116,7 +116,7 @@ class ApplicationService:
         return verification
 
     @staticmethod
-    def reject_application(application, bookkeeper, rejection_reason, notes=None, ip_address=None):
+    def reject_application(application, bookkeeper, rejection_reason, rejection_category=None, notes=None, ip_address=None):
         """
         Reject a loan application.
 
@@ -124,6 +124,7 @@ class ApplicationService:
             application: LoanApplication instance
             bookkeeper: User performing rejection
             rejection_reason: Required reason for rejection
+            rejection_category: Optional structured category
             notes: Optional additional notes
             ip_address: IP address for audit
 
@@ -151,6 +152,7 @@ class ApplicationService:
             verified_by=bookkeeper,
             action='rejected',
             rejection_reason=rejection_reason,
+            rejection_category=rejection_category,
             notes=notes,
             ip_address=ip_address
         )

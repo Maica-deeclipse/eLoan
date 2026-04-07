@@ -40,6 +40,17 @@ class CreditCommitteeDecision(models.Model):
         ('returned', 'Returned to Treasurer'),
     ]
 
+    REJECTION_CATEGORY_CHOICES = [
+        ('incomplete_docs', 'Incomplete Documentation'),
+        ('invalid_docs', 'Invalid/Expired Documents'),
+        ('insufficient_savings', 'Insufficient Savings'),
+        ('insufficient_income', 'Insufficient Income'),
+        ('employment_not_verified', 'Employment Not Verified'),
+        ('high_dti', 'High Debt-to-Income Ratio'),
+        ('does_not_meet_credit', 'Does Not Meet Credit Requirements'),
+        ('others', 'Others'),
+    ]
+
     application = models.ForeignKey(
         LoanApplication,
         on_delete=models.CASCADE,
@@ -58,6 +69,13 @@ class CreditCommitteeDecision(models.Model):
         max_length=20,
         choices=DECISION_CHOICES,
         help_text='Committee decision'
+    )
+    rejection_category = models.CharField(
+        max_length=30,
+        choices=REJECTION_CATEGORY_CHOICES,
+        blank=True,
+        null=True,
+        help_text='Structured rejection category (applicable when decision is rejected)'
     )
     remarks = models.TextField(
         help_text='Required remarks explaining the decision'

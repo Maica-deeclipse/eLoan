@@ -95,11 +95,11 @@ class BookkeeperService {
    * @param {string} notes - Optional notes
    * @returns {Promise}
    */
-  async rejectApplication(id, rejectionReason, notes = '') {
+  async rejectApplication(id, rejectionReason, notes = '', rejectionCategory = null) {
     try {
       const response = await axios.post(
         `${API_URL}/applications/${id}/reject/`,
-        { rejection_reason: rejectionReason, notes },
+        { rejection_reason: rejectionReason, notes, rejection_category: rejectionCategory },
         getAuthHeaders()
       );
       return response.data;

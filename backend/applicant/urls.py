@@ -56,6 +56,7 @@ urlpatterns = [
     path('applications/<int:pk>/submit/', views.SubmitApplicationView.as_view(), name='submit_application'),
     path('applications/<int:pk>/withdraw/', views.WithdrawApplicationView.as_view(), name='withdraw_application'),
     path('applications/<int:pk>/delete/', views.DeleteDraftApplicationView.as_view(), name='delete_draft_application'),
+    path('applications/<int:pk>/reopen/', views.ReopenApplicationView.as_view(), name='reopen_application'),
     path('applications/<int:pk>/download-pdf/', views.DownloadApplicationPDFView.as_view(), name='download_application_pdf'),
     path('applications/<int:pk>/schedule/', views.LoanScheduleView.as_view(), name='loan_schedule'),
 
@@ -85,6 +86,7 @@ urlpatterns = [
     path('profile/', views.ProfileView.as_view(), name='profile'),
     path('profile/picture/', views.ProfilePictureView.as_view(), name='profile_picture'),
     path('profile/change-password/', views.ChangePasswordView.as_view(), name='change_password'),
+    path('profile/update-required/', views.ProfileUpdateRequiredView.as_view(), name='profile_update_required'),
     path('autofill-data/', views.AutofillDataView.as_view(), name='autofill_data'),
 
     # Notifications

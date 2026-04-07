@@ -14,17 +14,9 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
-import IDScannerModal from '../../components/IDScannerModal';
 
 // Fallback used while the API call is in flight
 const FALLBACK_DOCUMENTS = [
-  {
-    key: 'buksu_id',
-    label: 'BukSU ID (Front)',
-    description: 'Front side of your BukSU ID showing your photo',
-    required: true,
-    acceptedTypes: ['image'],
-  },
   {
     key: 'proof_of_income',
     label: 'Proof of Income / Latest Payslip',
@@ -48,8 +40,6 @@ const DocumentUploadScreen = ({ navigation }) => {
   const [requiredDocs, setRequiredDocs] = useState(FALLBACK_DOCUMENTS);
   const [documents, setDocuments] = useState({});
   const [uploading, setUploading] = useState(null);
-  const [scannerVisible, setScannerVisible] = useState(false);
-  const [scannerDocKey, setScannerDocKey] = useState(null);
 
   useEffect(() => {
     if (state.documents) {
@@ -146,13 +136,6 @@ const DocumentUploadScreen = ({ navigation }) => {
   };
 
   const takePhoto = async (documentKey) => {
-    // BukSU ID gets the guided scanner; other docs use the regular camera
-    if (documentKey === 'buksu_id') {
-      setScannerDocKey(documentKey);
-      setScannerVisible(true);
-      return;
-    }
-
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission Required', 'Please grant camera access to take photos.');
@@ -172,14 +155,6 @@ const DocumentUploadScreen = ({ navigation }) => {
       console.error('Camera error:', error);
       Alert.alert('Error', 'Failed to take photo');
     }
-  };
-
-  const handleScanCapture = async (photo) => {
-    setScannerVisible(false);
-    if (scannerDocKey && photo?.uri) {
-      await uploadDocument(scannerDocKey, { uri: photo.uri, fileName: 'buksu_id.jpg' });
-    }
-    setScannerDocKey(null);
   };
 
   const pickDocument = async (documentKey) => {
@@ -280,7 +255,7 @@ const DocumentUploadScreen = ({ navigation }) => {
   const showUploadOptions = (docConfig) => {
     const options = [
       {
-        text: docConfig.key === 'buksu_id' ? 'Scan ID (Camera Guide)' : 'Take Photo',
+        text: 'Take Photo',
         onPress: () => takePhoto(docConfig.key),
       },
       { text: 'Choose from Gallery', onPress: () => pickImage(docConfig.key) },
@@ -434,13 +409,6 @@ const DocumentUploadScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* ID Scanner Modal */}
-      <IDScannerModal
-        visible={scannerVisible}
-        onCapture={handleScanCapture}
-        onClose={() => { setScannerVisible(false); setScannerDocKey(null); }}
-      />
-
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>

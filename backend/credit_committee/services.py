@@ -80,7 +80,7 @@ class DecisionService:
     """Service for Credit Committee decisions."""
 
     @staticmethod
-    def submit_decision(application, committee_member, decision, remarks, meeting_date, ip_address=None):
+    def submit_decision(application, committee_member, decision, remarks, meeting_date, rejection_category=None, ip_address=None):
         """
         Submit a Credit Committee decision.
 
@@ -124,6 +124,7 @@ class DecisionService:
             decided_by=committee_member,
             decision=decision,
             remarks=remarks,
+            rejection_category=rejection_category,
             meeting_date=meeting_date,
             ip_address=ip_address
         )

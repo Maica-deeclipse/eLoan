@@ -14,7 +14,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 
 from .models import Violation, DisciplinaryAction, TerminationRecord
-from users.models import User, Applicant
+from users.models import User, Applicant, AdminUser
 
 STAFF_ROLES = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Officer']
 
@@ -107,7 +107,7 @@ class StaffListView(SuperAdminBaseView):
         account_status = request.query_params.get('account_status')
         role_name = request.query_params.get('role')
 
-        qs = User.objects.filter(
+        qs = AdminUser.objects.filter(
             role__name__in=STAFF_ROLES, is_superuser=False
         ).select_related('role', 'approved_by').order_by('-date_joined')
 
@@ -148,10 +148,10 @@ class StaffActionView(SuperAdminBaseView):
             )
 
         try:
-            staff = User.objects.select_related('role').get(
+            staff = AdminUser.objects.select_related('role').get(
                 pk=user_id, role__name__in=STAFF_ROLES, is_superuser=False
             )
-        except User.DoesNotExist:
+        except AdminUser.DoesNotExist:
             return Response({'error': 'Staff user not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         if action == 'approve':

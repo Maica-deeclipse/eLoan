@@ -196,6 +196,11 @@ class FaceVerification(models.Model):
     # Error handling
     error_message = models.TextField(null=True, blank=True, help_text='Error message if verification failed')
 
+    # Name OCR verification (from registration BukSU ID photo)
+    ocr_name_extracted = models.CharField(max_length=255, null=True, blank=True)
+    ocr_name_match = models.BooleanField(null=True, blank=True)
+    ocr_name_similarity = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+
     # Status and timestamps
     verification_status = models.CharField(max_length=20, default='Pending')
     verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')

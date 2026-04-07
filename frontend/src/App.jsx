@@ -25,6 +25,7 @@ import TreasurerLoanMonitoring from './pages/treasurer/LoanMonitoring';
 import TreasurerReports from './pages/treasurer/Reports';
 import TreasurerNotifications from './pages/treasurer/Notifications';
 import TreasurerSettings from './pages/treasurer/Settings';
+import TreasurerApplicantLoanHistory from './pages/treasurer/ApplicantLoanHistory';
 
 // Credit Committee Module
 import CreditCommitteeLayout from './components/credit-committee/CreditCommitteeLayout';
@@ -93,6 +94,7 @@ function App() {
           <Route path="applications/:id" element={<TreasurerEvaluateApplication />} />
           <Route path="payments" element={<TreasurerPaymentRecords />} />
           <Route path="monitoring" element={<TreasurerLoanMonitoring />} />
+          <Route path="member-history" element={<TreasurerApplicantLoanHistory />} />
           <Route path="reports" element={<TreasurerReports />} />
           <Route path="notifications" element={<TreasurerNotifications />} />
           <Route path="settings" element={<TreasurerSettings />} />

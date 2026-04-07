@@ -44,6 +44,7 @@ from bookkeeper.models import Notification
 from bookkeeper.services import NotificationService
 from loans.models import LoanApplication, LoanType
 from users.models import UserPreferences
+from django.db.models import Q
 
 
 class TreasurerBaseView(APIView):
@@ -518,6 +519,90 @@ class LoanMonitoringView(TreasurerBaseView):
                 for loan in loans
             ],
             'count': loans.count(),
+        })
+
+
+# =============================================================================
+# Applicant Loan History API
+# =============================================================================
+
+class ApplicantSearchView(TreasurerBaseView):
+    """
+    GET /api/treasurer/applicants/search/?q=<query>
+    Search applicants by name or email (for loan history lookup).
+    """
+    def get(self, request):
+        from users.models import User
+        q = request.query_params.get('q', '').strip()
+        if not q:
+            return Response({'applicants': []})
+
+        applicants = User.objects.filter(
+            role__name='Applicant',
+            account_status='approved',
+        ).filter(
+            Q(firstname__icontains=q) |
+            Q(lastname__icontains=q) |
+            Q(email__icontains=q)
+        ).select_related('applicant')[:20]
+
+        results = []
+        for u in applicants:
+            applicant_profile = getattr(u, 'applicant', None)
+            results.append({
+                'id': u.id,
+                'name': f"{u.firstname} {u.lastname}".strip(),
+                'email': u.email,
+                'membership_type': applicant_profile.membership_type if applicant_profile else None,
+                'member_since': applicant_profile.member_since.isoformat() if applicant_profile and applicant_profile.member_since else None,
+            })
+
+        return Response({'applicants': results})
+
+
+class ApplicantLoanHistoryView(TreasurerBaseView):
+    """
+    GET /api/treasurer/applicants/<pk>/loan-history/
+    Returns full loan application history for a given applicant.
+    """
+    def get(self, request, pk):
+        from users.models import User
+        try:
+            user = User.objects.select_related('applicant').get(pk=pk, role__name='Applicant')
+        except User.DoesNotExist:
+            return Response({'error': 'Applicant not found'}, status=404)
+
+        loans = LoanApplication.objects.filter(
+            user=user
+        ).select_related('loan_type', 'current_status').order_by('-application_date')
+
+        applicant_profile = getattr(user, 'applicant', None)
+
+        loan_list = []
+        for loan in loans:
+            loan_list.append({
+                'id': loan.id,
+                'loan_type': loan.loan_type.loan_name if loan.loan_type else 'N/A',
+                'amount_requested': str(loan.amount_requested),
+                'term_months': loan.term_months,
+                'status': loan.current_status.status_name if loan.current_status else 'Unknown',
+                'application_date': loan.application_date.isoformat() if loan.application_date else None,
+                'total_payable': str(loan.total_payable) if loan.total_payable else '0.00',
+                'total_paid': str(loan.total_paid),
+                'remaining_balance': str(loan.remaining_balance),
+                'released_at': loan.released_at.isoformat() if loan.released_at else None,
+                'approved_at': loan.approved_at.isoformat() if loan.approved_at else None,
+            })
+
+        return Response({
+            'applicant': {
+                'id': user.id,
+                'name': f"{user.firstname} {user.lastname}".strip(),
+                'email': user.email,
+                'membership_type': applicant_profile.membership_type if applicant_profile else None,
+            },
+            'loans': loan_list,
+            'total_loans': len(loan_list),
         })
 
 

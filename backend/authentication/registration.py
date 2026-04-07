@@ -185,13 +185,20 @@ class ApplicantRegistrationSerializer(serializers.Serializer):
         return data
 
     def validate_email(self, value):
-        """Validate buksu.edu.ph domain and check uniqueness."""
+        """Validate BukSU domain and check uniqueness.
+
+        Accepted domains (production):
+          - @buksu.edu.ph          (faculty / staff)
+          - @student.buksu.edu.ph  (students)
+          - +alias variants of the above (e.g. you+test1@student.buksu.edu.ph)
+
+        In DEBUG mode any email domain is accepted to ease testing.
+        """
         from django.conf import settings
         value = value.lower().strip()
-        allowed = value.endswith('buksu.edu.ph') or (settings.DEBUG and value.endswith('gmail.com'))
-        if not allowed:
+        if not settings.DEBUG and not value.endswith('buksu.edu.ph'):
             raise serializers.ValidationError(
-                'Only buksu.edu.ph email addresses are allowed to register.'
+                'Only @buksu.edu.ph or @student.buksu.edu.ph email addresses are allowed to register.'
             )
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError('An account with this email already exists.')

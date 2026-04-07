@@ -12,6 +12,7 @@ export default function ApplicationDetail() {
 
   // Decision form state
   const [decision, setDecision] = useState('');
+  const [rejectionCategory, setRejectionCategory] = useState('');
   const [remarks, setRemarks] = useState('');
   const [meetingDate, setMeetingDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -39,6 +40,14 @@ export default function ApplicationDetail() {
       alert('Please select a decision');
       return;
     }
+    if (decision === 'rejected' && !rejectionCategory) {
+      alert('Please select a rejection category');
+      return;
+    }
+    if (decision === 'rejected' && rejectionCategory === 'others' && !remarks.trim()) {
+      alert('Please provide remarks when selecting "Others"');
+      return;
+    }
     if (!remarks.trim()) {
       alert('Remarks are required');
       return;
@@ -60,7 +69,7 @@ export default function ApplicationDetail() {
 
     try {
       setSubmitting(true);
-      await creditCommitteeService.submitDecision(id, decision, remarks, meetingDate);
+      await creditCommitteeService.submitDecision(id, decision, remarks, meetingDate, decision === 'rejected' ? rejectionCategory : null);
       alert('Decision submitted successfully');
       navigate('/credit-committee/applications');
     } catch (err) {
@@ -318,16 +327,41 @@ export default function ApplicationDetail() {
                   </div>
                 </div>
 
+                {/* Rejection Category (only when decision is rejected) */}
+                {decision === 'rejected' && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem', color: '#374151' }}>
+                      Rejection Category <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <select
+                      value={rejectionCategory}
+                      onChange={(e) => { setRejectionCategory(e.target.value); setRemarks(''); }}
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db', fontSize: '0.875rem' }}
+                      required
+                    >
+                      <option value="">-- Select a reason --</option>
+                      <option value="incomplete_docs">Incomplete Documentation</option>
+                      <option value="invalid_docs">Invalid/Expired Documents</option>
+                      <option value="insufficient_savings">Insufficient Savings</option>
+                      <option value="insufficient_income">Insufficient Income</option>
+                      <option value="employment_not_verified">Employment Not Verified</option>
+                      <option value="high_dti">High Debt-to-Income Ratio</option>
+                      <option value="does_not_meet_credit">Does Not Meet Credit Requirements</option>
+                      <option value="others">Others (specify in remarks)</option>
+                    </select>
+                  </div>
+                )}
+
                 {/* Remarks */}
                 <div style={{ marginBottom: '1.5rem' }}>
                   <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem', color: '#374151' }}>
-                    Remarks *
+                    {decision === 'rejected' && rejectionCategory === 'others' ? 'Specify Reason' : 'Remarks'} <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <textarea
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
                     rows={4}
-                    placeholder="Provide detailed remarks explaining your decision..."
+                    placeholder={decision === 'rejected' && rejectionCategory === 'others' ? 'Describe the specific rejection reason...' : 'Provide detailed remarks explaining your decision...'}
                     style={{
                       width: '100%',
                       padding: '0.75rem',

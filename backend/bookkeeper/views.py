@@ -36,7 +36,7 @@ from .services import (
     DashboardService,
     ReportService
 )
-from .models import Notification
+from .models import Notification, BookkeeperVerification
 from loans.models import LoanApplication
 
 
@@ -365,7 +365,19 @@ class RejectApplicationView(BookkeeperBaseView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        rejection_category = request.data.get('rejection_category', '').strip() or None
         rejection_reason = request.data.get('rejection_reason', '').strip()
+
+        # If category is 'others', a custom reason is required
+        if rejection_category == 'others' and not rejection_reason:
+            return Response(
+                {'error': 'Please provide a reason when selecting "Others".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # If no custom reason and category is set, use category label as reason
+        if not rejection_reason and rejection_category:
+            category_labels = dict(BookkeeperVerification.REJECTION_CATEGORY_CHOICES)
+            rejection_reason = category_labels.get(rejection_category, rejection_category)
         if not rejection_reason:
             return Response(
                 {'error': 'Rejection reason is required.'},
@@ -386,6 +398,7 @@ class RejectApplicationView(BookkeeperBaseView):
                 application=application,
                 bookkeeper=request.user,
                 rejection_reason=rejection_reason,
+                rejection_category=rejection_category,
                 notes=notes,
                 ip_address=ip_address
             )

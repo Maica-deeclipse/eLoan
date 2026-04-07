@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import amoService from '../../services/amo.service';
 
@@ -8,7 +8,6 @@ export default function SavingsCapital() {
   const [searchParams] = useSearchParams();
   const initMemberId = searchParams.get('member') || '';
 
-  const [members, setMembers] = useState([]);
   const [memberId, setMemberId] = useState(initMemberId);
   const [memberInfo, setMemberInfo] = useState(null);
   const [tab, setTab] = useState('savings');
@@ -18,8 +17,42 @@ export default function SavingsCapital() {
   const [form, setForm] = useState({ amount: '', transaction_type: 'deposit', reference_number: '', remarks: '' });
   const [msg, setMsg] = useState('');
 
+  // Member search states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const searchRef = useRef(null);
+
+  // Debounced member search
   useEffect(() => {
-    amoService.getMembers().then(d => setMembers(d || []));
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const results = await amoService.getMembers(searchQuery);
+        setSearchResults(results || []);
+        setShowDropdown(true);
+      } catch { setSearchResults([]); }
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   useEffect(() => {
@@ -78,17 +111,66 @@ export default function SavingsCapital() {
 
       {/* Member Selector */}
       <div style={{ background: '#fff', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
-        <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '0.5rem', display: 'block' }}>Select Member</label>
-        <select
-          value={memberId}
-          onChange={e => setMemberId(e.target.value)}
-          style={{ width: '100%', padding: '0.625rem 1rem', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.875rem' }}
-        >
-          <option value="">-- Choose a member --</option>
-          {members.map(m => (
-            <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
-          ))}
-        </select>
+        <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '0.5rem', display: 'block' }}>Search Member</label>
+        <div ref={searchRef} style={{ position: 'relative' }}>
+          <input
+            type="text"
+            placeholder="Type a name or email to search..."
+            value={selectedMember ? selectedMember.name : searchQuery}
+            onChange={e => {
+              if (selectedMember) {
+                // Clear selection when user starts typing again
+                setSelectedMember(null);
+                setMemberId('');
+                setMemberInfo(null);
+                setRecords([]);
+              }
+              setSearchQuery(e.target.value);
+            }}
+            onFocus={() => { if (searchResults.length > 0) setShowDropdown(true); }}
+            style={{ width: '100%', padding: '0.625rem 1rem', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.875rem', boxSizing: 'border-box' }}
+          />
+          {searching && (
+            <span style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: '#6b7280' }}>
+              Searching...
+            </span>
+          )}
+          {selectedMember && (
+            <button
+              onClick={() => { setSelectedMember(null); setMemberId(''); setMemberInfo(null); setRecords([]); setSearchQuery(''); }}
+              style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '1rem', lineHeight: 1 }}
+            >✕</button>
+          )}
+          {showDropdown && searchResults.length > 0 && (
+            <ul style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff',
+              border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              zIndex: 100, marginTop: '4px', maxHeight: '220px', overflowY: 'auto', listStyle: 'none', padding: 0, margin: '4px 0 0',
+            }}>
+              {searchResults.map(m => (
+                <li
+                  key={m.id}
+                  onClick={() => { setSelectedMember(m); setMemberId(m.id); setShowDropdown(false); setSearchQuery(''); }}
+                  style={{ padding: '0.625rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '0.875rem' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                >
+                  <strong style={{ color: '#1f2937' }}>{m.name}</strong>
+                  <span style={{ color: '#6b7280', marginLeft: '0.5rem', fontSize: '0.8rem' }}>{m.email}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {showDropdown && !searching && searchResults.length === 0 && searchQuery.trim() && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff',
+              border: '1px solid #e5e7eb', borderRadius: '8px', padding: '0.75rem 1rem',
+              fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 100,
+            }}>
+              No members found for "{searchQuery}"
+            </div>
+          )}
+        </div>
         {memberInfo && (
           <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>Total Savings: <strong style={{ color: '#10b981' }}>₱{parseFloat(memberInfo.total_savings).toLocaleString()}</strong></span>

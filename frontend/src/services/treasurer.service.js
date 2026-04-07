@@ -143,6 +143,27 @@ class TreasurerService {
   }
 
   // =========================================================================
+  // Applicant Loan History
+  // =========================================================================
+  async searchApplicants(query) {
+    try {
+      const response = await axios.get(`${API_URL}/applicants/search/?q=${encodeURIComponent(query)}`, getAuthHeaders());
+      return response.data.applicants || [];
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  async getApplicantLoanHistory(applicantId) {
+    try {
+      const response = await axios.get(`${API_URL}/applicants/${applicantId}/loan-history/`, getAuthHeaders());
+      return response.data;
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  // =========================================================================
   // Reports
   // =========================================================================
   async getReport(type, filters = {}) {

@@ -55,11 +55,11 @@ class CreditCommitteeService {
     }
   }
 
-  async submitDecision(id, decision, remarks, meetingDate) {
+  async submitDecision(id, decision, remarks, meetingDate, rejectionCategory = null) {
     try {
       const response = await axios.post(
         `${API_URL}/applications/${id}/decide/`,
-        { decision, remarks, meeting_date: meetingDate },
+        { decision, remarks, meeting_date: meetingDate, rejection_category: rejectionCategory },
         getAuthHeaders()
       );
       return response.data;
