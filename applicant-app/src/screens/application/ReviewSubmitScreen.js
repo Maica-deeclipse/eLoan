@@ -328,7 +328,7 @@ const ReviewSubmitScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* Loan-Specific Details Section (ATM, Gadget, LAD, Emergency) */}
+        {/* Loan-Specific Details Section (Gadget, LAD, Emergency) */}
         {hasExtraStep(loanType?.loan_name) && Object.keys(state.loanFormData || {}).length > 0 && (
           <View style={styles.section}>
             {renderSectionHeader(

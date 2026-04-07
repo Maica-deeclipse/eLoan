@@ -2,7 +2,7 @@
  * Loan Form Data Screen (Extra Step — between LoanDetails and CoMaker/DocumentUpload)
  *
  * Dynamically renders loan-type-specific fields driven by loanTypeConfig.
- * Only shown for loan types where hasExtraStep === true (ATM, Gadget, LAD, Emergency).
+ * Only shown for loan types where hasExtraStep === true (Gadget, LAD, Emergency).
  * Saves data to LoanApplication.loan_form_data on the backend via step 4.
  */
 

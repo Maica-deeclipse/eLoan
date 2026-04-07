@@ -120,6 +120,11 @@ class Command(BaseCommand):
             },
         ]
 
+        # Remove discontinued loan types from the DB
+        removed = LoanType.objects.filter(loan_name__in=['ATM Loan']).delete()
+        if removed[0]:
+            self.stdout.write(self.style.WARNING(f'Removed discontinued loan type(s): ATM Loan'))
+
         created_count = 0
         updated_count = 0
 
