@@ -178,7 +178,7 @@ class LoanTypeRequiredDocumentsView(ApplicantBaseView):
                     'description': doc.description or '',
                     'required': doc.is_required,
                     'multiple': doc.document_key == 'other_documents',
-                    'accepted_types': ['image'] if doc.document_key in ('buksu_id', 'atm_card') else ['image', 'pdf'],
+                    'accepted_types': ['image'] if doc.document_key == 'buksu_id' else ['image', 'pdf'],
                 }
                 for doc in qs
             ]

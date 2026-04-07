@@ -9,17 +9,6 @@ from loans.models import LoanType, LoanTypeRequiredDocument
 # Maps loan_name → list of (document_key, document_label, description, is_required, sort_order)
 # Note: buksu_id is no longer required here — it is collected once during registration (Applicant.id_photo)
 LOAN_DOCUMENTS = {
-    'ATM Loan': [
-        ('cisp_insurance_form',    'CISP Insurance Form',                        'Accomplished CISP insurance form',                               True,  1),
-        ('payslip_1_month',        'Latest 1-Month Payslip (Borrower)',          'Borrower\'s most recent payslip',                                True,  2),
-        ('comaker_payslip',        'Co-Maker Latest 1-Month Payslip',            'Co-maker\'s most recent payslip',                                True,  3),
-        ('comaker_id',             'Co-Maker BukSU ID',                          'Co-maker\'s BukSU ID copy',                                      True,  4),
-        ('atm_card',               'ATM Card (as Collateral)',                   'ATM card to be used as collateral',                              True,  5),
-        ('bank_statement_3_months','Bank Statement (at least 3 months)',         'Bank statement covering at least the last 3 months',             True,  6),
-        ('balance_inquiry',        'Updated Balance Inquiry',                    'Latest balance inquiry slip',                                    True,  7),
-        ('signed_waiver',          'Signed Waiver',                              'Accomplished and signed waiver form',                            True,  8),
-        ('other_documents',        'Other Supporting Documents',                 'Any additional supporting documents',                            False, 9),
-    ],
     'Calamity Loan': [
         ('proof_of_income',        'Proof of Income / Latest Payslip',          'Most recent payslip',                                            True,  1),
         ('other_documents',        'Other Supporting Documents',                 'Any additional supporting documents',                            False, 2),

@@ -355,7 +355,7 @@ class LoanApplicationService:
         1 - Loan Type (already set on create)
         2 - Personal Details (stored in ApplicantProfile)
         3 - Loan Details (amount, term, purpose)
-        4 - Loan-type extra fields (loan_form_data) — only for ATM/Gadget/LAD/Emergency
+        4 - Loan-type extra fields (loan_form_data) — only for Gadget/LAD/Emergency
         5 - Co-Makers (handled separately)
         6 - Documents (handled separately)
         7 - Face Verification (handled separately)
@@ -414,7 +414,7 @@ class LoanApplicationService:
             return True, None
 
         if step_number == 4:
-            # Loan-type-specific extra fields (ATM, Gadget, LAD, Emergency)
+            # Loan-type-specific extra fields (Gadget, LAD, Emergency)
             incoming = data.get('loan_form_data')
             if incoming and isinstance(incoming, dict):
                 existing = application.loan_form_data or {}

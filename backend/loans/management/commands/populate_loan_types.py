@@ -11,15 +11,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         loan_types = [
             {
-                'loan_name': 'ATM Loan',
-                'required_comakers': 1,
-                'min_amount': 5000,
-                'max_amount': 50000,
-                'interest_rate': 24.00,  # 2% per month
-                'max_term_months': 24,
-                'description': 'Loan secured with ATM as collateral. Requires one co-maker, bank statement (3 months), updated balance inquiry, and signed waiver.',
-            },
-            {
                 'loan_name': 'Calamity Loan',
                 'required_comakers': 0,
                 'min_amount': 500,

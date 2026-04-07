@@ -202,12 +202,6 @@ class DocumentTypes:
     # Spouse
     SPOUSE_VALID_ID = 'spouse_valid_id'
 
-    # ATM-specific
-    ATM_CARD = 'atm_card'
-    BANK_STATEMENT_3_MONTHS = 'bank_statement_3_months'
-    BALANCE_INQUIRY = 'balance_inquiry'
-    SIGNED_WAIVER = 'signed_waiver'
-
     # Gadget/Appliance-specific
     GADGET_QUOTATION = 'gadget_quotation'
 
@@ -234,7 +228,6 @@ class DocumentTypes:
         CERTIFICATE_OF_EMPLOYMENT, LETTER_OF_INTENT,
         COMAKER_ID, COMAKER_PAYSLIP, COMAKER_SIGNATURE,
         SPOUSE_VALID_ID,
-        ATM_CARD, BANK_STATEMENT_3_MONTHS, BALANCE_INQUIRY, SIGNED_WAIVER,
         GADGET_QUOTATION,
         PROOF_OF_ADDRESS, BANK_STATEMENT, SUPPORTING_DOC, OTHER_DOCUMENTS,
     ]
@@ -254,10 +247,6 @@ class DocumentTypes:
         COMAKER_PAYSLIP: 'Co-Maker Latest 1-Month Payslip',
         COMAKER_SIGNATURE: 'Co-Maker Signature',
         SPOUSE_VALID_ID: 'Spouse Valid ID Copy',
-        ATM_CARD: 'ATM Card (as Collateral)',
-        BANK_STATEMENT_3_MONTHS: 'Bank Statement (at least 3 months)',
-        BALANCE_INQUIRY: 'Updated Balance Inquiry',
-        SIGNED_WAIVER: 'Signed Waiver',
         GADGET_QUOTATION: 'Gadget / Appliance Quotation',
         PROOF_OF_ADDRESS: 'Proof of Address',
         BANK_STATEMENT: 'Bank Statement',

@@ -58,7 +58,6 @@ FORMS_DIR = os.path.join(settings.MEDIA_ROOT, 'forms')
 
 # Maps LoanType.loan_name → filename inside FORMS_DIR
 TEMPLATE_FILES: dict[str, str] = {
-    'ATM Loan':              'ATM-Loan-Form.New.pdf',
     'Calamity Loan':         'Calamity-Loan-Form.pdf',
     'Emergency Loan':        'Emergency Loan Form.pdf',
     'Enhanced Regular Loan': 'Enhanced-Loan-Form.New.pdf',
@@ -190,12 +189,10 @@ def extract_data(app) -> dict:
             return f"{_v(cm_user.firstname)} {_v(cm_user.lastname)}"
         return fallback
 
-    # ---- loan_form_data extras (ATM / LAD) ----------------------------------
+    # ---- loan_form_data extras (LAD / Gadget) --------------------------------
     share_capital  = _money(loan_form.get('share_capital_amount'))
     sc_date        = _v(loan_form.get('share_capital_as_of_date'))
     passbook_no    = _v(loan_form.get('passbook_no'))
-    atm_balance    = _money(loan_form.get('atm_loan_balance_amount'))
-    atm_bal_date   = _v(loan_form.get('atm_loan_balance_as_of_date'))
     savings_dep    = _money(loan_form.get('savings_deposit_amount'))
     loan_balance   = _money(loan_form.get('loan_balance_amount'))
     lb_date        = _v(loan_form.get('loan_balance_as_of_date'))
@@ -282,8 +279,6 @@ def extract_data(app) -> dict:
         'share_capital_amount':      share_capital,
         'share_capital_as_of_date':  sc_date,
         'passbook_no':               passbook_no,
-        'atm_loan_balance_amount':   atm_balance,
-        'atm_loan_balance_as_of_date': atm_bal_date,
         'savings_deposit_amount':    savings_dep,
         'loan_balance_amount':       loan_balance,
         'loan_balance_as_of_date':   lb_date,
@@ -320,74 +315,6 @@ FIELD_MAPS: dict[str, list[FieldDef]] = {}
 def _reg(loan_name: str, fields: list[FieldDef]):
     FIELD_MAPS[loan_name] = fields
 
-
-# ── ATM Loan ──────────────────────────────────────────────────────────────
-_reg('ATM Loan', [
-    # Page 0 – Application form
-    FieldDef('date',            0, 445, 751, size=8.5),
-    FieldDef('loan_no',         0, 155, 751, size=8.5),
-    FieldDef('amount_in_words', 0,  90, 728, size=8.5, max_width=320),
-    FieldDef('amount_applied',  0, 450, 728, size=8.5),
-    FieldDef('term_months',     0, 155, 705, size=8.5),
-    # Installment type checkboxes
-    FieldDef('installment_semi',    0,  90, 685, size=9, font='Helvetica-Bold'),
-    FieldDef('installment_monthly', 0, 200, 685, size=9, font='Helvetica-Bold'),
-    FieldDef('first_installment_date', 0, 340, 685, size=8.5),
-    # Loan purpose checkboxes
-    FieldDef('purpose_enrolment', 0,  90, 662, size=9, font='Helvetica-Bold'),
-    FieldDef('purpose_house',     0, 200, 662, size=9, font='Helvetica-Bold'),
-    FieldDef('purpose_hospital',  0, 310, 662, size=9, font='Helvetica-Bold'),
-    FieldDef('purpose_other',     0, 420, 662, size=9, font='Helvetica-Bold'),
-    # Borrower info
-    FieldDef('borrower_name',       0,  90, 635, size=8.5, max_width=250),
-    FieldDef('net_take_home_pay',   0, 390, 635, size=8.5),
-    FieldDef('complete_address',    0,  90, 612, size=8.5, max_width=350),
-    FieldDef('contact_no',          0, 450, 612, size=8.5),
-    # Employment status checkboxes
-    FieldDef('emp_permanent', 0,  90, 589, size=9, font='Helvetica-Bold'),
-    FieldDef('emp_temporary', 0, 175, 589, size=9, font='Helvetica-Bold'),
-    FieldDef('emp_casual',    0, 260, 589, size=9, font='Helvetica-Bold'),
-    FieldDef('emp_part_time', 0, 345, 589, size=9, font='Helvetica-Bold'),
-    FieldDef('emp_job_order', 0, 430, 589, size=9, font='Helvetica-Bold'),
-    # Personal
-    FieldDef('age',          0, 110, 566, size=8.5),
-    FieldDef('birthday',     0, 220, 566, size=8.5),
-    FieldDef('civil_status', 0, 370, 566, size=8.5),
-    FieldDef('tin',          0, 490, 566, size=8.5),
-    # Page 1 – Disclosure Statement
-    FieldDef('kind_of_loan',      1, 200, 700, size=8.5),
-    FieldDef('loan_granted',      1, 200, 678, size=8.5),
-    FieldDef('term',              1, 200, 656, size=8.5),
-    FieldDef('interest_rate',     1, 200, 634, size=8.5),
-    FieldDef('interest_amount',   1, 200, 612, size=8.5),
-    FieldDef('total_deduction',   1, 200, 568, size=8.5),
-    FieldDef('net_proceeds',      1, 200, 546, size=8.5),
-    FieldDef('prepared_by',       1, 200, 480, size=8.5),
-    # Page 2 – Credit Committee
-    FieldDef('committee_meeting_date', 2, 250, 720, size=8.5),
-    FieldDef('remarks_conditions',     2, 100, 650, size=8.5, max_width=400),
-    FieldDef('approver_1_name',        2, 100, 580, size=8.5),
-    FieldDef('approver_2_name',        2, 240, 580, size=8.5),
-    FieldDef('approver_3_name',        2, 390, 580, size=8.5),
-    FieldDef('share_capital_as_of_date',   2, 300, 520, size=8.5),
-    FieldDef('share_capital_amount',        2, 450, 520, size=8.5),
-    FieldDef('atm_loan_balance_as_of_date', 2, 300, 498, size=8.5),
-    FieldDef('atm_loan_balance_amount',     2, 450, 498, size=8.5),
-    FieldDef('passbook_no',                 2, 300, 476, size=8.5),
-    # Page 3 – Promissory Note
-    FieldDef('promissory_amount',      3,  90, 720, size=8.5),
-    FieldDef('date_granted',           3, 300, 720, size=8.5),
-    FieldDef('amortization',           3,  90, 698, size=8.5),
-    FieldDef('installment_due_every',  3, 300, 698, size=8.5),
-    FieldDef('interest_amount',        3,  90, 676, size=8.5),
-    FieldDef('maturity_date',          3, 300, 676, size=8.5),
-    FieldDef('interest_rate',          3,  90, 654, size=8.5),
-    FieldDef('number_of_installments', 3, 300, 654, size=8.5),
-    FieldDef('installment_amount',     3,  90, 632, size=8.5),
-    FieldDef('borrower_name',          3,  90, 200, size=8.5, max_width=200),
-    FieldDef('co_maker_1_name',        3, 220, 200, size=8.5, max_width=150),
-    FieldDef('generated_date',         3, 400, 200, size=8.5),
-])
 
 # ── Calamity Loan ─────────────────────────────────────────────────────────
 _reg('Calamity Loan', [

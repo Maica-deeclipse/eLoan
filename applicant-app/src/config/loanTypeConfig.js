@@ -12,17 +12,6 @@
  */
 
 const LOAN_TYPE_CONFIGS = {
-  'ATM Loan': {
-    hasExtraStep: true,
-    extraStepTitle: 'ATM & Account Details',
-    extraFields: [
-      { key: 'bank_name',      label: 'Bank Name',      type: 'text',     required: true },
-      { key: 'account_number', label: 'Account Number', type: 'text',     required: true },
-      { key: 'atm_balance',    label: 'ATM Balance',    type: 'currency', required: true },
-    ],
-    semiMonthlyAllowed: true,
-  },
-
   'Emergency Loan': { hasExtraStep: false, semiMonthlyAllowed: false },
 
   'Gadget/Appliance Loan': {

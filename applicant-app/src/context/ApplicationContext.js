@@ -55,7 +55,7 @@ const initialState = {
     calculatedInterest: null,
   },
 
-  // Step 3b: Loan-type-specific extra fields (ATM, Gadget, LAD, Emergency)
+  // Step 3b: Loan-type-specific extra fields (Gadget, LAD, Emergency)
   loanFormData: {},
 
   // Step 4: Co-Makers (conditional)
