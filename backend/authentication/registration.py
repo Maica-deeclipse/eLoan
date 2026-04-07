@@ -136,7 +136,7 @@ class StaffGoogleRegistrationView(APIView):
         try:
             role = Role.objects.get(name=role_name)
         except Role.DoesNotExist:
-            return Response({'error': f'Role "{role_name}" not found.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': f'Role "{role_name}" not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
         firstname = google_user.get('given_name', '') or email.split('@')[0]
         lastname = google_user.get('family_name', '') or ''
@@ -146,27 +146,33 @@ class StaffGoogleRegistrationView(APIView):
             secrets.choice(string.ascii_letters + string.digits) for _ in range(48)
         )
 
-        admin_user = AdminUser.objects.create_user(
-            email=email,
-            password=random_password,
-            firstname=firstname,
-            lastname=lastname,
-            role=role,
-            employee_id=employee_id,
-            account_status='pending',
-            status='active',
-            is_staff=True,
-        )
+        try:
+            user = User.objects.create_user(
+                email=email,
+                password=random_password,
+                firstname=firstname,
+                lastname=lastname,
+                role=role,
+                employee_id=employee_id,
+                account_status='pending',
+                status='active',
+                is_staff=True,
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to create user account: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response({
             'message': 'Registration submitted. Your account is pending Super Admin approval.',
             'user': {
-                'id': admin_user.id,
-                'email': admin_user.email,
-                'firstname': admin_user.firstname,
-                'lastname': admin_user.lastname,
-                'role': admin_user.role.name,
-                'account_status': admin_user.account_status,
+                'id': user.id,
+                'email': user.email,
+                'firstname': user.firstname,
+                'lastname': user.lastname,
+                'role': user.role.name,
+                'account_status': user.account_status,
             }
         }, status=status.HTTP_201_CREATED)
 
@@ -262,10 +268,15 @@ class ApplicantRegistrationView(APIView):
             if val:
                 setattr(applicant, field, val)
 
-        # Date of birth
+        # Date of birth (validate format: YYYY-MM-DD)
         dob = request.data.get('date_of_birth', '').strip()
         if dob:
-            applicant.date_of_birth = dob
+            from datetime import datetime
+            try:
+                datetime.strptime(dob, '%Y-%m-%d')
+                applicant.date_of_birth = dob
+            except ValueError:
+                pass
 
         # Monthly income
         income = request.data.get('monthly_income', '').strip()
@@ -288,16 +299,27 @@ class ApplicantRegistrationView(APIView):
         # Beneficiaries (sent as JSON string)
         beneficiaries_raw = request.data.get('beneficiaries', '[]')
         try:
+            from datetime import datetime
             beneficiaries = json.loads(beneficiaries_raw)
             for b in beneficiaries:
                 name = b.get('name', '').strip()
                 if not name:
                     continue
+                # Validate beneficiary date_of_birth
+                beneficiary_dob = b.get('date_of_birth', '').strip() if isinstance(b.get('date_of_birth'), str) else None
+                beneficiary_dob_parsed = None
+                if beneficiary_dob:
+                    try:
+                        datetime.strptime(beneficiary_dob, '%Y-%m-%d')
+                        beneficiary_dob_parsed = beneficiary_dob
+                    except ValueError:
+                        pass
+                
                 ApplicantBeneficiary.objects.create(
                     profile=applicant,
                     name=name,
                     relationship=b.get('relationship', ''),
-                    date_of_birth=b.get('date_of_birth') or None,
+                    date_of_birth=beneficiary_dob_parsed,
                     contact_number=b.get('contact_number', ''),
                 )
         except (json.JSONDecodeError, Exception):

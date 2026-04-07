@@ -157,12 +157,12 @@ const styles = StyleSheet.create({
   },
   logoText: { 
     fontSize: 28, 
-    fontWeight: 'bold', 
+    fontFamily: 'Poppins_700Bold', 
     color: '#1f2937' 
   },
   title: { 
     fontSize: 24, 
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#1f2937' 
   },
   subtitle: { 
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   },
   infoTitle: { 
     fontSize: 14, 
-    fontWeight: '700', 
+    fontFamily: 'Poppins_700Bold', 
     color: '#1d4ed8', 
     marginBottom: 10 
   },
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     lineHeight: 19 
   },
   infoHighlight: { 
-    fontWeight: '700' 
+    fontFamily: 'Poppins_700Bold' 
   },
   googleButton: {
     flexDirection: 'row', 
@@ -226,12 +226,12 @@ const styles = StyleSheet.create({
     marginBottom: 8, 
     elevation: 1,
   },
-  // googleIcon: { fontSize: 18, fontWeight: '700', color: '#4285F4', marginRight: 10 },
-  // googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
+  // googleIcon: { fontSize: 18, fontFamily: 'Poppins_700Bold', color: '#4285F4', marginRight: 10 },
+  // googleButtonText: { color: '#374151', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
   // domainHint: { textAlign: 'center', fontSize: 12, color: '#9ca3af', marginBottom: 16 },
   // dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginBottom: 16 },
   // divider: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  // dividerText: { marginHorizontal: 12, fontSize: 13, color: '#9ca3af', fontWeight: '500' },
+  // dividerText: { marginHorizontal: 12, fontSize: 13, color: '#9ca3af', fontFamily: 'Poppins_500Medium' },
   manualButton: {
     backgroundColor: '#02327a', 
     borderRadius: 10, 
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   manualButtonText: { 
     color: '#fff', 
     fontSize: 16, 
-    fontWeight: '600' 
+    fontFamily: 'Poppins_600SemiBold' 
   },
   buttonDisabled: { 
     opacity: 0.5 
@@ -257,18 +257,15 @@ const styles = StyleSheet.create({
     color: '#6b7280', 
     fontSize: 14 
   },
-  loginLink: {
-    color: '#17236a',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  // Success screen
-  successContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-  },
+  loginLink: { 
+    color: '#02327a', 
+    fontSize: 14, 
+    fontFamily: 'Poppins_600SemiBold' },
+  successContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 30 },
   successIconContainer: {
     width: 80, 
     height: 80, 
@@ -284,7 +281,7 @@ const styles = StyleSheet.create({
   },
   successTitle: { 
     fontSize: 24, 
-    fontWeight: '700', 
+    fontFamily: 'Poppins_700Bold', 
     color: '#1f2937', 
     marginBottom: 12 
   },
@@ -301,15 +298,15 @@ const styles = StyleSheet.create({
     lineHeight: 20, 
     marginBottom: 32 
   },
-  loginButton: {
-    backgroundColor: '#17236a',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
+  loginButton: { 
+    backgroundColor: '#02327a', 
+    borderRadius: 8, 
+    paddingVertical: 14, 
+    paddingHorizontal: 32 
   },
   loginButtonText: { 
     color: '#fff', 
     fontSize: 16,
-     fontWeight: '600' 
+     fontFamily: 'Poppins_600SemiBold' 
     },
 });

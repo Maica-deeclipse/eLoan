@@ -113,7 +113,7 @@ export default function DropdownPicker({
                       {item.label}
                     </Text>
                     {isSelected && (
-                      <Ionicons name="checkmark" size={18} color="#17236a" />
+                      <Ionicons name="checkmark" size={18} color="#6366f1" />
                     )}
                   </TouchableOpacity>
                 );
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#374151',
     marginBottom: 6,
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
   },
   selector: {
     flexDirection: 'row',
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     color: '#111827',
   },
   closeBtn: {
@@ -224,8 +224,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionTextSelected: {
-    color: '#17236a',
-    fontWeight: '600',
+    color: '#6366f1',
+    fontFamily: 'Poppins_600SemiBold',
   },
   separator: {
     height: 1,

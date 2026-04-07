@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
   },
   introTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#212529',
     textAlign: 'center',
     marginBottom: 12,
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
   startButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginLeft: 10,
   },
   // Camera styles
@@ -820,7 +820,7 @@ const styles = StyleSheet.create({
   },
   cameraTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#212529',
     marginBottom: 8,
   },
@@ -862,7 +862,7 @@ const styles = StyleSheet.create({
   },
   countdownText: {
     fontSize: 72,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#fff',
   },
   captureButton: {
@@ -908,7 +908,7 @@ const styles = StyleSheet.create({
   },
   livenessTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#212529',
   },
   livenessProgress: {
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
   },
   challengeInstruction: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#0d6efd',
   },
   livenessIndicators: {
@@ -973,7 +973,7 @@ const styles = StyleSheet.create({
   },
   recordingText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
   },
   instructionBanner: {
@@ -987,7 +987,7 @@ const styles = StyleSheet.create({
   },
   instructionText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
     marginLeft: 8,
   },
@@ -1000,7 +1000,7 @@ const styles = StyleSheet.create({
   },
   livenessIntroTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#212529',
     marginTop: 12,
     marginBottom: 8,
@@ -1023,7 +1023,7 @@ const styles = StyleSheet.create({
   },
   overlayInstructionText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
     textAlign: 'center',
   },
@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
   recordButtonText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginTop: 4,
   },
   recordingIndicator: {
@@ -1057,7 +1057,7 @@ const styles = StyleSheet.create({
   },
   recordingMessage: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#212529',
     marginBottom: 4,
   },
@@ -1089,7 +1089,7 @@ const styles = StyleSheet.create({
   },
   completeTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#28a745',
     marginBottom: 8,
   },
@@ -1149,7 +1149,7 @@ const styles = StyleSheet.create({
   retakeButtonText: {
     color: '#0d6efd',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginLeft: 8,
   },
   // Navigation buttons
@@ -1175,7 +1175,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#666',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginLeft: 4,
   },
   continueButton: {
@@ -1193,7 +1193,7 @@ const styles = StyleSheet.create({
   continueButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginRight: 8,
   },
 });

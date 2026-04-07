@@ -1,6 +1,6 @@
 /**
  * Personal Details Screen (Step 2)
- * Pre-fills from registration profile data. Fields are read-only during application.
+ * Pre-fills from registration profile data. Fields are editable to allow corrections.
  */
 
 import { useState, useEffect } from 'react';
@@ -23,9 +23,10 @@ import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraf
 import DropdownPicker from '../../components/DropdownPicker';
 
 const EMPLOYMENT_STATUS_OPTIONS = [
-  { label: 'Regular', value: 'regular' },
+  { label: 'Permanent', value: 'permanent' },
+  { label: 'Temporary', value: 'temporary' },
   { label: 'Casual', value: 'casual' },
-  { label: 'Part-time', value: 'part_time' },
+  { label: 'Part-Time', value: 'part_time' },
   { label: 'Job Order', value: 'job_order' },
 ];
 
@@ -154,6 +155,21 @@ export default function PersonalDetailsScreen({ navigation }) {
 
     setSaving(true);
     try {
+      await profileService.updateProfile({
+        contact_number:    contactNumber,
+        address_line1:     addressLine1,
+        city,
+        province,
+        zip_code:          zipCode,
+        employer_name:     employerName,
+        position,
+        monthly_income:    monthlyIncome || null,
+        employment_status: employmentStatus || null,
+        civil_status:      civilStatus || null,
+        tin:               tin || null,
+        date_of_birth:     dateOfBirth || null,
+      });
+
       const details = {
         contactNumber, addressLine1, city, province, zipCode,
         employerName, position, monthlyIncome,
@@ -174,8 +190,8 @@ export default function PersonalDetailsScreen({ navigation }) {
 
       navigation.navigate('LoanDetails');
     } catch (error) {
-      console.error('Personal details error:', error);
-      Alert.alert('Error', 'Failed to proceed. Please try again.');
+      console.error('Save profile error:', error);
+      Alert.alert('Error', 'Failed to save personal details');
     } finally {
       setSaving(false);
     }
@@ -184,7 +200,7 @@ export default function PersonalDetailsScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
-        <ActivityIndicator size="large" color="#17236a" />
+        <ActivityIndicator size="large" color="#0f1c52" />
         <Text style={styles.loadingText}>Loading your information...</Text>
       </SafeAreaView>
     );
@@ -208,7 +224,7 @@ export default function PersonalDetailsScreen({ navigation }) {
           <View style={styles.instructions}>
             <Text style={styles.instructionTitle}>Personal Details</Text>
             <Text style={styles.instructionText}>
-              Your registration details are shown below. Contact the office to make changes.
+              Your registration details are pre-filled below. Please verify and update if needed.
             </Text>
           </View>
 
@@ -220,7 +236,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={contactNumber}
-                editable={false}
+                onChangeText={setContactNumber}
                 placeholder="09XX XXX XXXX"
                 keyboardType="phone-pad"
               />
@@ -235,7 +251,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={addressLine1}
-                editable={false}
+                onChangeText={setAddressLine1}
                 placeholder="House/Unit No., Street, Barangay"
               />
             </View>
@@ -245,7 +261,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 <TextInput
                   style={styles.input}
                   value={city}
-                  editable={false}
+                  onChangeText={setCity}
                   placeholder="City"
                 />
               </View>
@@ -254,7 +270,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 <TextInput
                   style={styles.input}
                   value={province}
-                  editable={false}
+                  onChangeText={setProvince}
                   placeholder="Province"
                 />
               </View>
@@ -264,7 +280,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={[styles.input, { width: 120 }]}
                 value={zipCode}
-                editable={false}
+                onChangeText={setZipCode}
                 placeholder="ZIP"
                 keyboardType="numeric"
               />
@@ -281,7 +297,6 @@ export default function PersonalDetailsScreen({ navigation }) {
                 value={civilStatus || null}
                 options={CIVIL_STATUS_OPTIONS}
                 onChange={(val) => setCivilStatus(val)}
-                disabled={true}
               />
             </View>
             <View style={styles.field}>
@@ -289,7 +304,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={dateOfBirth}
-                editable={false}
+                onChangeText={setDateOfBirth}
                 placeholder="YYYY-MM-DD"
                 keyboardType="numbers-and-punctuation"
               />
@@ -299,7 +314,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={tin}
-                editable={false}
+                onChangeText={setTin}
                 placeholder="XXX-XXX-XXX"
                 keyboardType="numbers-and-punctuation"
               />
@@ -316,7 +331,6 @@ export default function PersonalDetailsScreen({ navigation }) {
                 value={employmentStatus || null}
                 options={EMPLOYMENT_STATUS_OPTIONS}
                 onChange={(val) => setEmploymentStatus(val)}
-                disabled={true}
               />
             </View>
             <View style={styles.field}>
@@ -324,7 +338,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={employerName}
-                editable={false}
+                onChangeText={setEmployerName}
                 placeholder="Office/Department Name"
               />
             </View>
@@ -333,7 +347,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={position}
-                editable={false}
+                onChangeText={setPosition}
                 placeholder="Your Position/Title"
               />
             </View>
@@ -342,7 +356,7 @@ export default function PersonalDetailsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={monthlyIncome}
-                editable={false}
+                onChangeText={setMonthlyIncome}
                 placeholder="₱0.00"
                 keyboardType="numeric"
               />
@@ -373,110 +387,43 @@ export default function PersonalDetailsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  progressContainer: {
-    padding: 16,
-    paddingBottom: 0,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 2,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#17236a',
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'right',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 8,
-    paddingBottom: 100,
-  },
-  instructions: {
-    marginBottom: 16,
-  },
-  instructionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  instructionText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
+  container:        { flex: 1, backgroundColor: '#EEF4FF' },
+  keyboardView:     { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#EEF4FF' },
+  loadingText:      { marginTop: 12, fontSize: 16, color: '#6b7280' },
+  progressContainer:{ padding: 16, paddingBottom: 0 },
+  progressBar:      { height: 4, backgroundColor: 'rgba(15,28,82,0.1)', borderRadius: 2 },
+  progressFill:     { height: '100%', backgroundColor: '#0f1c52', borderRadius: 2 },
+  progressText:     { fontSize: 12, color: '#9ca3af', marginTop: 8, textAlign: 'right' },
+  scrollContent:    { padding: 16, paddingTop: 8, paddingBottom: 100 },
+  instructions:     { marginBottom: 16 },
+  instructionTitle: { fontSize: 20, fontFamily: 'Poppins_700Bold', color: '#0f1c52' },
+  instructionText:  { fontSize: 14, color: '#6b7280', marginTop: 4 },
   section: {
     backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03, shadowRadius: 2, elevation: 1,
   },
   sectionTitle: {
-    fontSize: 14, fontWeight: '600', color: '#6b7280',
+    fontSize: 14, fontFamily: 'Poppins_600SemiBold', color: '#6b7280',
     marginBottom: 16, textTransform: 'uppercase',
   },
   field:  { marginBottom: 16 },
   row:    { flexDirection: 'row' },
-  label:  { fontSize: 13, color: '#374151', marginBottom: 6, fontWeight: '500' },
+  label:  { fontSize: 13, color: '#0f1c52', marginBottom: 6, fontFamily: 'Poppins_500Medium' },
   input: {
-    borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8,
+    borderWidth: 1, borderColor: 'rgba(15,28,82,0.15)', borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 12,
-    fontSize: 15, color: '#1f2937', backgroundColor: '#fff',
+    fontSize: 15, color: '#0f1c52', backgroundColor: '#fff',
   },
   footer: {
     flexDirection: 'row', padding: 16, paddingTop: 12,
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb',
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: 'rgba(15,28,82,0.1)',
     position: 'absolute', bottom: 0, left: 0, right: 0,
   },
-  backButton: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  backButtonText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  continueButton: {
-    flex: 2,
-    backgroundColor: '#17236a',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  continueButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  continueButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  backButton:             { flex: 1, backgroundColor: '#EEF4FF', borderRadius: 12, padding: 16, alignItems: 'center', marginRight: 8 },
+  backButtonText:         { color: '#0f1c52', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
+  continueButton:         { flex: 2, backgroundColor: '#0f1c52', borderRadius: 12, padding: 16, alignItems: 'center' },
+  continueButtonDisabled: { backgroundColor: '#9ca3af' },
+  continueButtonText:     { color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
 });

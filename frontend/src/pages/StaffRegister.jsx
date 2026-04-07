@@ -295,26 +295,28 @@ export default function StaffRegister() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label>First Name</label>
-                <input value={googleData.firstname} disabled style={{ opacity: 0.7 }} />
+                <label htmlFor="firstname">First Name</label>
+                <input id="firstname" name="firstname" autoComplete="given-name" value={googleData.firstname} disabled style={{ opacity: 0.7 }} />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label>Last Name</label>
-                <input value={googleData.lastname} disabled style={{ opacity: 0.7 }} />
+                <label htmlFor="lastname">Last Name</label>
+                <input id="lastname" name="lastname" autoComplete="family-name" value={googleData.lastname} disabled style={{ opacity: 0.7 }} />
               </div>
             </div>
 
             <div className="form-group">
-              <label>Email</label>
-              <input type="email" value={googleData.email} disabled style={{ opacity: 0.7 }} />
+              <label htmlFor="email">Email</label>
+              <input id="email" name="email" type="email" autoComplete="email" value={googleData.email} disabled style={{ opacity: 0.7 }} />
             </div>
 
             <div className="form-group">
               <label htmlFor="g-employee-id">Employee ID</label>
               <input
-                id="g-employee-id"
-                value={googleEmployeeId}
-                onChange={(e) => { setGoogleEmployeeId(e.target.value); setError(''); }}
+                id="employee_id"
+                name="employee_id"
+                autoComplete="off"
+                value={employeeId}
+                onChange={(e) => { setEmployeeId(e.target.value); setError(''); }}
                 required
                 disabled={loading}
                 placeholder="EMP-001"

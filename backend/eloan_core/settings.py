@@ -13,7 +13,11 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
-from decouple import config, Csv
+from decouple import config
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,6 +36,7 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '192.168.137.164',
+    '192.168.1.21',
     '10.0.0.52',
 ]
 
@@ -72,6 +77,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'eloan_core.middleware.CORSAndCoopMiddleware',  # COOP headers for Google OAuth popups
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.gzip.GZipMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -251,11 +257,17 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
 # CORS Configuration
 # Allow requests from the frontend application and mobile app
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000,http://localhost:8081,http://localhost:19000,http://localhost:19006',
-    cast=Csv()
-)
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://192.168.137.164:3000',
+    'http://192.168.1.21:3000',
+    'http://localhost:8081',
+    'http://192.168.137.164:8081',
+    'http://192.168.1.21:8081',
+    'http://localhost:19000',
+    'http://localhost:19006',
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # Django Unfold Admin Configuration

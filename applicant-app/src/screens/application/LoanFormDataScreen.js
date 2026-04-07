@@ -225,7 +225,7 @@ export default function LoanFormDataScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#EEF4FF',
   },
   keyboardView: {
     flex: 1,
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#EEF4FF',
   },
   progressContainer: {
     padding: 16,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#0f1c52',
     borderRadius: 2,
   },
   progressText: {
@@ -262,14 +262,14 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   headerCard: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#0f1c52',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     color: '#fff',
     marginBottom: 4,
   },
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#374151',
     marginBottom: 6,
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
   },
   input: {
     borderWidth: 1,
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: '#6366f1',
+    color: '#0f1c52',
     marginTop: 8,
   },
   footer: {
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#EEF4FF',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -362,11 +362,11 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#374151',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   continueButton: {
     flex: 2,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#0f1c52',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -377,6 +377,6 @@ const styles = StyleSheet.create({
   continueButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

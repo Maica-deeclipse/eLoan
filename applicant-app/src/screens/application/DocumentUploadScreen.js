@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#212529',
     marginBottom: 8,
   },
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   },
   uploadProgressText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#0d6efd',
     marginLeft: 12,
   },
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
   },
   documentLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#212529',
     marginRight: 8,
   },
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   },
   requiredText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#dc2626',
   },
   optionalBadge: {
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
   },
   optionalText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#6b7280',
   },
   documentDescription: {
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     color: '#0d6efd',
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginLeft: 8,
   },
   uploadingContainer: {
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   changeSingleText: {
     color: '#0d6efd',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginLeft: 4,
   },
   removeSingleButton: {
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#28a745',
     marginBottom: 4,
   },
@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#666',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginLeft: 4,
   },
   continueButton: {
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
   continueButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginRight: 8,
   },
 });

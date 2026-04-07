@@ -3,7 +3,7 @@
  * Shows detailed information about a loan application
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,16 +24,10 @@ const getStatusColor = (status) => {
     'Verified by Bookkeeper': '#3b82f6',
     'Pending Credit Committee': '#8b5cf6',
     'Approved by Credit Committee': '#10b981',
-    'Approved \u2013 For Disbursement': '#7c3aed',
-    'Active': '#059669',
-    'Overdue': '#dc2626',
-    'Completed': '#22c55e',
     'Rejected by Bookkeeper': '#ef4444',
-    'Rejected by Treasurer': '#ef4444',
     'Rejected by Credit Committee': '#ef4444',
     'Disbursed': '#059669',
     'Paid': '#22c55e',
-    'Closed': '#6b7280',
     'Withdrawn': '#6b7280',
   };
   return colors[status] || '#6b7280';
@@ -53,15 +47,11 @@ const SectionCard = ({ title, children }) => (
   </View>
 );
 
-const ACTIVE_STATUSES = ['Active', 'Overdue', 'Disbursed'];
-
 export default function ApplicationDetailScreen({ route, navigation }) {
   const { id } = route.params;
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
-  const [schedule, setSchedule] = useState(null);
-  const [scheduleLoading, setScheduleLoading] = useState(false);
 
   useEffect(() => {
     loadApplication();
@@ -71,27 +61,12 @@ export default function ApplicationDetailScreen({ route, navigation }) {
     try {
       const data = await applicationService.getApplication(id);
       setApplication(data);
-      if (ACTIVE_STATUSES.includes(data?.status)) {
-        loadSchedule(id);
-      }
     } catch (error) {
       console.error('Load application error:', error);
       Alert.alert('Error', 'Failed to load application details');
       navigation.goBack();
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadSchedule = async (appId) => {
-    setScheduleLoading(true);
-    try {
-      const data = await applicationService.getLoanSchedule(appId);
-      setSchedule(data);
-    } catch (error) {
-      console.error('Load schedule error:', error);
-    } finally {
-      setScheduleLoading(false);
     }
   };
 
@@ -153,7 +128,7 @@ export default function ApplicationDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#17236a" />
+        <ActivityIndicator size="large" color="#6366f1" />
         <Text style={styles.loadingText}>Loading application...</Text>
       </SafeAreaView>
     );
@@ -169,36 +144,6 @@ export default function ApplicationDetailScreen({ route, navigation }) {
 
   const canWithdraw = application.status === 'Submitted';
   const canDeleteDraft = application.status === 'Draft';
-  const canReopen = ['Rejected by Bookkeeper', 'Rejected by Credit Committee'].includes(application.status);
-
-  const handleReopen = () => {
-    Alert.alert(
-      'Edit & Resubmit',
-      'This will reopen your rejected application for editing. You can make changes and resubmit for review.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reopen',
-          onPress: async () => {
-            setWithdrawing(true);
-            try {
-              await applicationService.reopenApplication(id);
-              navigation.navigate('ApplicationWizard', {
-                screen: 'SelectLoanType',
-                params: {
-                  resumeLoanTypeId: application.loan_type?.id,
-                  resumeApplicationId: application.id,
-                },
-              });
-            } catch (error) {
-              Alert.alert('Error', error.response?.data?.error || 'Failed to reopen application');
-              setWithdrawing(false);
-            }
-          },
-        },
-      ]
-    );
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -207,32 +152,6 @@ export default function ApplicationDetailScreen({ route, navigation }) {
         <View style={[styles.statusBanner, { backgroundColor: getStatusColor(application.status) }]}>
           <Text style={styles.statusBannerText}>{application.status}</Text>
         </View>
-
-        {/* Rejection Info Card */}
-        {application.rejection_info && (
-          <View style={styles.rejectionCard}>
-            <Text style={styles.rejectionTitle}>Reason for Rejection</Text>
-            {application.rejection_info.category && application.rejection_info.category !== 'others' && (
-              <Text style={styles.rejectionCategory}>
-                {({
-                  incomplete_docs: 'Incomplete Documentation',
-                  invalid_docs: 'Invalid/Expired Documents',
-                  insufficient_savings: 'Insufficient Savings',
-                  insufficient_income: 'Insufficient Income',
-                  employment_not_verified: 'Employment Not Verified',
-                  high_dti: 'High Debt-to-Income Ratio',
-                  does_not_meet_credit: 'Does Not Meet Credit Requirements',
-                })[application.rejection_info.category] || application.rejection_info.category}
-              </Text>
-            )}
-            {application.rejection_info.reason && (
-              <Text style={styles.rejectionReason}>{application.rejection_info.reason}</Text>
-            )}
-            <Text style={styles.rejectionMeta}>
-              Rejected by {application.rejection_info.role} · {new Date(application.rejection_info.rejected_at).toLocaleDateString()}
-            </Text>
-          </View>
-        )}
 
         {/* Loan Type Card */}
         <SectionCard title="Loan Information">
@@ -267,90 +186,33 @@ export default function ApplicationDetailScreen({ route, navigation }) {
           />
         </SectionCard>
 
-        {/* Payment Status (if active/overdue/completed) */}
-        {(ACTIVE_STATUSES.includes(application.status) || application.status === 'Completed') && (
+        {/* Payment Status (if disbursed) */}
+        {['Disbursed', 'Approved by Credit Committee'].includes(application.status) && (
           <SectionCard title="Payment Status">
-            {application.status === 'Overdue' && (
-              <View style={styles.overdueAlert}>
-                <Text style={styles.overdueAlertText}>⚠ Your loan has an overdue payment. Please contact your Account Officer.</Text>
-              </View>
-            )}
             <InfoRow
               label="Total Paid"
-              value={`₱${parseFloat(application.total_paid || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
+              value={`₱${parseFloat(application.total_paid).toLocaleString()}`}
             />
             <InfoRow
               label="Remaining Balance"
-              value={`₱${parseFloat(application.remaining_balance || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
+              value={`₱${parseFloat(application.remaining_balance).toLocaleString()}`}
               highlight
             />
-            {schedule?.loan_summary?.next_due_date && (
-              <InfoRow
-                label="Next Due Date"
-                value={new Date(schedule.loan_summary.next_due_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}
-              />
-            )}
-            {schedule?.loan_summary?.next_amount_due && (
-              <InfoRow
-                label="Next Amount Due"
-                value={`₱${parseFloat(schedule.loan_summary.next_amount_due).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
-              />
-            )}
             <View style={styles.progressContainer}>
               <View style={styles.progressBar}>
                 <View
                   style={[
                     styles.progressFill,
-                    { width: `${Math.min(100, (parseFloat(application.total_paid || 0) / parseFloat(application.total_payable || 1)) * 100)}%` }
+                    {
+                      width: `${Math.min(100, (parseFloat(application.total_paid) / parseFloat(application.total_payable)) * 100)}%`
+                    }
                   ]}
                 />
               </View>
               <Text style={styles.progressText}>
-                {Math.round((parseFloat(application.total_paid || 0) / parseFloat(application.total_payable || 1)) * 100)}% paid
+                {Math.round((parseFloat(application.total_paid) / parseFloat(application.total_payable)) * 100)}% paid
               </Text>
             </View>
-          </SectionCard>
-        )}
-
-        {/* Payment Schedule */}
-        {ACTIVE_STATUSES.includes(application.status) && (
-          <SectionCard title="Payment Schedule">
-            {scheduleLoading ? (
-              <ActivityIndicator size="small" color="#17236a" style={{ marginVertical: 12 }} />
-            ) : schedule?.schedule?.length > 0 ? (
-              <>
-                <View style={styles.scheduleHeader}>
-                  <Text style={[styles.scheduleCell, styles.scheduleHeaderText, { flex: 0.4 }]}>#</Text>
-                  <Text style={[styles.scheduleCell, styles.scheduleHeaderText, { flex: 1.4 }]}>Due Date</Text>
-                  <Text style={[styles.scheduleCell, styles.scheduleHeaderText, { flex: 1.2, textAlign: 'right' }]}>Amount</Text>
-                  <Text style={[styles.scheduleCell, styles.scheduleHeaderText, { flex: 1, textAlign: 'right' }]}>Status</Text>
-                </View>
-                {schedule.schedule.map((item) => {
-                  const isPaid = item.status === 'paid';
-                  const isOverdue = item.is_overdue;
-                  const rowColor = isPaid ? '#f0fdf4' : isOverdue ? '#fff5f5' : '#fff';
-                  const statusColor = isPaid ? '#059669' : isOverdue ? '#dc2626' : item.status === 'partial' ? '#d97706' : '#6b7280';
-                  return (
-                    <View key={item.installment_number} style={[styles.scheduleRow, { backgroundColor: rowColor }]}>
-                      <Text style={[styles.scheduleCell, { flex: 0.4, color: '#6b7280' }]}>{item.installment_number}</Text>
-                      <Text style={[styles.scheduleCell, { flex: 1.4 }]}>
-                        {new Date(item.due_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </Text>
-                      <Text style={[styles.scheduleCell, { flex: 1.2, textAlign: 'right' }]}>
-                        ₱{parseFloat(item.amount_due).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                      </Text>
-                      <Text style={[styles.scheduleCell, { flex: 1, textAlign: 'right', color: statusColor, fontWeight: '600', textTransform: 'capitalize' }]}>
-                        {item.status}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </>
-            ) : (
-              <Text style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', paddingVertical: 12 }}>
-                Schedule not yet available.
-              </Text>
-            )}
           </SectionCard>
         )}
 
@@ -362,7 +224,7 @@ export default function ApplicationDetailScreen({ route, navigation }) {
         {/* Co-Makers */}
         {application.comakers && application.comakers.length > 0 && (
           <SectionCard title="Co-Makers">
-            {application.comakers.map((comaker) => (
+            {application.comakers.map((comaker, index) => (
               <View key={comaker.id} style={styles.comakerItem}>
                 <Text style={styles.comakerName}>{comaker.user_name}</Text>
                 <Text style={styles.comakerEmail}>{comaker.user_email}</Text>
@@ -424,21 +286,6 @@ export default function ApplicationDetailScreen({ route, navigation }) {
             </Text>
           </View>
         </SectionCard>
-
-        {/* Reopen Action */}
-        {canReopen && (
-          <TouchableOpacity
-            style={[styles.reopenButton, withdrawing && styles.withdrawButtonDisabled]}
-            onPress={handleReopen}
-            disabled={withdrawing}
-          >
-            {withdrawing ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.withdrawButtonText}>Edit &amp; Resubmit</Text>
-            )}
-          </TouchableOpacity>
-        )}
 
         {/* Actions */}
         {canWithdraw && (
@@ -519,7 +366,7 @@ const styles = StyleSheet.create({
   statusBannerText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   sectionCard: {
     backgroundColor: '#fff',
@@ -535,7 +382,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#6b7280',
     marginBottom: 12,
     textTransform: 'uppercase',
@@ -554,11 +401,11 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     color: '#1f2937',
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
   },
   infoValueHighlight: {
-    color: '#17236a',
-    fontWeight: '600',
+    color: '#6366f1',
+    fontFamily: 'Poppins_600SemiBold',
   },
   purposeText: {
     fontSize: 14,
@@ -592,7 +439,7 @@ const styles = StyleSheet.create({
   },
   comakerName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#1f2937',
   },
   comakerEmail: {
@@ -632,7 +479,7 @@ const styles = StyleSheet.create({
   },
   verifiedText: {
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
   },
   verificationRow: {
     flexDirection: 'row',
@@ -647,15 +494,7 @@ const styles = StyleSheet.create({
   },
   verificationStatus: {
     fontSize: 14,
-    fontWeight: '500',
-  },
-  reopenButton: {
-    backgroundColor: '#dc2626',
-    marginHorizontal: 16,
-    marginTop: 24,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+    fontFamily: 'Poppins_500Medium',
   },
   withdrawButton: {
     backgroundColor: '#ef4444',
@@ -687,76 +526,6 @@ const styles = StyleSheet.create({
   withdrawButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  rejectionCard: {
-    backgroundColor: '#fee2e2',
-    borderLeftWidth: 4,
-    borderLeftColor: '#dc2626',
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 8,
-    padding: 14,
-  },
-  rejectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#991b1b',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  rejectionCategory: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#dc2626',
-    marginBottom: 4,
-  },
-  rejectionReason: {
-    fontSize: 14,
-    color: '#1f2937',
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  rejectionMeta: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  overdueAlert: {
-    backgroundColor: '#fff5f5',
-    borderLeftWidth: 4,
-    borderLeftColor: '#dc2626',
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 12,
-  },
-  overdueAlertText: {
-    fontSize: 13,
-    color: '#dc2626',
-    lineHeight: 18,
-  },
-  scheduleHeader: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingBottom: 8,
-    marginBottom: 4,
-  },
-  scheduleRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    borderRadius: 4,
-  },
-  scheduleCell: {
-    fontSize: 12,
-    color: '#374151',
-    paddingHorizontal: 2,
-  },
-  scheduleHeaderText: {
-    fontWeight: '600',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    fontSize: 11,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#212529',
     marginBottom: 8,
   },
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#495057',
     marginBottom: 12,
   },
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#6c757d',
     marginTop: 12,
   },
@@ -464,14 +464,14 @@ const styles = StyleSheet.create({
   coMakerNumberText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
   },
   coMakerInfo: {
     flex: 1,
   },
   coMakerName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#212529',
   },
   coMakerEmail: {
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#856404',
   },
   searchButton: {
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   searchButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginLeft: 8,
   },
   infoBox: {
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#0d6efd',
     marginBottom: 8,
   },
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#666',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginLeft: 4,
   },
   continueButton: {
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   continueButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginRight: 8,
   },
   // Modal styles
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
     color: '#212529',
   },
   modalCloseButton: {
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   searchActionButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   searchResultsList: {
     flex: 1,
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   },
   searchResultName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#212529',
   },
   searchResultEmail: {
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   },
   modalEmptyText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#6c757d',
     marginTop: 16,
   },

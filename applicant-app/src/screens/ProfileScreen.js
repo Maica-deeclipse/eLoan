@@ -1,9 +1,8 @@
 /**
- * Profile Screen
- * User profile management
+ * Profile / Settings Screen — Dashboard color palette
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,43 +13,48 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import profileService from '../services/profileService';
 
+// ── Design Tokens ──────────────────────────────────────────────────────────────
+const PRIMARY   = '#0f1c52';
+const GRAD      = '#17235a';
+const ACCENT    = '#4D80E4';
+const WHITE     = '#FFFFFF';
+const PAGE_BG   = '#EEF4FF';
+const CARD_BG   = '#F4F7FF';
+const MUTED     = '#94A3B8';
+const SECONDARY = '#64748B';
+
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [profile, setProfile] = useState(null);
-  const [membership, setMembership] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading]               = useState(true);
+  const [saving, setSaving]                 = useState(false);
+  const [loggingOut, setLoggingOut]         = useState(false);
+  const [profile, setProfile]               = useState(null);
+  const [isEditing, setIsEditing]           = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [newPassword, setNewPassword]         = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Editable fields
   const [contactNumber, setContactNumber] = useState('');
-  const [addressLine1, setAddressLine1] = useState('');
-  const [city, setCity] = useState('');
-  const [province, setProvince] = useState('');
-  const [employerName, setEmployerName] = useState('');
-  const [position, setPosition] = useState('');
+  const [addressLine1, setAddressLine1]   = useState('');
+  const [city, setCity]                   = useState('');
+  const [province, setProvince]           = useState('');
+  const [employerName, setEmployerName]   = useState('');
+  const [position, setPosition]           = useState('');
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  useEffect(() => { loadProfile(); }, []);
 
   const loadProfile = async () => {
     try {
       const data = await profileService.getProfile();
       setProfile(data.profile);
-      setMembership(data.membership || null);
-      // Set editable fields
       setContactNumber(data.profile.contact_number || '');
       setAddressLine1(data.profile.address_line1 || '');
       setCity(data.profile.city || '');
@@ -69,11 +73,10 @@ export default function ProfileScreen({ navigation }) {
     try {
       await profileService.updateProfile({
         contact_number: contactNumber,
-        address_line1: addressLine1,
-        city: city,
-        province: province,
-        employer_name: employerName,
-        position: position,
+        address_line1:  addressLine1,
+        city, province,
+        employer_name:  employerName,
+        position,
       });
       Alert.alert('Success', 'Profile updated successfully');
       setIsEditing(false);
@@ -87,21 +90,16 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            setLoggingOut(true);
-            await logout();
-          },
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout', style: 'destructive',
+        onPress: async () => {
+          setLoggingOut(true);
+          await logout();
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleChangePassword = () => {
@@ -112,33 +110,17 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleSubmitChangePassword = async () => {
-    if (!currentPassword) {
-      Alert.alert('Error', 'Current password is required');
-      return;
-    }
-    if (!newPassword || newPassword.length < 8) {
-      Alert.alert('Error', 'New password must be at least 8 characters');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
+    if (!currentPassword) { Alert.alert('Error', 'Current password is required'); return; }
+    if (!newPassword || newPassword.length < 8) { Alert.alert('Error', 'New password must be at least 8 characters'); return; }
+    if (newPassword !== confirmPassword) { Alert.alert('Error', 'Passwords do not match'); return; }
 
     setChangingPassword(true);
     try {
-      await profileService.changePassword(
-        currentPassword,
-        newPassword,
-        confirmPassword
-      );
+      await profileService.changePassword(currentPassword, newPassword, confirmPassword);
       setShowChangePassword(false);
       Alert.alert('Success', 'Password changed successfully');
     } catch (error) {
-      Alert.alert(
-        'Error',
-        error.response?.data?.error || 'Failed to change password'
-      );
+      Alert.alert('Error', error.response?.data?.error || 'Failed to change password');
     } finally {
       setChangingPassword(false);
     }
@@ -146,148 +128,75 @@ export default function ProfileScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#17236a" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+      <SafeAreaView style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color={PRIMARY} />
+        <Text style={styles.loadingText}>Loading profile…</Text>
       </SafeAreaView>
     );
   }
 
+  const initials = user?.firstname?.[0]?.toUpperCase() || 'U';
+  const fullName = [user?.firstname, user?.lastname].filter(Boolean).join(' ');
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={PRIMARY} />
+
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <View style={styles.headerOverlay} />
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Settings</Text>
           {!isEditing ? (
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => setIsEditing(true)}
-            >
-              <Text style={styles.editButtonText}>Edit</Text>
+            <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)}>
+              <Text style={styles.editBtnText}>Edit Profile</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => {
-                setIsEditing(false);
-                loadProfile();
-              }}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { setIsEditing(false); loadProfile(); }}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           )}
         </View>
+      </View>
 
-        {/* User Info Card */}
-        <View style={styles.userCard}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Avatar Card ── */}
+        <View style={styles.avatarCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user?.firstname?.[0]?.toUpperCase() || 'U'}
-            </Text>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
-          <Text style={styles.userName}>
-            {user?.firstname} {user?.lastname}
-          </Text>
+          <Text style={styles.userName}>{fullName}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
           <View style={styles.roleBadge}>
             <Text style={styles.roleText}>Applicant</Text>
           </View>
         </View>
 
-        {/* Membership */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Membership</Text>
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Membership Type</Text>
-            <View style={styles.membershipTypeRow}>
-              {membership?.membership_type ? (
-                <View style={[
-                  styles.membershipBadge,
-                  membership.membership_type === 'regular'
-                    ? styles.membershipBadgeRegular
-                    : styles.membershipBadgeAssociate,
-                ]}>
-                  <Text style={[
-                    styles.membershipBadgeText,
-                    membership.membership_type === 'regular'
-                      ? styles.membershipBadgeTextRegular
-                      : styles.membershipBadgeTextAssociate,
-                  ]}>
-                    {membership.membership_type === 'regular' ? 'Regular Member' : 'Associate Member'}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.fieldValue}>Pending AMO review</Text>
-              )}
-            </View>
-          </View>
-          <View style={styles.fieldRow}>
-            <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.fieldLabel}>Subscribed Shares</Text>
-              <Text style={styles.fieldValue}>
-                {membership?.subscribed_shares != null
-                  ? `${membership.subscribed_shares} shares`
-                  : 'Not yet recorded'}
-              </Text>
-            </View>
-            <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>Paid-Up Shares</Text>
-              <Text style={styles.fieldValue}>
-                {membership?.paid_shares != null
-                  ? `${membership.paid_shares} shares`
-                  : 'Not yet recorded'}
-              </Text>
-            </View>
-          </View>
-          {membership?.member_since && (
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Member Since</Text>
-              <Text style={styles.fieldValue}>
-                {new Date(membership.member_since).toLocaleDateString('en-PH', {
-                  year: 'numeric', month: 'long', day: 'numeric',
-                })}
-              </Text>
-            </View>
-          )}
-          <View style={styles.membershipNote}>
-            <Text style={styles.membershipNoteText}>
-              Regular membership requires a fixed deposit of at least ₱20,000 and permanent/casual/temporary employment status. Minimum subscription: 20 shares, paid-up: 5 shares.
-            </Text>
-          </View>
-        </View>
-
-        {/* Contact Information */}
+        {/* ── Contact Information ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Phone Number</Text>
             {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={contactNumber}
-                onChangeText={setContactNumber}
-                placeholder="Enter phone number"
-                keyboardType="phone-pad"
-              />
+              <TextInput style={styles.input} value={contactNumber} onChangeText={setContactNumber}
+                placeholder="Enter phone number" keyboardType="phone-pad" placeholderTextColor={MUTED} />
             ) : (
               <Text style={styles.fieldValue}>{contactNumber || 'Not provided'}</Text>
             )}
           </View>
         </View>
 
-        {/* Address */}
+        {/* ── Address ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Address</Text>
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Street Address</Text>
             {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={addressLine1}
-                onChangeText={setAddressLine1}
-                placeholder="Enter street address"
-              />
+              <TextInput style={styles.input} value={addressLine1} onChangeText={setAddressLine1}
+                placeholder="Enter street address" placeholderTextColor={MUTED} />
             ) : (
               <Text style={styles.fieldValue}>{addressLine1 || 'Not provided'}</Text>
             )}
@@ -296,44 +205,32 @@ export default function ProfileScreen({ navigation }) {
             <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
               <Text style={styles.fieldLabel}>City</Text>
               {isEditing ? (
-                <TextInput
-                  style={styles.input}
-                  value={city}
-                  onChangeText={setCity}
-                  placeholder="City"
-                />
+                <TextInput style={styles.input} value={city} onChangeText={setCity}
+                  placeholder="City" placeholderTextColor={MUTED} />
               ) : (
-                <Text style={styles.fieldValue}>{city || '-'}</Text>
+                <Text style={styles.fieldValue}>{city || '—'}</Text>
               )}
             </View>
             <View style={[styles.field, { flex: 1 }]}>
               <Text style={styles.fieldLabel}>Province</Text>
               {isEditing ? (
-                <TextInput
-                  style={styles.input}
-                  value={province}
-                  onChangeText={setProvince}
-                  placeholder="Province"
-                />
+                <TextInput style={styles.input} value={province} onChangeText={setProvince}
+                  placeholder="Province" placeholderTextColor={MUTED} />
               ) : (
-                <Text style={styles.fieldValue}>{province || '-'}</Text>
+                <Text style={styles.fieldValue}>{province || '—'}</Text>
               )}
             </View>
           </View>
         </View>
 
-        {/* Employment */}
+        {/* ── Employment ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Employment</Text>
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Employer</Text>
+            <Text style={styles.fieldLabel}>Employer / Department</Text>
             {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={employerName}
-                onChangeText={setEmployerName}
-                placeholder="Enter employer name"
-              />
+              <TextInput style={styles.input} value={employerName} onChangeText={setEmployerName}
+                placeholder="Enter employer name" placeholderTextColor={MUTED} />
             ) : (
               <Text style={styles.fieldValue}>{employerName || 'Not provided'}</Text>
             )}
@@ -341,58 +238,53 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Position</Text>
             {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={position}
-                onChangeText={setPosition}
-                placeholder="Enter position"
-              />
+              <TextInput style={styles.input} value={position} onChangeText={setPosition}
+                placeholder="Enter position" placeholderTextColor={MUTED} />
             ) : (
               <Text style={styles.fieldValue}>{position || 'Not provided'}</Text>
             )}
           </View>
         </View>
 
-        {/* Save Button (when editing) */}
+        {/* ── Save button ── */}
         {isEditing && (
           <TouchableOpacity
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            style={[styles.saveBtn, saving && styles.btnDisabled]}
             onPress={handleSaveProfile}
             disabled={saving}
           >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            )}
+            {saving
+              ? <ActivityIndicator color={WHITE} />
+              : <Text style={styles.saveBtnText}>Save Changes</Text>
+            }
           </TouchableOpacity>
         )}
 
-        {/* Security Section */}
+        {/* ── Security ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Security</Text>
           <TouchableOpacity style={styles.menuItem} onPress={handleChangePassword}>
             <Text style={styles.menuItemText}>Change Password</Text>
-            <Text style={styles.menuItemArrow}>›</Text>
+            <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button */}
+        {/* ── Logout ── */}
         <TouchableOpacity
-          style={[styles.logoutButton, loggingOut && styles.logoutButtonDisabled]}
+          style={[styles.logoutBtn, loggingOut && styles.btnDisabled]}
           onPress={handleLogout}
           disabled={loggingOut}
         >
-          {loggingOut ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          )}
+          {loggingOut
+            ? <ActivityIndicator color={WHITE} />
+            : <Text style={styles.logoutBtnText}>Logout</Text>
+          }
         </TouchableOpacity>
 
         <Text style={styles.versionText}>eLoan Applicant v1.0.0</Text>
       </ScrollView>
 
+      {/* ── Change Password Modal ── */}
       <Modal
         visible={showChangePassword}
         transparent
@@ -402,50 +294,27 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Change Password</Text>
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Current password"
-              secureTextEntry
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="New password (min 8 chars)"
-              secureTextEntry
-              value={newPassword}
-              onChangeText={setNewPassword}
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Confirm new password"
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
-
+            <TextInput style={styles.modalInput} placeholder="Current password"
+              secureTextEntry value={currentPassword} onChangeText={setCurrentPassword}
+              placeholderTextColor={MUTED} />
+            <TextInput style={styles.modalInput} placeholder="New password (min 8 chars)"
+              secureTextEntry value={newPassword} onChangeText={setNewPassword}
+              placeholderTextColor={MUTED} />
+            <TextInput style={styles.modalInput} placeholder="Confirm new password"
+              secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword}
+              placeholderTextColor={MUTED} />
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancel}
-                onPress={() => setShowChangePassword(false)}
-                disabled={changingPassword}
-              >
+              <TouchableOpacity style={styles.modalCancelBtn}
+                onPress={() => setShowChangePassword(false)} disabled={changingPassword}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.modalSubmit,
-                  changingPassword && styles.modalSubmitDisabled,
-                ]}
-                onPress={handleSubmitChangePassword}
-                disabled={changingPassword}
-              >
-                {changingPassword ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.modalSubmitText}>Update</Text>
-                )}
+                style={[styles.modalSubmitBtn, changingPassword && styles.btnDisabled]}
+                onPress={handleSubmitChangePassword} disabled={changingPassword}>
+                {changingPassword
+                  ? <ActivityIndicator color={WHITE} size="small" />
+                  : <Text style={styles.modalSubmitText}>Update</Text>
+                }
               </TouchableOpacity>
             </View>
           </View>
@@ -455,293 +324,156 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
+// ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
+
+  screen:        { flex: 1, backgroundColor: PRIMARY },
+  loadingScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: PAGE_BG },
+  loadingText:   { marginTop: 12, fontSize: 16, color: SECONDARY },
+
+  // ── Header ──
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    backgroundColor: PRIMARY,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    overflow: 'hidden',
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1f2937',
+  headerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: GRAD,
+    opacity: 0.55,
   },
-  editButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#17236a',
-    borderRadius: 8,
+  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle:   { fontSize: 24, fontFamily: 'Poppins_700Bold', color: WHITE },
+  editBtn: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
   },
-  editButtonText: {
-    color: '#fff',
-    fontWeight: '500',
+  editBtnText:   { color: WHITE, fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
+  cancelBtn: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  cancelButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-  },
-  cancelButtonText: {
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  userCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+  cancelBtnText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
+
+  // ── Scroll ──
+  scrollContent: { backgroundColor: PAGE_BG, padding: 16, paddingBottom: 40 },
+
+  // ── Avatar Card ──
+  avatarCard: {
+    backgroundColor: WHITE,
+    borderRadius: 20,
     padding: 24,
     alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: 16,
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#17236a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: PRIMARY,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14,
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  userName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  userEmail: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
+  avatarText: { fontSize: 32, fontFamily: 'Poppins_700Bold', color: WHITE },
+  userName:   { fontSize: 20, fontFamily: 'Poppins_700Bold', color: PRIMARY },
+  userEmail:  { fontSize: 13, color: MUTED, marginTop: 4 },
   roleBadge: {
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    backgroundColor: '#ede9fe',
-    borderRadius: 12,
+    marginTop: 10,
+    paddingHorizontal: 14, paddingVertical: 4,
+    backgroundColor: ACCENT + '20',
+    borderRadius: 20, borderWidth: 1, borderColor: ACCENT + '40',
   },
-  roleText: {
-    fontSize: 12,
-    color: '#17236a',
-    fontWeight: '500',
-  },
+  roleText: { fontSize: 12, color: ACCENT, fontFamily: 'Poppins_600SemiBold' },
+
+  // ── Section ──
   section: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: WHITE,
+    borderRadius: 14, padding: 16, marginBottom: 12,
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginBottom: 16,
-    textTransform: 'uppercase',
+    fontSize: 11, fontFamily: 'Poppins_800ExtraBold', color: PRIMARY,
+    letterSpacing: 1.0, textTransform: 'uppercase',
+    opacity: 0.55, marginBottom: 14,
   },
-  field: {
-    marginBottom: 16,
-  },
-  fieldRow: {
-    flexDirection: 'row',
-  },
-  fieldLabel: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginBottom: 6,
-  },
-  fieldValue: {
-    fontSize: 15,
-    color: '#1f2937',
-  },
+  field:      { marginBottom: 14 },
+  fieldRow:   { flexDirection: 'row' },
+  fieldLabel: { fontSize: 11, color: MUTED, marginBottom: 4, fontFamily: 'Poppins_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.4 },
+  fieldValue: { fontSize: 15, color: PRIMARY, fontFamily: 'Poppins_500Medium' },
   input: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#1f2937',
-    backgroundColor: '#f9fafb',
+    borderWidth: 1.5, borderColor: 'rgba(15,28,82,0.15)',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 15, color: PRIMARY, backgroundColor: CARD_BG,
   },
-  saveButton: {
-    backgroundColor: '#17236a',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  membershipTypeRow: {
-    flexDirection: 'row',
-  },
-  membershipBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-  },
-  membershipBadgeRegular: {
-    backgroundColor: '#d1fae5',
-  },
-  membershipBadgeAssociate: {
-    backgroundColor: '#e0e7ff',
-  },
-  membershipBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  membershipBadgeTextRegular: {
-    color: '#065f46',
-  },
-  membershipBadgeTextAssociate: {
-    color: '#3730a3',
-  },
-  membershipNote: {
-    backgroundColor: '#f0f9ff',
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 4,
-  },
-  membershipNoteText: {
-    fontSize: 12,
-    color: '#0369a1',
-    lineHeight: 18,
-  },
+
   menuItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(15,28,82,0.08)',
   },
-  menuItemText: {
-    fontSize: 15,
-    color: '#1f2937',
+  menuItemText: { fontSize: 15, color: PRIMARY, fontFamily: 'Poppins_500Medium' },
+  menuArrow:    { fontSize: 22, color: MUTED },
+
+  // ── Buttons ──
+  saveBtn: {
+    backgroundColor: PRIMARY,
+    borderRadius: 14, padding: 16, alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
   },
-  menuItemArrow: {
-    fontSize: 20,
-    color: '#9ca3af',
+  saveBtnText:   { color: WHITE, fontSize: 16, fontFamily: 'Poppins_700Bold' },
+  logoutBtn: {
+    backgroundColor: '#EF4444',
+    borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 4,
   },
-  logoutButton: {
-    backgroundColor: '#ef4444',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  logoutButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  versionText: {
-    textAlign: 'center',
-    color: '#9ca3af',
-    fontSize: 12,
-    marginTop: 24,
-  },
+  logoutBtnText: { color: WHITE, fontSize: 16, fontFamily: 'Poppins_700Bold' },
+  btnDisabled:   { backgroundColor: MUTED },
+
+  versionText: { textAlign: 'center', color: MUTED, fontSize: 12, marginTop: 24 },
+
+  // ── Modal ──
   modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    flex: 1, backgroundColor: 'rgba(15,28,82,0.5)',
+    justifyContent: 'center', alignItems: 'center', padding: 24,
   },
   modalCard: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
+    width: '100%', backgroundColor: WHITE,
+    borderRadius: 20, padding: 20,
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2, shadowRadius: 20, elevation: 12,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
+  modalTitle:  { fontSize: 18, fontFamily: 'Poppins_700Bold', color: PRIMARY, marginBottom: 14 },
   modalInput: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#f9fafb',
-    marginBottom: 10,
+    borderWidth: 1.5, borderColor: 'rgba(15,28,82,0.15)',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 15, color: PRIMARY, backgroundColor: CARD_BG, marginBottom: 10,
   },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 6,
+  modalActions:     { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6 },
+  modalCancelBtn:   { paddingVertical: 10, paddingHorizontal: 16, marginRight: 8 },
+  modalCancelText:  { color: MUTED, fontSize: 14, fontFamily: 'Poppins_600SemiBold' },
+  modalSubmitBtn: {
+    backgroundColor: PRIMARY,
+    borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20,
   },
-  modalCancel: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginRight: 8,
-  },
-  modalCancelText: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalSubmit: {
-    backgroundColor: '#17236a',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  modalSubmitDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  modalSubmitText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  modalSubmitText: { color: WHITE, fontSize: 14, fontFamily: 'Poppins_700Bold' },
 });
