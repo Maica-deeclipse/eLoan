@@ -254,6 +254,7 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
 
   const resumeLoanTypeId    = route?.params?.resumeLoanTypeId;
   const resumeApplicationId = route?.params?.resumeApplicationId;
+  const autoStart           = route?.params?.autoStart ?? false;
 
   useEffect(() => { loadLoanTypes(); }, []);
 
@@ -363,11 +364,13 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
     setActivePage(page);
   };
 
-  if (loading) {
+  if (loading || (autoStart && creating)) {
     return (
       <SafeAreaView style={styles.loadingScreen} edges={['bottom']}>
         <ActivityIndicator size="large" color={PRIMARY} />
-        <Text style={styles.loadingText}>Loading loan types…</Text>
+        <Text style={styles.loadingText}>
+          {autoStart && creating ? 'Setting up your application…' : 'Loading loan types…'}
+        </Text>
       </SafeAreaView>
     );
   }

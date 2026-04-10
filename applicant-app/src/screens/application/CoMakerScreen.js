@@ -11,6 +11,7 @@ import {
   FlatList,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
@@ -192,7 +193,7 @@ const CoMakerScreen = ({ navigation }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
@@ -362,7 +363,7 @@ const CoMakerScreen = ({ navigation }) => {
           )}
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 

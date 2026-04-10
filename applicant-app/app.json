@@ -4,11 +4,11 @@
     "slug": "eloan-applicant",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/logoo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/logo.png",
+      "image": "./assets/logoblue.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
+        "foregroundImage": "./assets/logoblue.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -43,7 +43,7 @@
     },
     "scheme": "eloan",
     "extra": {
-      "apiUrl": "http://192.168.1.21:8000/api/auth",
+      "apiUrl": "http://192.168.1.10:8000/api/auth",
       "googleClientId": "66164215961-49k2sd9e7q7qvs1355206ldr6o9o81o4.apps.googleusercontent.com",
       "googleAndroidClientId": "YOUR_ANDROID_GOOGLE_CLIENT_ID",
       "googleIosClientId": "YOUR_IOS_GOOGLE_CLIENT_ID"

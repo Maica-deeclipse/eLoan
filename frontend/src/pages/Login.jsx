@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import authService from '../services/auth.service';
 import '../styles/Login.css';
+import logoo from '../assets/logoo.png';
 
 function Login() {
   const navigate = useNavigate();
@@ -85,8 +86,7 @@ function Login() {
       <div className="login-card">
         <div className="login-header">
           <div className="logo">
-            <span className="logo-icon">$</span>
-            <span className="logo-text">eLoan</span>
+            <img src={logoo} alt="eLoan Logo" className="logo-icon" />
           </div>
           <h1 className="login-title">{pageTitle}</h1>
           <p className="login-subtitle">{pageSubtitle}</p>

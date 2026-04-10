@@ -44,7 +44,7 @@ class ApplicationService {
     const cached = getCached('loan_types');
     if (cached) return cached;
     const response = await apiService.get('/applicant/loan-types/');
-    const data = response.data.loan_types;
+    const data = response.data.loan_types.filter((lt) => lt.loan_name !== 'ATM Loan');
     setCache('loan_types', data, FIVE_MIN);
     return data;
   }

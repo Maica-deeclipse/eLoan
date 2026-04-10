@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import authService from '../services/auth.service';
+import logoblue from '../assets/logoblue.png';
 
 export default function SuperAdminLogin() {
   const navigate = useNavigate();
@@ -53,10 +54,7 @@ export default function SuperAdminLogin() {
       {/* Left panel — branding */}
       <div style={styles.left}>
         <div style={styles.brand}>
-          <div style={styles.logoBox}>
-            <span style={styles.logoSymbol}>$</span>
-          </div>
-          <span style={styles.logoText}>eLoan</span>
+          <img src={logoblue} alt="eLoan Logo" style={styles.logoImg} />
         </div>
         <h2 style={styles.tagline}>System Administration</h2>
         <p style={styles.taglineSub}>
@@ -165,26 +163,13 @@ const styles = {
     gap: '12px',
     marginBottom: '48px',
   },
-  logoBox: {
-    width: '52px',
-    height: '52px',
-    borderRadius: '14px',
-    background: 'rgba(255,255,255,0.15)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: '1px solid rgba(255,255,255,0.2)',
-  },
-  logoSymbol: {
-    fontSize: '26px',
-    fontWeight: '800',
-    color: '#fff',
-  },
-  logoText: {
-    fontSize: '32px',
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: '-0.5px',
+  
+  logoImg: {
+    height: '90px',
+    width: 'auto',
+    display: 'block',
+    marginBottom: '-30px',
+    marginLeft: '58px',
   },
   tagline: {
     fontSize: '26px',

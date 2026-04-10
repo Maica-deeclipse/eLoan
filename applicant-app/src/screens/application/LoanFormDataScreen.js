@@ -124,7 +124,7 @@ export default function LoanFormDataScreen({ navigation }) {
 
   if (!loanType) {
     return (
-      <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top', 'bottom']}>
         <Text style={styles.errorText}>Loan type not selected</Text>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.linkText}>Go Back</Text>
@@ -134,7 +134,7 @@ export default function LoanFormDataScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
