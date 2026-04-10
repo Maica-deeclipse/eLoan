@@ -65,6 +65,10 @@ class ApplicationStatus(models.Model):
 class LoanApplication(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="loan_applications")
     loan_type = models.ForeignKey(LoanType, on_delete=models.CASCADE, related_name="loan_applications")
+    user_application_number = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Per-user sequential application number (1 = first application by this user)'
+    )
     amount_requested = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     term_months = models.IntegerField(null=True, blank=True)
 
@@ -154,9 +158,20 @@ class LoanApplication(models.Model):
 
 
 class LoanCoMaker(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_ACCEPTED = 'accepted'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_ACCEPTED, 'Accepted'),
+        (STATUS_REJECTED, 'Rejected'),
+    ]
+
     application = models.ForeignKey(LoanApplication, on_delete=models.CASCADE, related_name='comakers')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     agreed_at = models.DateTimeField(default=timezone.now)
+    responded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ('application', 'user')

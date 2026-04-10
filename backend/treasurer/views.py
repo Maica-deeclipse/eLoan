@@ -85,6 +85,7 @@ class DashboardView(TreasurerBaseView):
             'recent_forwarded': [
                 {
                     'id': app.id,
+                    'user_application_number': app.user_application_number,
                     'applicant': {
                         'name': f"{app.user.firstname} {app.user.lastname}",
                         'email': app.user.email,
@@ -114,6 +115,7 @@ class ForwardedApplicationsView(TreasurerBaseView):
             'applications': [
                 {
                     'id': app.id,
+                    'user_application_number': app.user_application_number,
                     'applicant': {
                         'id': app.user.id,
                         'name': f"{app.user.firstname} {app.user.lastname}",
@@ -174,6 +176,7 @@ class ApplicationDetailView(TreasurerBaseView):
         return Response({
             'application': {
                 'id': application.id,
+                'user_application_number': application.user_application_number,
                 'applicant': {
                     'id': application.user.id,
                     'name': f"{application.user.firstname} {application.user.lastname}",
@@ -316,10 +319,20 @@ class ReleaseFundsView(TreasurerBaseView):
     Auto-generates payment schedule.
     """
     def post(self, request, pk):
+        from datetime import datetime as dt
         application = get_object_or_404(LoanApplication, pk=pk)
         remarks = request.data.get('remarks', '').strip()
+        release_date_str = (request.data.get('release_date') or '').strip()
 
-        result = DisbursementService.release_funds(application, request.user, remarks)
+        if not release_date_str:
+            return Response({'error': 'Release date is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            release_date = dt.strptime(release_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Invalid release date. Use YYYY-MM-DD format.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = DisbursementService.release_funds(application, request.user, remarks, release_date=release_date)
 
         if not result['success']:
             return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
@@ -402,6 +415,7 @@ class PaymentHistoryView(TreasurerBaseView):
                     'payment_date': p.payment_date.isoformat(),
                     'payment_method': p.payment_method,
                     'recorded_by': f"{p.recorded_by.firstname} {p.recorded_by.lastname}" if p.recorded_by else None,
+                    'or_number': p.or_number,
                     'remarks': p.remarks,
                 }
                 for p in payments
@@ -429,6 +443,7 @@ class RecordPaymentView(TreasurerBaseView):
         amount = request.data.get('amount')
         payment_method = request.data.get('payment_method')
         remarks = request.data.get('remarks', '').strip() or None
+        or_number = request.data.get('or_number', '').strip() or None
 
         if not amount:
             return Response(
@@ -465,7 +480,8 @@ class RecordPaymentView(TreasurerBaseView):
                 amount=amount,
                 payment_method=payment_method,
                 treasurer=request.user,
-                remarks=remarks
+                remarks=remarks,
+                or_number=or_number,
             )
 
             # Refresh application to get updated values

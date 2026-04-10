@@ -78,7 +78,7 @@ class TreasurerApplicationService:
             QuerySet: Disbursed loan applications
         """
         return LoanApplication.objects.filter(
-            current_status__status_name=TreasurerApplicationService.STATUS_DISBURSED
+            current_status__status_name__in=['Disbursed', 'Active', 'Overdue']
         ).select_related('user', 'loan_type', 'current_status').order_by('-application_date')
 
     @staticmethod
@@ -185,7 +185,7 @@ class PaymentService:
     """Service for recording payments."""
 
     @staticmethod
-    def record_payment(application, amount, payment_method, treasurer, remarks=None):
+    def record_payment(application, amount, payment_method, treasurer, remarks=None, or_number=None):
         """
         Record a payment for a disbursed loan.
 
@@ -195,6 +195,7 @@ class PaymentService:
             payment_method: Payment method
             treasurer: User recording the payment
             remarks: Optional remarks
+            or_number: Optional Official Receipt number
 
         Returns:
             Payment: Created payment record
@@ -204,7 +205,8 @@ class PaymentService:
             amount_paid=amount,
             payment_method=payment_method,
             recorded_by=treasurer,
-            remarks=remarks
+            remarks=remarks,
+            or_number=or_number,
         )
 
         # Check if fully paid and update status
@@ -214,13 +216,27 @@ class PaymentService:
             application.current_status = paid_status
             application.save(update_fields=['current_status'])
 
-            # Notify applicant
+            # Notify applicant — loan fully paid
             Notification.objects.create(
                 user=application.user,
                 title='Loan Fully Paid',
                 message=f'Congratulations! Your {application.loan_type.loan_name} loan has been fully paid.',
                 notification_type='info',
                 related_application=application
+            )
+        else:
+            # Notify applicant — partial payment recorded
+            or_info = f' (OR #{or_number})' if or_number else ''
+            Notification.objects.create(
+                user=application.user,
+                title='Payment Received',
+                message=(
+                    f'A payment of \u20b1{amount:,.2f}{or_info} has been recorded for your '
+                    f'{application.loan_type.loan_name} loan via {payment_method}. '
+                    f'Remaining balance: \u20b1{application.remaining_balance:,.2f}.'
+                ),
+                notification_type='info',
+                related_application=application,
             )
 
         return payment
@@ -432,7 +448,7 @@ class DisbursementService:
     STATUS_ACTIVE = 'Active'
 
     @staticmethod
-    def release_funds(application, treasurer_user, remarks=''):
+    def release_funds(application, treasurer_user, remarks='', release_date=None):
         """
         Treasurer releases funds for an approved loan.
 
@@ -443,6 +459,7 @@ class DisbursementService:
             application: LoanApplication instance
             treasurer_user: User performing the release
             remarks: Optional remarks
+            release_date: Optional date object for the release date (defaults to today)
 
         Returns:
             dict: {'success': bool, 'error': str or None}
@@ -451,7 +468,7 @@ class DisbursementService:
         from bookkeeper.models import Notification
         from account_member_officer.models import AMONotification
         from users.models import User, Role
-        from datetime import date
+        from datetime import date, datetime as dt
         from dateutil.relativedelta import relativedelta
 
         expected_statuses = [
@@ -467,10 +484,15 @@ class DisbursementService:
         old_status = application.current_status
 
         # Transition to Active
+        activation_date = release_date or date.today()
+        released_datetime = timezone.make_aware(
+            dt.combine(activation_date, dt.min.time())
+        ) if release_date else timezone.now()
+
         active_status, _ = ApplicationStatus.objects.get_or_create(status_name=DisbursementService.STATUS_ACTIVE)
         application.current_status = active_status
-        application.activated_at = date.today()
-        application.released_at = timezone.now()
+        application.activated_at = activation_date
+        application.released_at = released_datetime
         application.loan_health_status = 'on_time'
         application.save(update_fields=['current_status', 'activated_at', 'released_at', 'loan_health_status'])
 
@@ -491,11 +513,12 @@ class DisbursementService:
         loan_label = f"{application.loan_type.loan_name} (₱{application.amount_requested:,.2f})"
 
         # Notify applicant
+        release_date_display = activation_date.strftime('%B %d, %Y')
         Notification.objects.create(
             user=application.user,
             title='Loan Funds Released',
-            message=f'Your {loan_label} loan has been approved and funds have been released. '
-                    f'Your repayment schedule is now active.',
+            message=f'Your {loan_label} loan funds were released on {release_date_display}. '
+                    f'Your repayment schedule is now active. Please check your Active Loans.',
             notification_type='approval',
             related_application=application
         )

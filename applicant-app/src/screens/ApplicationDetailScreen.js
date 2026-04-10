@@ -47,11 +47,19 @@ const SectionCard = ({ title, children }) => (
   </View>
 );
 
+const CC_APPROVED_STATUSES = [
+  'Approved by Credit Committee',
+  'Disbursed',
+  'Active',
+  'Paid',
+];
+
 export default function ApplicationDetailScreen({ route, navigation }) {
   const { id } = route.params;
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     loadApplication();
@@ -144,6 +152,18 @@ export default function ApplicationDetailScreen({ route, navigation }) {
 
   const canWithdraw = application.status === 'Submitted';
   const canDeleteDraft = application.status === 'Draft';
+  const canDownloadPDF = CC_APPROVED_STATUSES.includes(application.status);
+
+  const handleDownloadPDF = async () => {
+    setDownloading(true);
+    try {
+      await applicationService.downloadApplicationPDF(id);
+    } catch (error) {
+      Alert.alert('Download Failed', error.message || 'Could not download the PDF. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -156,7 +176,7 @@ export default function ApplicationDetailScreen({ route, navigation }) {
         {/* Loan Type Card */}
         <SectionCard title="Loan Information">
           <InfoRow label="Loan Type" value={application.loan_type.loan_name} />
-          <InfoRow label="Application ID" value={`#${application.id}`} />
+          <InfoRow label="Application ID" value={`#${application.user_application_number ?? application.id}`} />
           <InfoRow
             label="Applied On"
             value={new Date(application.application_date).toLocaleDateString()}
@@ -286,6 +306,21 @@ export default function ApplicationDetailScreen({ route, navigation }) {
             </Text>
           </View>
         </SectionCard>
+
+        {/* Download PDF */}
+        {canDownloadPDF && (
+          <TouchableOpacity
+            style={[styles.downloadButton, downloading && styles.withdrawButtonDisabled]}
+            onPress={handleDownloadPDF}
+            disabled={downloading}
+          >
+            {downloading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.withdrawButtonText}>Download Application PDF</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         {/* Actions */}
         {canWithdraw && (
@@ -495,6 +530,14 @@ const styles = StyleSheet.create({
   verificationStatus: {
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
+  },
+  downloadButton: {
+    backgroundColor: '#1a3a5c',
+    marginHorizontal: 16,
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
   },
   withdrawButton: {
     backgroundColor: '#ef4444',

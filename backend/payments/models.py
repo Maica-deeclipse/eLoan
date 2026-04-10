@@ -24,6 +24,7 @@ class Payment(models.Model):
     payment_date = models.DateField(default=timezone.now)
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES, null=True, blank=True)
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    or_number = models.CharField(max_length=100, null=True, blank=True, help_text='Official Receipt number')
     remarks = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:

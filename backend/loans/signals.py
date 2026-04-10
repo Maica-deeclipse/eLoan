@@ -17,6 +17,15 @@ from django.utils import timezone
 
 
 @receiver(pre_save, sender='loans.LoanApplication')
+def set_user_application_number(sender, instance, **kwargs):
+    """Assign a per-user sequential number on first creation."""
+    if not instance.pk and instance.user_id:
+        from loans.models import LoanApplication
+        count = LoanApplication.objects.filter(user_id=instance.user_id).count()
+        instance.user_application_number = count + 1
+
+
+@receiver(pre_save, sender='loans.LoanApplication')
 def capture_previous_status(sender, instance, **kwargs):
     """
     Capture the previous status before saving.

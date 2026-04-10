@@ -25,10 +25,11 @@
   margin-bottom: 40px;
 }
 
-.logo-text {
-  font-size: 28px;
-  font-weight: 700;
-  color: #17236a;
+.logo-img{
+  height: 50px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 24px;
 }
 
 .role-selection-title {
@@ -85,12 +86,6 @@
 
 .role-card:active {
   transform: translateY(-2px);
-}
-
-.role-card-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  transition: transform 0.3s ease;
 }
 
 .role-card-name {

@@ -3,6 +3,9 @@
  * Handles loan application API calls
  */
 
+import * as FileSystem from 'expo-file-system';
+import * as SecureStore from 'expo-secure-store';
+import * as Sharing from 'expo-sharing';
 import apiService from './apiService';
 
 /**
@@ -352,8 +355,53 @@ class ApplicationService {
     return response.data;
   }
 
+  /**
+   * Download approved loan application as a PDF file and open the share sheet.
+   * Uses expo-file-system to download with auth header, then expo-sharing to open.
+   */
+  async downloadApplicationPDF(applicationId) {
+    const token = await SecureStore.getItemAsync('accessToken');
+    const baseUrl = apiService.defaults.baseURL;
+    const url = `${baseUrl}/applicant/applications/${applicationId}/download-pdf/`;
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const fileName = `LoanApplication_APP-${String(applicationId).padStart(6, '0')}_${dateStr}.pdf`;
+    const localUri = FileSystem.cacheDirectory + fileName;
+
+    const { uri } = await FileSystem.downloadAsync(url, localUri, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Save or Open Loan Application PDF',
+      });
+    } else {
+      throw new Error('File sharing is not available on this device');
+    }
+
+    return uri;
+  }
+
   async getLoanSchedule(applicationId) {
     const response = await apiService.get(`/applicant/applications/${applicationId}/schedule/`);
+    return response.data;
+  }
+
+  /**
+   * Get co-maker requests where the current user is the co-maker
+   */
+  async getCoMakerRequests() {
+    const response = await apiService.get('/applicant/comaker-requests/');
+    return response.data.comaker_requests;
+  }
+
+  /**
+   * Accept or reject a co-maker request
+   * action: 'accept' | 'reject'
+   */
+  async respondToCoMakerRequest(coMakerId, action) {
+    const response = await apiService.post(`/applicant/comaker-requests/${coMakerId}/respond/`, { action });
     return response.data;
   }
 }

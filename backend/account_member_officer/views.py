@@ -811,6 +811,7 @@ class ActiveLoansView(AMOBaseView):
             'loans': [
                 {
                     'id': loan.id,
+                    'user_application_number': loan.user_application_number,
                     'borrower': {
                         'id': loan.user.id,
                         'name': f"{loan.user.firstname} {loan.user.lastname}",

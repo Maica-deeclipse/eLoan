@@ -65,7 +65,7 @@ class Violation(models.Model):
         ordering = ['-logged_at']
 
     def __str__(self):
-        return f"{self.member.user.email} - {self.get_violation_type_display()} ({self.get_severity_display()})"
+        return f"{self.member.email} - {self.get_violation_type_display()} ({self.get_severity_display()})"
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -124,7 +124,7 @@ class DisciplinaryAction(models.Model):
         ordering = ['-decided_at']
 
     def __str__(self):
-        return f"{self.member.user.email} - {self.get_action_type_display()} on {self.effective_date}"
+        return f"{self.member.email} - {self.get_action_type_display()} on {self.effective_date}"
 
     def apply(self):
         """Apply the disciplinary action to the member's status."""
@@ -142,11 +142,11 @@ class DisciplinaryAction(models.Model):
 
             # Disable user account for termination/suspension
             if self.action_type == 'termination':
-                member.user.status = 'suspended'
-                member.user.save(update_fields=['status'])
+                member.status = 'suspended'
+                member.save(update_fields=['status'])
             elif self.action_type == 'reinstatement':
-                member.user.status = 'active'
-                member.user.save(update_fields=['status'])
+                member.status = 'active'
+                member.save(update_fields=['status'])
 
 
 class TerminationRecord(models.Model):
@@ -183,4 +183,4 @@ class TerminationRecord(models.Model):
         ordering = ['-processed_at']
 
     def __str__(self):
-        return f"{self.member.user.email} - {self.get_termination_type_display()}"
+        return f"{self.member.email} - {self.get_termination_type_display()}"

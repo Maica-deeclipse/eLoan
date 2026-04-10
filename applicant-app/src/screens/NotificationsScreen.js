@@ -35,6 +35,7 @@ const TYPE_ICONS = {
   info:            'ℹ️',
   approval:        '✅',
   rejection:       '❌',
+  comaker_request: '🤝',
 };
 
 function formatTimeAgo(dateString) {
@@ -123,6 +124,11 @@ export default function NotificationsScreen({ navigation }) {
       } catch (error) {
         console.error('Mark as read error:', error);
       }
+    }
+    // Co-maker request notifications open the requests screen
+    if (notification.notification_type === 'comaker_request') {
+      navigation.navigate('CoMakerRequests');
+      return;
     }
     if (notification.related_application_id) {
       navigation.navigate('ApplicationDetail', { id: notification.related_application_id });

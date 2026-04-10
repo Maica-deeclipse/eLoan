@@ -16,6 +16,7 @@ export default function EvaluateApplication() {
   const [salaryPrefilled, setSalaryPrefilled] = useState(false);
   const [recommendation, setRecommendation] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [problemDocs, setProblemDocs] = useState([]);
 
   useEffect(() => {
     fetchApplication();
@@ -67,7 +68,10 @@ export default function EvaluateApplication() {
       setSubmitting(true);
       setError(null);
 
-      await treasurerService.evaluateApplication(id, netSalary, recommendation, remarks);
+      const fullRemarks = problemDocs.length > 0
+        ? `Documents flagged: ${problemDocs.join(', ')}${remarks ? '\n' + remarks : ''}`
+        : remarks;
+      await treasurerService.evaluateApplication(id, netSalary, recommendation, fullRemarks);
 
       setSuccess('Application evaluated successfully');
       setTimeout(() => {
@@ -114,7 +118,7 @@ export default function EvaluateApplication() {
       </div>
 
       <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937', marginBottom: '1.5rem' }}>
-        Evaluate Application #{id}
+        Evaluate Application #{data?.application?.user_application_number ?? id}
       </h1>
 
       {error && (
@@ -165,8 +169,6 @@ export default function EvaluateApplication() {
                   return (
                     <div
                       key={doc.id}
-                      onClick={() => window.open(fileUrl, '_blank')}
-                      title="Click to open document"
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -174,15 +176,22 @@ export default function EvaluateApplication() {
                         padding: '0.5rem 0.75rem',
                         background: '#f9fafb',
                         borderRadius: '0.375rem',
-                        cursor: 'pointer',
-                        transition: 'background 0.15s',
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#ecfdf5')}
-                      onMouseLeave={e => (e.currentTarget.style.background = '#f9fafb')}
                     >
                       <span style={{ fontWeight: 500 }}>&#128196; {doc.document_type}</span>
-                      {doc.verified && (
+                      {doc.verified ? (
                         <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>&#10004; Verified</span>
+                      ) : (
+                        <button
+                          onClick={() => window.open(fileUrl, '_blank')}
+                          style={{
+                            background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                            padding: '0.25rem 0.6rem', borderRadius: '0.25rem', fontSize: '0.75rem',
+                            cursor: 'pointer', fontWeight: 500,
+                          }}
+                        >
+                          View
+                        </button>
                       )}
                     </div>
                   );
@@ -346,6 +355,25 @@ export default function EvaluateApplication() {
                     </label>
                   </div>
                 </div>
+
+                {/* Documents with Issues */}
+                {documents && documents.length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={labelStyle}>Documents with Issues</label>
+                    <div style={{ border: '1px solid #d1d5db', borderRadius: '0.5rem', padding: '0.5rem', maxHeight: '120px', overflowY: 'auto', background: '#fafafa' }}>
+                      {documents.map(doc => (
+                        <label key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0', cursor: 'pointer', fontSize: '0.875rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={problemDocs.includes(doc.document_type)}
+                            onChange={(e) => setProblemDocs(prev => e.target.checked ? [...prev, doc.document_type] : prev.filter(d => d !== doc.document_type))}
+                          />
+                          {doc.document_type}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Remarks */}
                 <div style={{ marginBottom: '1.5rem' }}>

@@ -13,6 +13,7 @@ export default function ApplicationDetail() {
   const [rejectionCategory, setRejectionCategory] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [problemDocs, setProblemDocs] = useState([]);
   const [disbursementNotes, setDisbursementNotes] = useState('');
   const [recordingDisbursement, setRecordingDisbursement] = useState(false);
   const [disbursementRecorded, setDisbursementRecorded] = useState(false);
@@ -39,7 +40,10 @@ export default function ApplicationDetail() {
     if (!window.confirm('Are you sure you want to verify this application?')) return;
     try {
       setProcessing(true);
-      await bookkeeperService.verifyApplication(id, notes);
+      const fullNotes = problemDocs.length > 0
+        ? `Documents flagged: ${problemDocs.join(', ')}${notes ? '\n' + notes : ''}`
+        : notes;
+      await bookkeeperService.verifyApplication(id, fullNotes);
       alert('Application verified successfully!');
       navigate('/bookkeeper/applications');
     } catch (err) {
@@ -75,7 +79,10 @@ export default function ApplicationDetail() {
     }
     try {
       setProcessing(true);
-      await bookkeeperService.rejectApplication(id, rejectionReason, notes, rejectionCategory);
+      const fullNotes = problemDocs.length > 0
+        ? `Documents flagged: ${problemDocs.join(', ')}${notes ? '\n' + notes : ''}`
+        : notes;
+      await bookkeeperService.rejectApplication(id, rejectionReason, fullNotes, rejectionCategory);
       alert('Application rejected successfully!');
       navigate('/bookkeeper/applications');
     } catch (err) {
@@ -123,7 +130,7 @@ export default function ApplicationDetail() {
         {/* Main Content */}
         <div>
           {/* Loan Information */}
-          <Card title={`Application #${application.id}`} badge={application.status}>
+          <Card title={`Application #${application.user_application_number ?? application.id}`} badge={application.status}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               <div>
                 <SectionLabel>Loan Information</SectionLabel>
@@ -333,13 +340,25 @@ export default function ApplicationDetail() {
                         <td style={tdStyle}>&#128196; {doc.document_type}</td>
                         <td style={tdStyle}>{formatDateTime(doc.uploaded_at)}</td>
                         <td style={tdStyle}>
-                          <span style={{
-                            background: doc.verified ? '#d1fae5' : '#fef3c7',
-                            color: doc.verified ? '#065f46' : '#92400e',
-                            padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
-                          }}>
-                            {doc.verified ? 'Verified' : 'Pending'}
-                          </span>
+                          {doc.verified ? (
+                            <span style={{
+                              background: '#d1fae5', color: '#065f46',
+                              padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
+                            }}>
+                              Verified
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); window.open(fileUrl, '_blank'); }}
+                              style={{
+                                background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                                padding: '0.25rem 0.6rem', borderRadius: '0.25rem', fontSize: '0.75rem',
+                                cursor: 'pointer', fontWeight: 500,
+                              }}
+                            >
+                              View
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -435,6 +454,25 @@ export default function ApplicationDetail() {
                 <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1rem' }}>
                   Verifying this application will forward it to the Treasurer for further review.
                 </p>
+                {documents.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      Documents with Issues
+                    </label>
+                    <div style={{ border: '1px solid #d1d5db', borderRadius: '0.375rem', padding: '0.5rem', maxHeight: '110px', overflowY: 'auto', background: '#fafafa' }}>
+                      {documents.map(doc => (
+                        <label key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0', cursor: 'pointer', fontSize: '0.8rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={problemDocs.includes(doc.document_type)}
+                            onChange={(e) => setProblemDocs(prev => e.target.checked ? [...prev, doc.document_type] : prev.filter(d => d !== doc.document_type))}
+                          />
+                          {doc.document_type}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
                     Notes (Optional)
@@ -631,6 +669,25 @@ export default function ApplicationDetail() {
               </div>
             )}
 
+            {documents.length > 0 && (
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem' }}>
+                  Documents with Issues
+                </label>
+                <div style={{ border: '1px solid #d1d5db', borderRadius: '0.375rem', padding: '0.5rem', maxHeight: '110px', overflowY: 'auto', background: '#fafafa' }}>
+                  {documents.map(doc => (
+                    <label key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0', cursor: 'pointer', fontSize: '0.875rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={problemDocs.includes(doc.document_type)}
+                        onChange={(e) => setProblemDocs(prev => e.target.checked ? [...prev, doc.document_type] : prev.filter(d => d !== doc.document_type))}
+                      />
+                      {doc.document_type}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem' }}>
                 Additional Notes (Optional)

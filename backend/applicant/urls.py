@@ -21,6 +21,8 @@ API Structure:
     /api/applicant/documents/<id>/
     /api/applicant/documents/<id>/replace/
     /api/applicant/comakers/<id>/
+    /api/applicant/comaker-requests/
+    /api/applicant/comaker-requests/<id>/respond/
     /api/applicant/search-users/
     /api/applicant/calculate-amortization/
     /api/applicant/profile/
@@ -78,6 +80,8 @@ urlpatterns = [
     path('search-users/', views.SearchUsersView.as_view(), name='search_users'),
     path('applications/<int:app_id>/comakers/', views.CoMakerListView.as_view(), name='comakers'),
     path('comakers/<int:pk>/', views.CoMakerDetailView.as_view(), name='comaker_detail'),
+    path('comaker-requests/', views.CoMakerRequestListView.as_view(), name='comaker_requests'),
+    path('comaker-requests/<int:pk>/respond/', views.CoMakerRequestRespondView.as_view(), name='comaker_request_respond'),
 
     # Calculations
     path('calculate-amortization/', views.CalculateAmortizationView.as_view(), name='calculate_amortization'),

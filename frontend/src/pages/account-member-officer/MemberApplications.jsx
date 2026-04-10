@@ -13,8 +13,11 @@ export default function MemberApplications() {
   const [filter, setFilter] = useState('pending');
   const [selected, setSelected] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [problemDocs, setProblemDocs] = useState([]);
   const [modal, setModal] = useState(null); // 'detail' | 'reject'
   const [actionMsg, setActionMsg] = useState('');
+
+  const AMO_DOCUMENTS = ['ID Photo', 'Payslip', 'Certificate of Employment'];
 
   const load = async (f) => {
     setLoading(true);
@@ -44,10 +47,14 @@ export default function MemberApplications() {
 
   const handleReject = async () => {
     try {
-      const res = await amoService.rejectApplication(selected.id, rejectReason);
+      const fullReason = problemDocs.length > 0
+        ? `Documents flagged: ${problemDocs.join(', ')}${rejectReason ? '\n' + rejectReason : ''}`
+        : rejectReason;
+      const res = await amoService.rejectApplication(selected.id, fullReason);
       setActionMsg(res.message);
       setModal(null);
       setRejectReason('');
+      setProblemDocs([]);
       load(filter);
     } catch (e) {
       setActionMsg('Failed to reject. Please try again.');
@@ -149,10 +156,23 @@ export default function MemberApplications() {
 
       {/* Reject Modal */}
       {modal === 'reject' && selected && (
-        <Modal title="Reject Application" onClose={() => setModal(null)} maxWidth="480px">
+        <Modal title="Reject Application" onClose={() => { setModal(null); setProblemDocs([]); }} maxWidth="480px">
           <p style={{ color: '#4b5563', fontSize: '0.875rem', marginBottom: '1rem' }}>
             Rejecting: <strong>{selected.name || `${selected.firstname} ${selected.lastname}`}</strong>
           </p>
+          <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151' }}>Documents with Issues</label>
+          <div style={{ border: '1px solid #d1d5db', borderRadius: '8px', padding: '0.5rem', marginTop: '0.5rem', marginBottom: '1rem', background: '#fafafa' }}>
+            {AMO_DOCUMENTS.map(doc => (
+              <label key={doc} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0', cursor: 'pointer', fontSize: '0.875rem' }}>
+                <input
+                  type="checkbox"
+                  checked={problemDocs.includes(doc)}
+                  onChange={(e) => setProblemDocs(prev => e.target.checked ? [...prev, doc] : prev.filter(d => d !== doc))}
+                />
+                {doc}
+              </label>
+            ))}
+          </div>
           <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151' }}>Reason (optional)</label>
           <textarea
             value={rejectReason}

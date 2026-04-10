@@ -88,7 +88,7 @@ export default function Applications() {
                 applications.map((app) => (
                   <tr key={app.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
                     <td style={tdStyle}>
-                      <span style={{ fontWeight: 600 }}>#{app.id}</span>
+                      <span style={{ fontWeight: 600 }}>#{app.user_application_number ?? app.id}</span>
                     </td>
                     <td style={tdStyle}>
                       <div style={{ fontWeight: 500 }}>{app.applicant.name}</div>

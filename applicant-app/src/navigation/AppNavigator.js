@@ -11,6 +11,7 @@ import RegisterWizardScreen from '../screens/RegisterWizardScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import SetPasswordScreen from '../screens/SetPasswordScreen';
 import ApplicationDetailScreen from '../screens/ApplicationDetailScreen';
+import CoMakerRequestsScreen from '../screens/CoMakerRequestsScreen';
 import ApplicationStack from './ApplicationStack';
 import MainTabNavigator from './MainTabNavigator';
 
@@ -46,6 +47,7 @@ export default function AppNavigator() {
             {/* Protected Routes */}
             <Stack.Screen name="Main" component={MainTabNavigator} />
             <Stack.Screen name="ApplicationDetail" component={ApplicationDetailScreen} />
+            <Stack.Screen name="CoMakerRequests" component={CoMakerRequestsScreen} />
             <Stack.Screen name="ApplicationWizard" component={ApplicationStack} />
           </>
         ) : (

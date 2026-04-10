@@ -13,8 +13,7 @@ function RoleSelection() {
       <div className="role-selection-card">
         <div className="role-selection-header">
           <div className="logo">
-            <span className="logo-icon">$</span>
-            <span className="logo-text">eLoan</span>
+            <img src="/logoo.png" alt="eLoan" className="logo-img" />
           </div>
           <h1 className="role-selection-title">Select Your Role</h1>
           <p className="role-selection-subtitle">Choose your access portal to continue</p>

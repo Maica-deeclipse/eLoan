@@ -14,6 +14,7 @@ export default function ApplicationDetail() {
   const [decision, setDecision] = useState('');
   const [rejectionCategory, setRejectionCategory] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [problemDocs, setProblemDocs] = useState([]);
   const [meetingDate, setMeetingDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
@@ -69,7 +70,10 @@ export default function ApplicationDetail() {
 
     try {
       setSubmitting(true);
-      await creditCommitteeService.submitDecision(id, decision, remarks, meetingDate, decision === 'rejected' ? rejectionCategory : null);
+      const fullRemarks = problemDocs.length > 0
+        ? `Documents flagged: ${problemDocs.join(', ')}${remarks ? '\n' + remarks : ''}`
+        : remarks;
+      await creditCommitteeService.submitDecision(id, decision, fullRemarks, meetingDate, decision === 'rejected' ? rejectionCategory : null);
       alert('Decision submitted successfully');
       navigate('/credit-committee/applications');
     } catch (err) {
@@ -106,7 +110,7 @@ export default function ApplicationDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937', marginBottom: '0.25rem' }}>
-            Application #{application.id}
+            Application #{application.user_application_number ?? application.id}
           </h1>
           <span style={{
             background: '#fef3c7',
@@ -211,7 +215,16 @@ export default function ApplicationDetail() {
                         {doc.verified ? (
                           <span style={{ color: '#10b981' }}>&#10004; Yes</span>
                         ) : (
-                          <span style={{ color: '#6b7280' }}>Pending</span>
+                          <button
+                            onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/media/${doc.file_path}`, '_blank')}
+                            style={{
+                              background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                              padding: '0.25rem 0.6rem', borderRadius: '0.25rem', fontSize: '0.75rem',
+                              cursor: 'pointer', fontWeight: 500,
+                            }}
+                          >
+                            View
+                          </button>
                         )}
                       </td>
                       <td style={{ padding: '0.75rem 0' }}>
@@ -349,6 +362,27 @@ export default function ApplicationDetail() {
                       <option value="does_not_meet_credit">Does Not Meet Credit Requirements</option>
                       <option value="others">Others (specify in remarks)</option>
                     </select>
+                  </div>
+                )}
+
+                {/* Documents with Issues */}
+                {documents && documents.length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.5rem', color: '#374151' }}>
+                      Documents with Issues
+                    </label>
+                    <div style={{ border: '1px solid #d1d5db', borderRadius: '0.5rem', padding: '0.5rem', maxHeight: '120px', overflowY: 'auto', background: '#fafafa' }}>
+                      {documents.map(doc => (
+                        <label key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0', cursor: 'pointer', fontSize: '0.875rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={problemDocs.includes(doc.document_type)}
+                            onChange={(e) => setProblemDocs(prev => e.target.checked ? [...prev, doc.document_type] : prev.filter(d => d !== doc.document_type))}
+                          />
+                          {doc.document_type}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 )}
 

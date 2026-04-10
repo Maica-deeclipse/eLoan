@@ -444,12 +444,21 @@ class LoanApplicationService:
         if not application.purpose:
             errors.append("Loan purpose is required.")
 
-        # Check required documents
+        # Check required documents for this specific loan type from the database.
+        # DocumentTypes.REQUIRED_DOCUMENTS is a hardcoded fallback — use it only
+        # if no LoanTypeRequiredDocument rows exist for this loan type.
         documents = application.documents.all()
-        doc_types = [d.document_type for d in documents]
-        for req_type in DocumentTypes.REQUIRED_DOCUMENTS:
-            if req_type not in doc_types:
-                errors.append(f"Required document missing: {DocumentTypes.DISPLAY_NAMES.get(req_type, req_type)}")
+        doc_types = {d.document_type for d in documents}
+        loan_type_required_docs = application.loan_type.required_documents.filter(is_required=True)
+        if loan_type_required_docs.exists():
+            for req_doc in loan_type_required_docs:
+                if req_doc.document_key not in doc_types:
+                    errors.append(f"Required document missing: {req_doc.document_label}")
+        else:
+            # Fallback: use hardcoded list if DB has no configuration for this loan type
+            for req_type in DocumentTypes.REQUIRED_DOCUMENTS:
+                if req_type not in doc_types:
+                    errors.append(f"Required document missing: {DocumentTypes.DISPLAY_NAMES.get(req_type, req_type)}")
 
         # Check face verification
         face_verification = application.face_verifications.filter(
@@ -885,7 +894,8 @@ class CoMakerService:
         users = User.objects.filter(
             role__name='Applicant',
             is_active=True,
-            status='active'
+            status='active',
+            account_status='approved'
         ).exclude(pk=exclude_user_id)
 
         if search_term:
@@ -923,6 +933,10 @@ class CoMakerService:
         if comaker_user == user:
             return None, "You cannot be your own co-maker."
 
+        # Verify co-maker eligibility: must be an active, approved member
+        if not (comaker_user.is_active and comaker_user.status == 'active' and comaker_user.account_status == 'approved'):
+            return None, "This member is not eligible to be a co-maker."
+
         # Check if already added
         if application.comakers.filter(user=comaker_user).exists():
             return None, "This user is already a co-maker for this application."
@@ -946,6 +960,20 @@ class CoMakerService:
             monthly_income=comaker_info_data.get('monthly_income'),
             id_type=comaker_info_data.get('id_type', 'other'),
             id_number=comaker_info_data.get('id_number', ''),
+        )
+
+        # Notify the co-maker that they have been added
+        applicant_name = f"{user.firstname} {user.lastname}"
+        Notification.objects.create(
+            user=comaker_user,
+            title='Co-Maker Request',
+            message=(
+                f"{applicant_name} has added you as a co-maker for their "
+                f"{application.loan_type.loan_name} application. "
+                f"Please review and respond to this request."
+            ),
+            notification_type='comaker_request',
+            related_application=application,
         )
 
         return loan_comaker, None
@@ -1010,6 +1038,63 @@ class CoMakerService:
     def get_application_comakers(application):
         """Get all co-makers for an application."""
         return application.comakers.select_related('user').prefetch_related('detailed_info')
+
+    @staticmethod
+    def get_comaker_requests(user):
+        """Get all co-maker requests for the given user (where they are the co-maker)."""
+        return LoanCoMaker.objects.filter(user=user).select_related(
+            'application',
+            'application__user',
+            'application__loan_type',
+            'application__current_status',
+        ).order_by('-agreed_at')
+
+    @staticmethod
+    def respond_to_comaker_request(comaker_id, user, action):
+        """
+        Accept or reject a co-maker request.
+        action: 'accept' | 'reject'
+        Returns (loan_comaker, error_message)
+        """
+        try:
+            loan_comaker = LoanCoMaker.objects.select_related(
+                'application', 'application__user', 'application__loan_type'
+            ).get(pk=comaker_id, user=user)
+        except LoanCoMaker.DoesNotExist:
+            return None, "Co-maker request not found."
+
+        if loan_comaker.status != LoanCoMaker.STATUS_PENDING:
+            return None, "This request has already been responded to."
+
+        if action == 'accept':
+            loan_comaker.status = LoanCoMaker.STATUS_ACCEPTED
+            response_label = 'accepted'
+            notif_type = 'approval'
+        elif action == 'reject':
+            loan_comaker.status = LoanCoMaker.STATUS_REJECTED
+            response_label = 'rejected'
+            notif_type = 'rejection'
+        else:
+            return None, "Invalid action. Use 'accept' or 'reject'."
+
+        loan_comaker.responded_at = timezone.now()
+        loan_comaker.save(update_fields=['status', 'responded_at'])
+
+        # Notify the applicant of the co-maker's response
+        comaker_name = f"{user.firstname} {user.lastname}"
+        application = loan_comaker.application
+        Notification.objects.create(
+            user=application.user,
+            title='Co-Maker Response',
+            message=(
+                f"{comaker_name} has {response_label} your co-maker request "
+                f"for your {application.loan_type.loan_name} application."
+            ),
+            notification_type=notif_type,
+            related_application=application,
+        )
+
+        return loan_comaker, None
 
 
 class NotificationService:

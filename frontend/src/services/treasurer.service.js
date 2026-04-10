@@ -89,11 +89,11 @@ class TreasurerService {
     }
   }
 
-  async recordPayment(loanId, amount, paymentMethod, remarks = '') {
+  async recordPayment(loanId, amount, paymentMethod, remarks = '', orNumber = '') {
     try {
       const response = await axios.post(
         `${API_URL}/loans/${loanId}/payments/add/`,
-        { amount, payment_method: paymentMethod, remarks },
+        { amount, payment_method: paymentMethod, remarks, or_number: orNumber },
         getAuthHeaders()
       );
       return response.data;
@@ -102,11 +102,11 @@ class TreasurerService {
     }
   }
 
-  async releaseFunds(loanId, remarks = '') {
+  async releaseFunds(loanId, remarks = '', releaseDate = '') {
     try {
       const response = await axios.post(
         `${API_URL}/loans/${loanId}/release/`,
-        { remarks },
+        { remarks, release_date: releaseDate },
         getAuthHeaders()
       );
       return response.data;

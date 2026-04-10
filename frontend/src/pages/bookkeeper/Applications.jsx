@@ -206,7 +206,7 @@ function SubmittedTable({ applications, navigate }) {
                   >
                     <td style={tdStyle}>
                       <span style={{ background: '#f3f4f6', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
-                        #{app.id}
+                        #{app.user_application_number ?? app.id}
                       </span>
                     </td>
                     <td style={tdStyle}>

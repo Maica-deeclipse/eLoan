@@ -35,7 +35,9 @@ class FaceComparisonService:
     # DeepFace configuration
     MODEL_NAME = 'ArcFace'  # Options: VGG-Face, Facenet, OpenFace, DeepFace, DeepID, ArcFace, Dlib, SFace
     DISTANCE_METRIC = 'cosine'  # Options: cosine, euclidean, euclidean_l2
-    DETECTOR_BACKEND = 'opencv'  # Options: opencv, ssd, dlib, mtcnn, retinaface
+    # yunet is a CNN-based detector (much more accurate than opencv Haar on ID photos).
+    # Weights: ~/.deepface/weights/face_detection_yunet_2023mar.onnx (already downloaded).
+    DETECTOR_BACKEND = 'yunet'  # Options: opencv, ssd, yunet, dlib, mtcnn
 
     # Thresholds from DeepFace documentation
     SIMILARITY_THRESHOLDS = {
@@ -308,14 +310,21 @@ class FaceComparisonService:
             if not os.path.exists(selfie_path):
                 return {'success': False, 'verified': False, 'message': 'Selfie not found'}
 
-            # Perform face verification using DeepFace
+            # Perform face verification using DeepFace.
+            # Both inputs are Haar-extracted face crops, so they are already
+            # isolated face regions.  enforce_detection=False tells DeepFace:
+            # "if your internal detector can't find a face in this crop, use
+            # the whole crop."  Since the crop IS the face, that fallback still
+            # yields a valid embedding — preventing the "Exception while
+            # processing img1_path" ValueError that fires with enforce_detection=True
+            # when DeepFace's detector settings differ from our Haar settings.
             result = DeepFace.verify(
                 img1_path=id_photo_path,
                 img2_path=selfie_path,
                 model_name=cls.MODEL_NAME,
                 distance_metric=cls.DISTANCE_METRIC,
                 detector_backend=cls.DETECTOR_BACKEND,
-                enforce_detection=True
+                enforce_detection=False
             )
 
             # Extract results
@@ -581,17 +590,21 @@ class FaceComparisonService:
                 id_face_relative_path = os.path.relpath(id_face_result['face_path'], settings.MEDIA_ROOT)
                 face_verification.id_photo_path = id_face_relative_path
 
-                # Step 2: Detect face in selfie
-                logger.info("Detecting face in selfie...")
-                selfie_detection = cls.detect_face(selfie_path)
+                # Step 2: Extract face crop from selfie using the same Haar pipeline.
+                # We crop both images ourselves so that DeepFace receives two clean,
+                # symmetric face regions.  When enforce_detection=False, if DeepFace's
+                # internal detector misses a crop it falls back to using the whole crop
+                # as input — which is the face — so the embedding remains meaningful.
+                logger.info("Extracting face from selfie...")
+                selfie_face_result = cls.extract_face_from_document(selfie_path, faces_dir)
 
-                if not selfie_detection['success']:
-                    face_verification.error_message = f"Selfie: {selfie_detection['message']}"
+                if not selfie_face_result['success']:
+                    face_verification.error_message = f"Selfie: {selfie_face_result['message']}"
                     face_verification.face_detected_in_selfie = False
                     face_verification.verification_status = 'Failed'
                     face_verification.processed_at = timezone.now()
                     face_verification.save()
-                    logger.error(f"No face detected in selfie: {selfie_detection['message']}")
+                    logger.error(f"No face detected in selfie: {selfie_face_result['message']}")
 
                     # Audit log: No face detected in selfie
                     from loans.models import AuditLog
@@ -601,7 +614,7 @@ class FaceComparisonService:
                         action_type='FACE_VERIFY_FAIL',
                         severity='WARNING',
                         success=False,
-                        failure_reason=selfie_detection['message'],
+                        failure_reason=selfie_face_result['message'],
                         related_application=application
                     )
 
@@ -616,10 +629,15 @@ class FaceComparisonService:
                     return face_verification
 
                 face_verification.face_detected_in_selfie = True
+                selfie_face_path = selfie_face_result['face_path']
 
-                # Step 3: Compare faces using DeepFace
+                # Step 3: Compare the two Haar-extracted face crops using DeepFace.
+                # Both inputs are already isolated face regions so the embeddings are
+                # symmetric.  enforce_detection=False is set inside compare_faces so
+                # that if DeepFace's own detector misses on a tight crop it still
+                # generates an embedding from the full crop (which is the face).
                 logger.info("Comparing faces with DeepFace...")
-                comparison_result = cls.compare_faces(id_face_result['face_path'], selfie_path)
+                comparison_result = cls.compare_faces(id_face_result['face_path'], selfie_face_path)
 
                 if not comparison_result['success']:
                     face_verification.error_message = comparison_result['message']
@@ -658,8 +676,8 @@ class FaceComparisonService:
 
                 # Determine verification outcome using tiered distance thresholds
                 face_config = getattr(settings, 'FACE_VERIFICATION', {})
-                auto_approve_max_distance = face_config.get('AUTO_APPROVE_MAX_DISTANCE', 0.60)
-                review_max_distance = face_config.get('REVIEW_MAX_DISTANCE', 0.75)
+                auto_approve_max_distance = face_config.get('AUTO_APPROVE_MAX_DISTANCE', 0.45)
+                review_max_distance = face_config.get('REVIEW_MAX_DISTANCE', 0.60)
                 distance = comparison_result['distance']
                 similarity = comparison_result['similarity_percentage']
 
@@ -683,7 +701,7 @@ class FaceComparisonService:
 
                 elif distance <= review_max_distance:
                     # Borderline: allow to proceed but flag for bookkeeper review
-                    face_verification.is_match = True
+                    face_verification.is_match = False
                     face_verification.verification_status = 'Needs Review'
                     face_verification.verified_at = timezone.now()
                     face_verification.error_message = None
@@ -730,11 +748,11 @@ class FaceComparisonService:
 
                 # Name mismatch downgrade: face matched but OCR says name differs → flag for manual review
                 # Only downgrades if OCR explicitly returned False (not None/indeterminate)
-                if face_verification.verification_status == 'Verified' and face_verification.ocr_name_match is False:
-                    face_verification.verification_status = 'Needs Review'
+                if face_verification.ocr_name_match is False:
+                    face_verification.verification_status = 'Failed'
+                    face_verification.is_match = False
                     face_verification.error_message = (
-                        "Face match succeeded but the name on the BukSU ID could not be confirmed. "
-                        "Manual review required."
+                        "Face verification failed. The name on the ID does not match the registered profile."
                     )
                     logger.warning(
                         f"Application {application_id}: Face matched but OCR name mismatch "
@@ -746,7 +764,7 @@ class FaceComparisonService:
                         action=f"Face verification flagged for review (name mismatch) for application #{application.id}",
                         action_type='FACE_VERIFY_REVIEW',
                         severity='WARNING',
-                        success=True,
+                        success=False,
                         failure_reason="OCR name on BukSU ID does not match profile name",
                         related_application=application
                     )

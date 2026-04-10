@@ -65,7 +65,7 @@ class ApplicationService:
         try:
             return LoanApplication.objects.select_related(
                 'user', 'loan_type', 'current_status',
-                'user__applicant_profile'
+                'user__applicant'
             ).prefetch_related(
                 'documents', 'comakers', 'comakers__detailed_info',
                 'bookkeeper_verifications', 'face_verifications', 'liveness_checks'

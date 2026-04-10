@@ -26,29 +26,16 @@
 }
 
 .logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-
-.logo-icon {
-  background: #17236a;
-  color: white;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  font-weight: bold;
+  margin-bottom: 24px;
 }
 
-.logo-text {
-  font-size: 28px;
-  font-weight: 700;
-  color: #17236a;
+.logo-img {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
 }
 
 .login-title {
@@ -377,10 +364,6 @@
   }
 
   .login-title {
-    font-size: 24px;
-  }
-
-  .logo-text {
     font-size: 24px;
   }
 }

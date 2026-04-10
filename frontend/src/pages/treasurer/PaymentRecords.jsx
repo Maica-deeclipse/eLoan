@@ -6,13 +6,14 @@ export default function PaymentRecords() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [loans, setLoans] = useState([]);
+  const [search, setSearch] = useState('');
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Payment form state
   const [amount, setAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [orNumber, setOrNumber] = useState('');
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -44,6 +45,13 @@ export default function PaymentRecords() {
     }
   };
 
+  const resetModal = () => {
+    setShowPaymentModal(false);
+    setAmount('');
+    setOrNumber('');
+    setRemarks('');
+  };
+
   const handleRecordPayment = async (e) => {
     e.preventDefault();
 
@@ -56,12 +64,10 @@ export default function PaymentRecords() {
       setSubmitting(true);
       setError(null);
 
-      await treasurerService.recordPayment(selectedLoan.id, amount, paymentMethod, remarks);
+      await treasurerService.recordPayment(selectedLoan.id, amount, 'Payroll Deduction', remarks, orNumber);
 
       setSuccess('Payment recorded successfully');
-      setShowPaymentModal(false);
-      setAmount('');
-      setRemarks('');
+      resetModal();
 
       // Refresh data
       await fetchLoans();
@@ -74,6 +80,16 @@ export default function PaymentRecords() {
       setSubmitting(false);
     }
   };
+
+  const filteredLoans = loans.filter((loan) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      loan.borrower?.name?.toLowerCase().includes(q) ||
+      loan.borrower?.email?.toLowerCase().includes(q) ||
+      loan.loan_type?.toLowerCase().includes(q)
+    );
+  });
 
   if (loading) {
     return (
@@ -94,7 +110,7 @@ export default function PaymentRecords() {
       {error && (
         <div style={{ background: '#fee2e2', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
           {error}
-          <button onClick={() => setError(null)} style={{ marginLeft: '1rem', textDecoration: 'underline' }}>Dismiss</button>
+          <button onClick={() => setError(null)} style={{ marginLeft: '1rem', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}>Dismiss</button>
         </div>
       )}
 
@@ -108,9 +124,26 @@ export default function PaymentRecords() {
         {/* Loans List */}
         <div style={{ background: '#fff', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
           <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e5e7eb' }}>
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#1f2937', margin: 0 }}>
-              Disbursed Loans ({loans.length})
-            </h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#1f2937', margin: 0 }}>
+                Active Loans ({filteredLoans.length})
+              </h2>
+            </div>
+            {/* Search */}
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, email or loan type..."
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                boxSizing: 'border-box',
+              }}
+            />
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -124,14 +157,14 @@ export default function PaymentRecords() {
                 </tr>
               </thead>
               <tbody>
-                {loans.length === 0 ? (
+                {filteredLoans.length === 0 ? (
                   <tr>
                     <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-                      No disbursed loans
+                      {search ? 'No matches found' : 'No active loans'}
                     </td>
                   </tr>
                 ) : (
-                  loans.map((loan) => (
+                  filteredLoans.map((loan) => (
                     <tr
                       key={loan.id}
                       style={{
@@ -143,6 +176,7 @@ export default function PaymentRecords() {
                     >
                       <td style={tdStyle}>
                         <div style={{ fontWeight: 500 }}>{loan.borrower.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{loan.borrower.email}</div>
                       </td>
                       <td style={tdStyle}>{loan.loan_type}</td>
                       <td style={tdStyle}>₱{parseFloat(loan.total_payable).toLocaleString()}</td>
@@ -161,13 +195,14 @@ export default function PaymentRecords() {
                             fetchPaymentHistory(loan.id);
                             setShowPaymentModal(true);
                           }}
+                          disabled={parseFloat(loan.remaining_balance) === 0}
                           style={{
-                            background: '#10b981',
-                            color: '#fff',
+                            background: parseFloat(loan.remaining_balance) === 0 ? '#e5e7eb' : '#10b981',
+                            color: parseFloat(loan.remaining_balance) === 0 ? '#9ca3af' : '#fff',
                             padding: '0.375rem 0.75rem',
                             borderRadius: '0.375rem',
                             border: 'none',
-                            cursor: 'pointer',
+                            cursor: parseFloat(loan.remaining_balance) === 0 ? 'not-allowed' : 'pointer',
                             fontSize: '0.75rem',
                           }}
                         >
@@ -187,9 +222,9 @@ export default function PaymentRecords() {
           <div style={{ background: '#fff', borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
             <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e5e7eb' }}>
               <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#1f2937', margin: 0 }}>
-                Payment History - {selectedLoan.borrower}
+                Payment History — {selectedLoan.borrower}
               </h2>
-              <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>
+              <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem', fontSize: '0.875rem', flexWrap: 'wrap' }}>
                 <span>Total: ₱{parseFloat(selectedLoan.total_payable).toLocaleString()}</span>
                 <span>Paid: ₱{parseFloat(selectedLoan.total_paid).toLocaleString()}</span>
                 <span style={{ color: '#10b981', fontWeight: 600 }}>
@@ -220,7 +255,12 @@ export default function PaymentRecords() {
                       </span>
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                      {new Date(payment.payment_date).toLocaleDateString()} - by {payment.recorded_by}
+                      {new Date(payment.payment_date).toLocaleDateString()} · by {payment.recorded_by}
+                      {payment.or_number && (
+                        <span style={{ marginLeft: '0.5rem', color: '#374151', fontWeight: 500 }}>
+                          · OR #{payment.or_number}
+                        </span>
+                      )}
                     </div>
                     {payment.remarks && (
                       <div style={{ fontSize: '0.75rem', color: '#1f2937', marginTop: '0.25rem', fontStyle: 'italic' }}>
@@ -239,10 +279,7 @@ export default function PaymentRecords() {
       {showPaymentModal && selectedLoan && (
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.5)',
           display: 'flex',
           alignItems: 'center',
@@ -253,7 +290,7 @@ export default function PaymentRecords() {
             background: '#fff',
             borderRadius: '0.75rem',
             width: '100%',
-            maxWidth: '400px',
+            maxWidth: '420px',
             padding: '1.5rem',
           }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem' }}>
@@ -268,7 +305,7 @@ export default function PaymentRecords() {
 
             <form onSubmit={handleRecordPayment}>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Amount *</label>
+                <label style={labelStyle}>Amount <span style={{ color: '#ef4444' }}>*</span></label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }}>₱</span>
                   <input
@@ -285,17 +322,15 @@ export default function PaymentRecords() {
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Payment Method *</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
+                <label style={labelStyle}>Official Receipt (OR) Number <span style={{ color: '#ef4444' }}>*</span></label>
+                <input
+                  type="text"
+                  value={orNumber}
+                  onChange={(e) => setOrNumber(e.target.value)}
+                  placeholder="e.g. OR-2026-00123"
                   style={inputStyle}
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Payroll Deduction">Payroll Deduction</option>
-                  <option value="Other">Other</option>
-                </select>
+                  required
+                />
               </div>
 
               <div style={{ marginBottom: '1.5rem' }}>
@@ -304,18 +339,14 @@ export default function PaymentRecords() {
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   placeholder="Add any notes..."
-                  style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }}
+                  style={{ ...inputStyle, minHeight: '70px', resize: 'vertical' }}
                 />
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowPaymentModal(false);
-                    setAmount('');
-                    setRemarks('');
-                  }}
+                  onClick={resetModal}
                   style={{
                     flex: 1,
                     padding: '0.75rem',

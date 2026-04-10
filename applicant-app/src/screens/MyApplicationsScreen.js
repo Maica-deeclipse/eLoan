@@ -93,6 +93,7 @@ const getStatusColor = (status) => {
     'Approved by Credit Committee':   '#10b981',
     'Rejected by Bookkeeper':         '#ef4444',
     'Rejected by Credit Committee':   '#ef4444',
+    'Active':                         '#059669',
     'Disbursed':                      '#059669',
     'Paid':                           '#22c55e',
     'Withdrawn':                      '#6b7280',
@@ -113,7 +114,7 @@ const ApplicationItem = ({ application, onPress, onResume, onDeleteDraft }) => {
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
             <Text style={styles.loanType}>{application.loan_type}</Text>
-            <Text style={styles.applicationId}>Application #{application.id}</Text>
+            <Text style={styles.applicationId}>Application #{application.user_application_number ?? application.id}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '22', borderColor: statusColor }]}>
             <Text style={[styles.statusText, { color: statusColor }]} numberOfLines={1}>
@@ -147,12 +148,19 @@ const ApplicationItem = ({ application, onPress, onResume, onDeleteDraft }) => {
           <Text style={styles.dateText}>
             Applied: {new Date(application.application_date).toLocaleDateString()}
           </Text>
-          {application.status === 'Disbursed' && (
+          {(application.status === 'Disbursed' || application.status === 'Active') && (
             <Text style={styles.balanceText}>
               Balance: ₱{parseFloat(application.remaining_balance).toLocaleString()}
             </Text>
           )}
         </View>
+        {(application.status === 'Active' || application.status === 'Disbursed') && application.released_at && (
+          <View style={{ paddingHorizontal: 4, paddingBottom: 4 }}>
+            <Text style={{ fontSize: 11, color: SUCCESS }}>
+              Released: {new Date(application.released_at).toLocaleDateString()}
+            </Text>
+          </View>
+        )}
 
         {/* Draft actions */}
         {application.status === 'Draft' && (
@@ -194,7 +202,7 @@ export default function MyApplicationsScreen({ navigation }) {
   const [loading, setLoading]           = useState(true);
   const [refreshing, setRefreshing]     = useState(false);
   const [filter, setFilter]             = useState('active');
-  const [loanTypes, setLoanTypes]       = useState(null);
+  const [loanTypes, setLoanTypes]       = useState([]);
   const [loanTypesLoading, setLoanTypesLoading] = useState(false);
 
   const loadApplications = useCallback(async () => {
@@ -213,7 +221,7 @@ export default function MyApplicationsScreen({ navigation }) {
   useEffect(() => { loadApplications(); }, [loadApplications]);
 
   useEffect(() => {
-    if (filter !== 'available' || loanTypes !== null) return;
+    if (filter !== 'available' || loanTypes.length > 0) return;
     setLoanTypesLoading(true);
     applicationService.getLoanTypes()
       .then((data) => setLoanTypes(data))
@@ -266,7 +274,7 @@ export default function MyApplicationsScreen({ navigation }) {
   const filteredApplications = applications.filter((app) => {
     if (filter === 'active') {
       return ['Submitted', 'Verified by Bookkeeper', 'Pending Credit Committee',
-        'Approved by Credit Committee', 'Disbursed'].includes(app.status);
+        'Approved by Credit Committee', 'Disbursed', 'Active'].includes(app.status);
     }
     if (filter === 'applied') return app.status === 'Paid';
     if (filter === 'available') return app.status.includes('Rejected');

@@ -123,8 +123,7 @@ function SetPassword() {
         <div className="login-card">
           <div className="login-header">
             <div className="logo">
-              <span className="logo-icon">$</span>
-              <span className="logo-text">eLoan</span>
+              <img src="/logoo.png" alt="eLoan" className="logo-img" />
             </div>
             <h1 className="login-title">Invalid Link</h1>
           </div>
@@ -150,8 +149,7 @@ function SetPassword() {
         <div className="login-card">
           <div className="login-header">
             <div className="logo">
-              <span className="logo-icon">$</span>
-              <span className="logo-text">eLoan</span>
+              <img src="/logoo.png" alt="eLoan" className="logo-img" />
             </div>
             <h1 className="login-title">Password Set Successfully!</h1>
           </div>
@@ -178,8 +176,7 @@ function SetPassword() {
       <div className="login-card">
         <div className="login-header">
           <div className="logo">
-            <span className="logo-icon">$</span>
-            <span className="logo-text">eLoan</span>
+            <img src="/logoo.png" alt="eLoan" className="logo-img" />
           </div>
           <h1 className="login-title">Set Your Password</h1>
           {userInfo && (

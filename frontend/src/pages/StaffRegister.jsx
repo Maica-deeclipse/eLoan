@@ -25,9 +25,6 @@ export default function StaffRegister() {
   const [employeeId, setEmployeeId] = useState('');
   const [selectedRole, setSelectedRole] = useState(presetRole);
 
-  // Google details step state
-  const [googleEmployeeId, setGoogleEmployeeId] = useState('');
-
   // ── Manual registration ───────────────────────────────────────────────────
   const handleManualSubmit = async (e) => {
     e.preventDefault();
@@ -93,7 +90,7 @@ export default function StaffRegister() {
     setError('');
 
     if (!selectedRole) return setError('Please select a role.');
-    if (!googleEmployeeId.trim()) return setError('Employee ID is required.');
+    if (!employeeId.trim()) return setError('Employee ID is required.');
 
     setLoading(true);
     try {
@@ -111,15 +108,12 @@ export default function StaffRegister() {
     }
   };
 
-  const displayRole = selectedRole || 'Staff';
-
   return (
     <div className="login-container">
       <div className="login-card" style={{ maxWidth: '480px' }}>
         <div className="login-header">
           <div className="logo">
-            <span className="logo-icon">$</span>
-            <span className="logo-text">eLoan</span>
+            <img src="/logoo.png" alt="eLoan" className="logo-img" />
           </div>
           <h1 className="login-title">Staff Registration</h1>
           <p className="login-subtitle">

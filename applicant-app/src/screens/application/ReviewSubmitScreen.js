@@ -285,7 +285,7 @@ const ReviewSubmitScreen = ({ navigation }) => {
             <View style={styles.summaryHeaderText}>
               <Text style={styles.loanTypeName}>{loanType.loan_name || 'Loan Application'}</Text>
               <Text style={styles.applicationId}>
-                Application #{state.applicationId || 'DRAFT'}
+                Application #{applicationData?.user_application_number ?? state.applicationId ?? 'DRAFT'}
               </Text>
             </View>
           </View>

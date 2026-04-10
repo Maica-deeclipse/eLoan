@@ -194,7 +194,7 @@ class ViolationListView(SuperAdminBaseView):
     def get(self, request):
         member_id = request.query_params.get('member_id')
         severity = request.query_params.get('severity')
-        qs = Violation.objects.select_related('member__user', 'logged_by').order_by('-logged_at')
+        qs = Violation.objects.select_related('member', 'logged_by').order_by('-logged_at')
         if member_id:
             qs = qs.filter(member_id=member_id)
         if severity:
@@ -253,7 +253,7 @@ class ViolationListView(SuperAdminBaseView):
 class ViolationDetailView(SuperAdminBaseView):
     def get(self, request, pk):
         try:
-            v = Violation.objects.select_related('member__user', 'logged_by').get(pk=pk)
+            v = Violation.objects.select_related('member', 'logged_by').get(pk=pk)
         except Violation.DoesNotExist:
             return Response({'error': 'Violation not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(ViolationListView._serialize_violation(v))
@@ -277,7 +277,7 @@ class ViolationDetailView(SuperAdminBaseView):
 class DisciplinaryActionListView(SuperAdminBaseView):
     def get(self, request):
         member_id = request.query_params.get('member_id')
-        qs = DisciplinaryAction.objects.select_related('member__user', 'decided_by').order_by('-decided_at')
+        qs = DisciplinaryAction.objects.select_related('member', 'decided_by').order_by('-decided_at')
         if member_id:
             qs = qs.filter(member_id=member_id)
         return Response([self._serialize_action(a) for a in qs])
@@ -392,7 +392,7 @@ class TerminateMemberView(SuperAdminBaseView):
             'deceased': 'deceased',
         }
         member.membership_status = status_map.get(termination_type, 'terminated')
-        member.save(update_fields=['membership_status', 'updated_at'])
+        member.save(update_fields=['membership_status', 'profile_updated_at'])
 
         # Disable user account (except deceased)
         if termination_type != 'deceased':
@@ -421,16 +421,16 @@ class MemberOverviewView(SuperAdminBaseView):
         return Response([
             {
                 'id': m.id,
-                'user_id': m.user.id,
-                'name': f"{m.user.firstname} {m.user.lastname}",
-                'email': m.user.email,
+                'user_id': m.id,
+                'name': f"{m.firstname} {m.lastname}",
+                'email': m.email,
                 'membership_type': m.membership_type,
                 'membership_status': m.membership_status,
                 'membership_status_display': m.get_membership_status_display(),
                 'verified_employment_status': m.verified_employment_status,
                 'fixed_deposit': str(m.fixed_deposit) if m.fixed_deposit is not None else None,
                 'violation_count': m.violations.filter(status='open').count(),
-                'member_since': m.member_since.isoformat(),
+                'member_since': m.member_since.isoformat() if m.member_since else None,
             }
             for m in qs
         ])
@@ -490,7 +490,7 @@ class MemberFaceVerificationsView(SuperAdminBaseView):
             return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         verifications = FaceVerification.objects.filter(
-            loan_application__user=member.user
+            loan_application__user=member.user_ptr
         ).select_related('loan_application').order_by('-created_at')
 
         result = []

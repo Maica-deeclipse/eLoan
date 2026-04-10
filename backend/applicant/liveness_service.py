@@ -55,7 +55,7 @@ class MediaPipeLivenessService:
     LEFT_EYE_INDICES  = [362, 385, 387, 263, 373, 380]
     RIGHT_EYE_INDICES = [33,  160, 158, 133, 153, 144]
 
-    EAR_THRESHOLD = 0.21   # below this = eye closed
+    EAR_THRESHOLD = 0.17   # below this = eye closed (lowered for video-frame compression artifacts)
     HEAD_TURN_THRESHOLD = 30  # max yaw in degrees
     HEAD_PITCH_THRESHOLD = 20  # max pitch in degrees
     HEAD_ROLL_THRESHOLD  = 30  # max roll in degrees
@@ -230,7 +230,7 @@ class MediaPipeLivenessService:
             base_confidence = float((checks_passed / total_checks * 100) if total_checks else 0)
             ear_bonus = float(min(10, (avg_ear - self.EAR_THRESHOLD) * 50)) if eyes_open else 0.0
             confidence = float(min(100.0, base_confidence + ear_bonus))
-            is_live = bool(checks_passed >= total_checks * 0.6)
+            is_live = bool(checks_passed >= total_checks * 0.6)  # 2 of 3 checks sufficient
 
             details['checks_summary'] = {
                 'passed': checks_passed,
@@ -273,7 +273,7 @@ class LivenessVerificationService:
         liveness_settings = getattr(settings, 'LIVENESS_DETECTION', {})
         return float(liveness_settings.get('MIN_CONFIDENCE_THRESHOLD', 70.0))
 
-    MIN_CONFIDENCE_THRESHOLD = 70.0
+    MIN_CONFIDENCE_THRESHOLD = 85.0
 
     @classmethod
     def verify_liveness_for_application(

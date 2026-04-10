@@ -86,8 +86,7 @@ function Login() {
       <div className="login-card">
         <div className="login-header">
           <div className="logo">
-            <span className="logo-icon">$</span>
-            <span className="logo-text">eLoan</span>
+            <img src="/logoo.png" alt="eLoan" className="logo-img" />
           </div>
           <h1 className="login-title">{pageTitle}</h1>
           <p className="login-subtitle">{pageSubtitle}</p>

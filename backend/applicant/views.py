@@ -83,6 +83,7 @@ class DashboardView(ApplicantBaseView):
             'recent_applications': [
                 {
                     'id': app.id,
+                    'user_application_number': app.user_application_number,
                     'loan_type': app.loan_type.loan_name,
                     'amount_requested': str(app.amount_requested),
                     'status': app.current_status.status_name,
@@ -227,6 +228,7 @@ class ApplicationListView(ApplicantBaseView):
             'applications': [
                 {
                     'id': app.id,
+                    'user_application_number': app.user_application_number,
                     'loan_type_id': app.loan_type.id,
                     'loan_type': app.loan_type.loan_name,
                     'amount_requested': str(app.amount_requested),
@@ -237,6 +239,7 @@ class ApplicationListView(ApplicantBaseView):
                     'application_date': app.application_date.isoformat(),
                     'remaining_balance': str(app.remaining_balance),
                     'total_paid': str(app.total_paid),
+                    'released_at': app.released_at.date().isoformat() if app.released_at else None,
                 }
                 for app in applications
             ]
@@ -291,6 +294,7 @@ class CreateApplicationView(ApplicantBaseView):
 
         return Response({
             'id': application.id,
+            'user_application_number': application.user_application_number,
             'loan_type': {
                 'id': application.loan_type.id,
                 'loan_name': application.loan_type.loan_name,
@@ -372,6 +376,7 @@ class ApplicationDetailView(ApplicantBaseView):
 
         return Response({
             'id': application.id,
+            'user_application_number': application.user_application_number,
             'loan_type': {
                 'id': application.loan_type.id,
                 'loan_name': application.loan_type.loan_name,
@@ -1261,7 +1266,11 @@ class LivenessVideoView(ApplicantBaseView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # Aggregate results - require majority of frames to pass
-            passed_frames = sum(1 for r in liveness_results if r.get('is_live', False))
+            # A frame passes if is_live or confidence is reasonably high (handles border cases)
+            passed_frames = sum(
+                1 for r in liveness_results
+                if r.get('is_live', False) or r.get('confidence', 0) >= 60
+            )
             avg_confidence = sum(r.get('confidence', 0) for r in liveness_results) / len(liveness_results)
 
             _lv_logger.info(f"[LivenessVideo] Summary: {passed_frames}/{frames_analyzed} frames passed, avg_confidence={avg_confidence:.1f}%")
@@ -1496,6 +1505,8 @@ class CoMakerListView(ApplicantBaseView):
                     'user_id': cm.user.id,
                     'user_name': f"{cm.user.firstname} {cm.user.lastname}",
                     'user_email': cm.user.email,
+                    'status': cm.status,
+                    'responded_at': cm.responded_at,
                     'info': {
                         'full_name': cm.detailed_info.full_name if hasattr(cm, 'detailed_info') else '',
                         'relationship': cm.detailed_info.relationship_to_applicant if hasattr(cm, 'detailed_info') else '',
@@ -1578,6 +1589,57 @@ class CoMakerDetailView(ApplicantBaseView):
             )
 
         return Response({'message': 'Co-maker removed successfully'})
+
+
+class CoMakerRequestListView(ApplicantBaseView):
+    """GET /api/applicant/comaker-requests/ — list requests where I am the co-maker."""
+
+    def get(self, request):
+        requests_qs = CoMakerService.get_comaker_requests(request.user)
+        data = []
+        for cm in requests_qs:
+            app = cm.application
+            data.append({
+                'id': cm.id,
+                'status': cm.status,
+                'agreed_at': cm.agreed_at,
+                'responded_at': cm.responded_at,
+                'applicant_name': f"{app.user.firstname} {app.user.lastname}",
+                'applicant_email': app.user.email,
+                'application': {
+                    'id': app.id,
+                    'loan_type': app.loan_type.loan_name,
+                    'amount_requested': app.amount_requested,
+                    'term_months': app.term_months,
+                    'monthly_amortization': app.monthly_amortization,
+                    'total_payable': app.total_payable,
+                    'purpose': app.purpose,
+                    'application_date': app.application_date,
+                    'current_status': app.current_status.status_name if app.current_status else None,
+                },
+            })
+        return Response({'comaker_requests': data})
+
+
+class CoMakerRequestRespondView(ApplicantBaseView):
+    """POST /api/applicant/comaker-requests/<id>/respond/ — accept or reject."""
+
+    def post(self, request, pk):
+        action = request.data.get('action')
+        if action not in ('accept', 'reject'):
+            return Response(
+                {'error': "action must be 'accept' or 'reject'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        loan_comaker, error = CoMakerService.respond_to_comaker_request(pk, request.user, action)
+        if error:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'message': f"You have {loan_comaker.status} the co-maker request.",
+            'status': loan_comaker.status,
+        })
 
 
 # =============================================================================

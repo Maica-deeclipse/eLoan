@@ -79,6 +79,7 @@ class DashboardView(BookkeeperBaseView):
             'recent_applications': [
                 {
                     'id': app.id,
+                    'user_application_number': app.user_application_number,
                     'applicant': {
                         'name': f"{app.user.firstname} {app.user.lastname}",
                         'email': app.user.email,
@@ -119,6 +120,7 @@ class ApplicationListView(BookkeeperBaseView):
             'applications': [
                 {
                     'id': app.id,
+                    'user_application_number': app.user_application_number,
                     'applicant': {
                         'id': app.user.id,
                         'name': f"{app.user.firstname} {app.user.lastname}",
@@ -169,6 +171,7 @@ class ApplicationDetailView(BookkeeperBaseView):
         return Response({
             'application': {
                 'id': application.id,
+                'user_application_number': application.user_application_number,
                 'applicant': {
                     'id': application.user.id,
                     'name': f"{application.user.firstname} {application.user.lastname}",

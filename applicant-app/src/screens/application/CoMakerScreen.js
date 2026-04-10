@@ -42,9 +42,9 @@ const CoMakerScreen = ({ navigation }) => {
 
     setSearching(true);
     try {
-      const response = await applicationService.searchCoMakers(searchQuery);
+      const response = await applicationService.searchUsers(searchQuery);
       // Filter out already selected co-makers
-      const filteredResults = response.results.filter(
+      const filteredResults = response.filter(
         (user) => !selectedCoMakers.find((cm) => cm.user_id === user.id)
       );
       setSearchResults(filteredResults);
@@ -65,16 +65,15 @@ const CoMakerScreen = ({ navigation }) => {
     setAddingCoMaker(user.id);
     try {
       // Add co-maker to the application
-      await applicationService.addCoMaker(state.applicationId, {
-        comaker_user_id: user.id,
-      });
+      const result = await applicationService.addCoMaker(state.applicationId, user.id);
 
       const newCoMaker = {
+        id: result.id,
         user_id: user.id,
         full_name: user.full_name,
         email: user.email,
         contact_number: user.contact_number,
-        status: 'pending',
+        status: result.status || 'pending',
       };
 
       const updatedCoMakers = [...selectedCoMakers, newCoMaker];
@@ -104,7 +103,7 @@ const CoMakerScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await applicationService.removeCoMaker(state.applicationId, coMaker.user_id);
+              await applicationService.removeCoMaker(coMaker.id);
               const updatedCoMakers = selectedCoMakers.filter(
                 (cm) => cm.user_id !== coMaker.user_id
               );
@@ -125,6 +124,15 @@ const CoMakerScreen = ({ navigation }) => {
       Alert.alert(
         'Co-Makers Required',
         `You need to add ${requiredCoMakers} co-maker(s) to continue. Currently you have ${selectedCoMakers.length}.`
+      );
+      return;
+    }
+
+    const rejected = selectedCoMakers.filter((cm) => cm.status === 'rejected');
+    if (rejected.length > 0) {
+      Alert.alert(
+        'Co-Maker Rejected',
+        `${rejected.map((cm) => cm.full_name).join(', ')} rejected the request. Please remove them and add a new co-maker.`
       );
       return;
     }
@@ -180,11 +188,24 @@ const CoMakerScreen = ({ navigation }) => {
         <View
           style={[
             styles.statusBadge,
-            coMaker.status === 'approved' ? styles.statusApproved : styles.statusPending,
+            coMaker.status === 'accepted'
+              ? styles.statusApproved
+              : coMaker.status === 'rejected'
+              ? styles.statusRejected
+              : styles.statusPending,
           ]}
         >
-          <Text style={styles.statusText}>
-            {coMaker.status === 'approved' ? 'Approved' : 'Pending Consent'}
+          <Text
+            style={[
+              styles.statusText,
+              coMaker.status === 'rejected' && styles.statusTextDanger,
+            ]}
+          >
+            {coMaker.status === 'accepted'
+              ? 'Accepted'
+              : coMaker.status === 'rejected'
+              ? 'Rejected'
+              : 'Pending Consent'}
           </Text>
         </View>
       </View>
@@ -504,10 +525,16 @@ const styles = StyleSheet.create({
   statusApproved: {
     backgroundColor: '#d4edda',
   },
+  statusRejected: {
+    backgroundColor: '#f8d7da',
+  },
   statusText: {
     fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     color: '#856404',
+  },
+  statusTextDanger: {
+    color: '#842029',
   },
   searchButton: {
     flexDirection: 'row',

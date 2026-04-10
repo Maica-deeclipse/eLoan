@@ -9,6 +9,7 @@ export default function LoanMonitoring() {
   const [releasingId, setReleasingId] = useState(null);
   const [releaseModal, setReleaseModal] = useState(null); // loan object or null
   const [releaseRemarks, setReleaseRemarks] = useState('');
+  const [releaseDate, setReleaseDate] = useState('');
   const [releaseError, setReleaseError] = useState('');
 
   const fetchLoans = useCallback(async () => {
@@ -31,12 +32,17 @@ export default function LoanMonitoring() {
 
   const handleReleaseFunds = async () => {
     if (!releaseModal) return;
+    if (!releaseDate) {
+      setReleaseError('Please enter the release date.');
+      return;
+    }
     setReleasingId(releaseModal.id);
     setReleaseError('');
     try {
-      await treasurerService.releaseFunds(releaseModal.id, releaseRemarks);
+      await treasurerService.releaseFunds(releaseModal.id, releaseRemarks, releaseDate);
       setReleaseModal(null);
       setReleaseRemarks('');
+      setReleaseDate('');
       await fetchLoans();
     } catch (err) {
       setReleaseError(err?.response?.data?.error || 'Failed to release funds. Please try again.');
@@ -170,7 +176,7 @@ export default function LoanMonitoring() {
                     </td>
                     <td style={tdStyle}>
                       <button
-                        onClick={() => { setReleaseModal(loan); setReleaseRemarks(''); setReleaseError(''); }}
+                        onClick={() => { setReleaseModal(loan); setReleaseRemarks(''); setReleaseDate(new Date().toISOString().split('T')[0]); setReleaseError(''); }}
                         disabled={releasingId === loan.id}
                         style={{
                           background: '#7c3aed',
@@ -326,6 +332,21 @@ export default function LoanMonitoring() {
             </p>
 
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '0.25rem' }}>
+              Release Date <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="date"
+              value={releaseDate}
+              onChange={(e) => setReleaseDate(e.target.value)}
+              style={{
+                width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db',
+                borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box',
+                marginBottom: '1rem',
+              }}
+              required
+            />
+
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '0.25rem' }}>
               Remarks (optional)
             </label>
             <textarea
@@ -348,7 +369,7 @@ export default function LoanMonitoring() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
               <button
-                onClick={() => { setReleaseModal(null); setReleaseRemarks(''); setReleaseError(''); }}
+                onClick={() => { setReleaseModal(null); setReleaseRemarks(''); setReleaseDate(''); setReleaseError(''); }}
                 disabled={releasingId === releaseModal.id}
                 style={{
                   padding: '0.5rem 1rem', borderRadius: '0.375rem',

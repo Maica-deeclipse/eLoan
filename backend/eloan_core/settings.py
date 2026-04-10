@@ -35,8 +35,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '192.168.137.164',
-    '192.168.1.21',
+    '10.0.0.23',
     '10.0.0.52',
 ]
 
@@ -189,11 +188,17 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Face Verification Settings
 FACE_VERIFICATION = {
     'ENABLED': True,
-    'AUTO_APPROVE_MAX_DISTANCE': 0.60,  # Cosine distance for auto-approval (<= 0.60 = Verified)
-    'REVIEW_MAX_DISTANCE': 0.75,        # Cosine distance ceiling for manual review (0.60–0.75 = Needs Review, > 0.75 = Failed)
-    'MODEL': 'ArcFace',  # Face comparison model (ArcFace, Facenet, VGG-Face, etc.)
-    'DISTANCE_METRIC': 'cosine',  # Distance metric (cosine, euclidean, euclidean_l2)
-    'DETECTOR_BACKEND': 'opencv',  # Face detector (opencv, ssd, dlib, mtcnn, retinaface)
+    # ArcFace cosine distance interpretation (lower = more similar, 0 = identical):
+    #   <= 0.50  → Verified        (clear match, high confidence)
+    #   0.50–0.68 → Needs Review   (borderline — bookkeeper decides)
+    #   >  0.68  → Failed          (ArcFace documented same-person threshold is 0.68;
+    #                               anything above is statistically a different person)
+    'AUTO_APPROVE_MAX_DISTANCE': 0.50,
+    'REVIEW_MAX_DISTANCE': 0.68,
+    'MODEL': 'ArcFace',
+    'DISTANCE_METRIC': 'cosine',
+    # yunet weights already downloaded to ~/.deepface/weights/face_detection_yunet_2023mar.onnx
+    'DETECTOR_BACKEND': 'yunet',
     'UNLIMITED_RETRIES': True,  # Allow unlimited retry attempts
 }
 
@@ -260,11 +265,9 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://192.168.137.164:3000',
-    'http://192.168.1.21:3000',
+    'http://10.0.0.23:3000',
     'http://localhost:8081',
-    'http://192.168.137.164:8081',
-    'http://192.168.1.21:8081',
+    'http://10.0.0.23:8081',
     'http://localhost:19000',
     'http://localhost:19006',
 ]
