@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/logoo.png",
+      "image": "./assets/logoblue.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logoo.png",
+        "foregroundImage": "./assets/logoblue.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,

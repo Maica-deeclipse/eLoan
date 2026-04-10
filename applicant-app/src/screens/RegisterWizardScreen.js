@@ -633,7 +633,7 @@ export default function RegisterWizardScreen({ navigation }) {
   // ─── Success Screen ───────────────────────────────────────────────────────
   if (success) {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={s.successWrap}>
           <View style={s.successIcon}><Text style={s.successIconText}>✓</Text></View>
           <Text style={s.successTitle}>Registration Submitted!</Text>
@@ -992,7 +992,7 @@ export default function RegisterWizardScreen({ navigation }) {
   const isLastStep = step === 6;
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={handleBack} style={s.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>

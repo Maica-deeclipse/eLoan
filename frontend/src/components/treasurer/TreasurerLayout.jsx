@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import authService from '../../services/auth.service';
 import treasurerService from '../../services/treasurer.service';
+import logoImg from '../../assets/logoblue.png';
 
 export default function TreasurerLayout() {
   const location = useLocation();
@@ -9,17 +10,15 @@ export default function TreasurerLayout() {
   const [user, setUser] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [pressedPath, setPressedPath] = useState(null);
 
   useEffect(() => {
-    // Get current user
     const currentUser = authService.getCurrentUser();
     if (!currentUser || currentUser.role !== 'Treasurer') {
       navigate('/');
       return;
     }
     setUser(currentUser);
-
-    // Fetch unread notification count + poll every 30s
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
@@ -52,15 +51,20 @@ export default function TreasurerLayout() {
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
-  // Theme color for Treasurer (green/teal)
-  const primaryColor = '#17236a';
-
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f3f4f6' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#ffffff' }}>
+      <style>{`
+        @keyframes navRipple {
+          0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37,99,235,0.5); }
+          50% { transform: scale(0.96); box-shadow: 0 0 0 6px rgba(37,99,235,0); }
+          100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+        }
+      `}</style>
+
       {/* Sidebar */}
       <aside style={{
         width: sidebarOpen ? '260px' : '70px',
-        background: '#17236a',
+        background: '#0f172a',
         padding: '1.5rem',
         transition: 'width 0.3s',
         position: 'fixed',
@@ -68,20 +72,25 @@ export default function TreasurerLayout() {
         zIndex: 1000,
         display: 'flex',
         flexDirection: 'column',
+        overflowY: 'auto',
+        overflowX: 'hidden',
       }}>
         {/* Brand */}
         <div style={{
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          padding: '0.5rem 0 1.5rem',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          padding: '1.25rem 0 1.5rem',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
           marginBottom: '1.5rem',
+          gap: '0.75rem',
         }}>
-          <span style={{ fontSize: '1.75rem', marginRight: sidebarOpen ? '0.75rem' : 0 }}>&#128176;</span>
+          <div style={{ width: sidebarOpen ? '70px' : '44px', height: sidebarOpen ? '70px' : '44px', borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', transition: 'width 0.3s, height 0.3s' }}>
+            <img src={logoImg} alt="eLoan" style={{ width: '150%', height: '150%', objectFit: 'contain' }} />
+          </div>
           {sidebarOpen && (
-            <div>
-              <div style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 700 }}>eLoan</div>
-              <div style={{ color: primaryColor, fontSize: '0.75rem', fontWeight: 500 }}>Treasurer Portal</div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: '#60a5fa', fontSize: '0.8rem', fontWeight: 600, lineHeight: 1.4 }}>Treasurer Portal</div>
             </div>
           )}
         </div>
@@ -92,22 +101,26 @@ export default function TreasurerLayout() {
             <Link
               key={item.path}
               to={item.path}
+              onMouseDown={() => setPressedPath(item.path)}
+              onMouseUp={() => setPressedPath(null)}
+              onMouseLeave={() => setPressedPath(null)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 padding: '0.75rem 1rem',
                 marginBottom: '0.25rem',
                 borderRadius: '0.5rem',
-                color: isActive(item.path) ? '#fff' : '#9ca3af',
-                background: isActive(item.path) ? 'rgba(255,255,255,0.15)' : 'transparent',
+                color: isActive(item.path) ? '#fff' : '#94a3b8',
+                background: isActive(item.path) ? '#2563eb' : 'transparent',
                 textDecoration: 'none',
-                transition: 'all 0.2s',
+                transition: 'background 0.2s, color 0.2s',
+                animation: pressedPath === item.path ? 'navRipple 0.35s ease-out' : undefined,
               }}
             >
               <Icon name={item.icon} />
               {sidebarOpen && (
                 <>
-                  <span style={{ marginLeft: '0.75rem' }}>{item.label}</span>
+                  <span style={{ marginLeft: '0.75rem', fontSize: '0.875rem' }}>{item.label}</span>
                   {item.badge > 0 && (
                     <span style={{
                       marginLeft: 'auto',
@@ -135,16 +148,19 @@ export default function TreasurerLayout() {
             alignItems: 'center',
             padding: '0.75rem 1rem',
             borderRadius: '0.5rem',
-            color: '#ef4444',
+            color: '#f87171',
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
             width: '100%',
             textAlign: 'left',
+            transition: 'background 0.2s',
           }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.1)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <Icon name="log-out" />
-          {sidebarOpen && <span style={{ marginLeft: '0.75rem' }}>Logout</span>}
+          {sidebarOpen && <span style={{ marginLeft: '0.75rem', fontSize: '0.875rem' }}>Logout</span>}
         </button>
       </aside>
 
@@ -153,6 +169,7 @@ export default function TreasurerLayout() {
         flex: 1,
         marginLeft: sidebarOpen ? '260px' : '70px',
         transition: 'margin-left 0.3s',
+        background: '#ffffff',
       }}>
         {/* Top Navbar */}
         <nav style={{
@@ -165,16 +182,13 @@ export default function TreasurerLayout() {
           position: 'sticky',
           top: 0,
           zIndex: 100,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
         }}>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '0.5rem',
-              color: '#6b7280',
-            }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#6b7280', borderRadius: '0.375rem' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
             <Icon name="menu" />
           </button>
@@ -184,13 +198,14 @@ export default function TreasurerLayout() {
               <div style={{
                 width: '40px',
                 height: '40px',
-                background: primaryColor,
+                background: '#2563eb',
                 color: '#fff',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontWeight: 600,
+                fontWeight: 700,
+                fontSize: '0.875rem',
               }}>
                 {user.firstname?.[0]}{user.lastname?.[0]}
               </div>
@@ -198,7 +213,7 @@ export default function TreasurerLayout() {
                 <div style={{ fontWeight: 600, color: '#1f2937', fontSize: '0.875rem' }}>
                   {user.firstname} {user.lastname}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{user.role}</div>
+                <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>{user.role}</div>
               </div>
             </div>
           )}
@@ -213,7 +228,6 @@ export default function TreasurerLayout() {
   );
 }
 
-// Simple icon component using feather icons via CSS
 function Icon({ name }) {
   const icons = {
     'grid': (

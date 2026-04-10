@@ -2,8 +2,13 @@
 Account Member Officer Business Logic Services
 """
 
+import threading
+import logging
+
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 from datetime import timedelta
 from decimal import Decimal
 
@@ -11,6 +16,136 @@ from users.models import User, Applicant
 from applicant.models import Savings, SharedCapital, MembershipApprovalLog, MembershipAppeal
 from loans.models import AuditLog
 from .models import AMONotification
+
+logger = logging.getLogger(__name__)
+
+
+def send_approval_email(user):
+    """
+    Send a membership approval notification email to the applicant's Google account.
+    Runs in a background thread so it does not block the API response.
+    """
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+    login_url = f"{frontend_url}/"
+    full_name = f"{user.firstname} {user.lastname}"
+
+    subject = "eLoan — Your Membership Application Has Been Approved!"
+
+    # Plain-text fallback
+    text_body = (
+        f"Dear {full_name},\n\n"
+        f"Congratulations! Your eLoan membership application has been approved.\n\n"
+        f"You can now log in to the eLoan Applicant App using your Google account.\n\n"
+        f"Login here: {login_url}\n\n"
+        f"If you have any questions, please contact your cooperative's Account Member Officer.\n\n"
+        f"— The eLoan Team"
+    )
+
+    # HTML email
+    html_body = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>eLoan Membership Approved</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:#0f172a;padding:32px 40px;text-align:center;">
+              <div style="font-size:2rem;margin-bottom:8px;">💰</div>
+              <h1 style="margin:0;color:#ffffff;font-size:1.6rem;font-weight:700;letter-spacing:-0.5px;">eLoan</h1>
+              <p style="margin:4px 0 0;color:#60a5fa;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;">Cooperative Loan Management</p>
+            </td>
+          </tr>
+
+          <!-- Approved badge -->
+          <tr>
+            <td style="background:#2563eb;padding:20px 40px;text-align:center;">
+              <span style="display:inline-block;background:rgba(255,255,255,0.15);color:#fff;font-size:0.8rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:6px 18px;border-radius:50px;border:1px solid rgba(255,255,255,0.3);">
+                ✅ &nbsp;Membership Approved
+              </span>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px 40px 32px;">
+              <h2 style="margin:0 0 12px;color:#0f172a;font-size:1.3rem;font-weight:700;">Congratulations, {full_name}! 🎉</h2>
+              <p style="margin:0 0 20px;color:#475569;font-size:0.95rem;line-height:1.7;">
+                We are pleased to inform you that your eLoan membership application has been
+                <strong style="color:#2563eb;">reviewed and approved</strong> by the Account Member Officer.
+              </p>
+              <p style="margin:0 0 28px;color:#475569;font-size:0.95rem;line-height:1.7;">
+                You can now <strong>log in to the eLoan Applicant App</strong> using your Google account
+                and start exploring your member benefits, including loan applications, savings tracking, and more.
+              </p>
+
+              <!-- CTA Button -->
+              <div style="text-align:center;margin-bottom:32px;">
+                <a href="{login_url}"
+                   style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;
+                          font-size:0.95rem;font-weight:600;padding:14px 36px;border-radius:8px;
+                          letter-spacing:0.3px;box-shadow:0 4px 12px rgba(37,99,235,0.3);">
+                  Log In with Google &rarr;
+                </a>
+              </div>
+
+              <!-- Info box -->
+              <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+                <p style="margin:0;color:#0369a1;font-size:0.85rem;line-height:1.6;">
+                  <strong>How to log in:</strong><br/>
+                  Open the eLoan app → tap <em>"Continue with Google"</em> → sign in with
+                  <strong>{user.email}</strong>
+                </p>
+              </div>
+
+              <p style="margin:0;color:#94a3b8;font-size:0.82rem;line-height:1.6;">
+                If you have any questions or need assistance, please reach out to your cooperative's
+                Account Member Officer. Do not reply to this email directly.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;">
+              <p style="margin:0;color:#94a3b8;font-size:0.78rem;">
+                This email was sent to <strong>{user.email}</strong> because you registered for eLoan membership.<br/>
+                &copy; 2025 eLoan Cooperative System. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+    def _send():
+        try:
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text_body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[user.email],
+            )
+            msg.attach_alternative(html_body, "text/html")
+            msg.send(fail_silently=False)
+            logger.info(f"Approval email sent to {user.email}")
+        except Exception as exc:
+            logger.error(f"Failed to send approval email to {user.email}: {exc}")
+
+    threading.Thread(target=_send, daemon=True).start()
 
 
 class MemberApplicationService:
@@ -43,7 +178,11 @@ class MemberApplicationService:
             performed_by=performed_by,
             ip_address=ip_address,
         )
-        return applicant
+
+        # Send approval email notification to the applicant's Google account
+        send_approval_email(user)
+
+        return user
 
     @staticmethod
     def reject(user_id, performed_by, reason='', ip_address=None):
@@ -225,6 +364,10 @@ class AppealService:
             performed_by=performed_by,
             ip_address=ip_address,
         )
+
+        # Send approval email notification to the applicant's Google account
+        send_approval_email(user)
+
         return appeal
 
     @staticmethod

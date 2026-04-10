@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -10,6 +11,8 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+
+const logoImg = require('../../assets/logoo.png');
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
@@ -109,8 +112,7 @@ export default function LoginScreen({ navigation }) {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <Text style={styles.logoIcon}>💰</Text>
-              <Text style={styles.logoText}>eLoan</Text>
+              <Image source={logoImg} style={styles.logoImage} resizeMode="contain" />
             </View>
             <Text style={styles.title}>Login to Your Account</Text>
             <Text style={styles.subtitle}>Sign in to access eLoan services</Text>
@@ -221,18 +223,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logoContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
   },
-  logoIcon: {
-    fontSize: 40,
-    marginRight: 8,
-  },
-  logoText: {
-    fontSize: 32,
-    fontFamily: 'Poppins_700Bold',
-    color: '#1f2937',
+  logoImage: {
+    width: 130,
+    height: 130,
+    marginBottom: -30,
   },
   title: {
     fontSize: 24,

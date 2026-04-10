@@ -198,12 +198,12 @@ export default function DashboardScreen({ navigation }) {
         <View style={styles.headerOverlay} />
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.greetSub}>Welcome back 👋</Text>
+            <Text style={styles.greetSub}>Welcome!</Text>
             <Text style={styles.greetName}>{displayName}</Text>
           </View>
           <View style={styles.logoBubble}>
             <Image
-              source={require('../../assets/logoo.png')}
+              source={require('../../assets/logoblue.png')}
               style={styles.logoImg}
               resizeMode="contain"
             />
@@ -251,10 +251,10 @@ export default function DashboardScreen({ navigation }) {
 
                 {/* Card header row */}
                 <View style={styles.portfolioHeaderRow}>
-                  <Text style={styles.portfolioTitle}>Loan Portfolio</Text>
-                  <View style={styles.portfolioIconBubble}>
-                    <Text style={styles.portfolioIcon}>🏠</Text>
-                  </View>
+                  <Text style={styles.portfolioTitle}>Loan Summary</Text>
+            
+            
+                 
                 </View>
 
                 {/* Total balance */}
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
   },
-  logoImg: { width: 36, height: 36 },
+  logoImg: { width: 80, height: 80 },
 
   // ── Pager Container ──
   pagerBox: {

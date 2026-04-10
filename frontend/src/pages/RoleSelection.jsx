@@ -1,5 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/RoleSelection.css';
+import logoo from '../assets/logoo.png';
 
 function RoleSelection() {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ function RoleSelection() {
       <div className="role-selection-card">
         <div className="role-selection-header">
           <div className="logo">
-            <img src="/logoo.png" alt="eLoan" className="logo-img" />
+            <img src={logoo} alt="eLoan Logo" className="logo-icon" />
           </div>
           <h1 className="role-selection-title">Select Your Role</h1>
           <p className="role-selection-subtitle">Choose your access portal to continue</p>

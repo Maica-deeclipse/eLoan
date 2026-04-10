@@ -26,10 +26,17 @@
 }
 
 .logo {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
   margin-bottom: 24px;
+}
+
+.logo-icon {
+  height: 60px;
+  width: auto;
+  display: block;
+  margin-bottom: -15px;
 }
 
 .logo-img {

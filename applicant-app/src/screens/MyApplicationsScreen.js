@@ -38,8 +38,8 @@ const SECONDARY = '#64748B';
 const CARD_W      = W - 56;
 const CARD_MARGIN = 10;
 
-// ── Read-Only Loan Type Card (for Available Loans tab) ─────────────────────────
-const LoanTypeCard = ({ loanType, index, total }) => (
+// ── Loan Type Card (for Available Loans tab) ──────────────────────────────────
+const LoanTypeCard = ({ loanType, index, total, onPress }) => (
   <View style={ltCard.card}>
     <View style={ltCard.cardStrip} />
     <View style={ltCard.cardCountRow}>
@@ -81,6 +81,9 @@ const LoanTypeCard = ({ loanType, index, total }) => (
         </Text>
       </View>
     </View>
+    <TouchableOpacity style={ltCard.applyBtn} onPress={onPress} activeOpacity={0.85}>
+      <Text style={ltCard.applyBtnText}>Apply Now →</Text>
+    </TouchableOpacity>
   </View>
 );
 
@@ -248,6 +251,13 @@ export default function MyApplicationsScreen({ navigation }) {
     });
   };
 
+  const handleApplyLoanType = (loanType) => {
+    navigation.navigate('ApplicationWizard', {
+      screen: 'SelectLoanType',
+      params: { resumeLoanTypeId: loanType.id, autoStart: true },
+    });
+  };
+
   const handleDeleteDraft = (application) => {
     Alert.alert(
       'Delete Draft',
@@ -318,7 +328,7 @@ export default function MyApplicationsScreen({ navigation }) {
 
       {/* ── Available Loans: horizontal swipeable loan type cards ── */}
       {filter === 'available' ? (
-        loanTypesLoading ? (
+        (loanTypesLoading || loanTypes === null) ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={PRIMARY} />
           </View>
@@ -335,7 +345,7 @@ export default function MyApplicationsScreen({ navigation }) {
           >
             {loanTypes.length > 0 ? loanTypes.map((item, index) => (
               <View key={item.id.toString()} style={styles.ltCardWrapper}>
-                <LoanTypeCard loanType={item} index={index} total={loanTypes.length} />
+                <LoanTypeCard loanType={item} index={index} total={loanTypes.length} onPress={() => handleApplyLoanType(item)} />
               </View>
             )) : (
               <View style={styles.ltEmpty}>
@@ -648,6 +658,18 @@ const ltCard = StyleSheet.create({
     letterSpacing: 0.4,
   },
   detailValue: {
+    fontSize: 14,
+    fontFamily: 'Poppins_700Bold',
+  },
+  applyBtn: {
+    marginTop: 14,
+    backgroundColor: PRIMARY,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  applyBtnText: {
+    color: WHITE,
     fontSize: 14,
     fontFamily: 'Poppins_700Bold',
   },

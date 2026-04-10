@@ -199,7 +199,7 @@ export default function PersonalDetailsScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" color="#0f1c52" />
         <Text style={styles.loadingText}>Loading your information...</Text>
       </SafeAreaView>
@@ -207,7 +207,7 @@ export default function PersonalDetailsScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}

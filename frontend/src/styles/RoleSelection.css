@@ -25,11 +25,10 @@
   margin-bottom: 40px;
 }
 
-.logo-img{
-  height: 50px;
+.logo-icon {
+  height: 48px;
   width: auto;
-  object-fit: contain;
-  margin-bottom: 24px;
+  display: block;
 }
 
 .role-selection-title {

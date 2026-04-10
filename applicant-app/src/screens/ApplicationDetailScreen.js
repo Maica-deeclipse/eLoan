@@ -166,7 +166,7 @@ export default function ApplicationDetailScreen({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Status Banner */}
         <View style={[styles.statusBanner, { backgroundColor: getStatusColor(application.status) }]}>
