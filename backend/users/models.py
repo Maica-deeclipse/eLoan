@@ -377,6 +377,43 @@ class Applicant(User):
             raise ValidationError(errors)
 
 
+class EmploymentStatusChangeRequest(models.Model):
+    REQUEST_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    applicant = models.ForeignKey(
+        'Applicant',
+        on_delete=models.CASCADE,
+        related_name='employment_status_requests',
+    )
+    current_status = models.CharField(max_length=20)
+    requested_status = models.CharField(max_length=20)
+    coe_document = models.FileField(upload_to='employment_status_changes/coe/')
+    status = models.CharField(
+        max_length=20,
+        choices=REQUEST_STATUS_CHOICES,
+        default='pending',
+    )
+    requested_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_employment_status_requests',
+    )
+    rejection_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+
+    def __str__(self):
+        return f"{self.applicant} — {self.current_status} → {self.requested_status} ({self.status})"
+
 # =============================================================================
 # AdminUser — staff members (Bookkeeper, Treasurer, Credit Committee, AMO)
 # =============================================================================

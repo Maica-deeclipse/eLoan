@@ -162,15 +162,6 @@ class ApplicationDetailView(CreditCommitteeBaseView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Check if this application is accessible to Credit Committee
-        allowed_statuses = ['Pending Credit Committee', 'Approved by Credit Committee',
-                           'Rejected by Credit Committee', 'Returned to Treasurer']
-        if application.current_status and application.current_status.status_name not in allowed_statuses:
-            return Response(
-                {'error': 'This application is not accessible to the Credit Committee.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
         can_decide = (
             application.current_status and
             application.current_status.status_name == 'Pending Credit Committee'

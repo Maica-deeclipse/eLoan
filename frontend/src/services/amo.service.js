@@ -191,6 +191,47 @@ class AMOService {
       return res.data;
     } catch (e) { handleError(e); }
   }
+
+  async uploadProfilePicture(file) {
+    const token = authService.getAccessToken();
+    const formData = new FormData();
+    formData.append('profile_picture', file);
+    try {
+      const res = await axios.post(`${API_URL}/settings/profile/picture/`, formData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
+    } catch (e) { handleError(e); }
+  }
+
+  async removeProfilePicture() {
+    try {
+      const res = await axios.delete(`${API_URL}/settings/profile/picture/`, getAuthHeaders());
+      return res.data;
+    } catch (e) { handleError(e); }
+  }
+
+  // Employment Status Change Requests
+  async getEmploymentStatusRequests(status = 'all') {
+    try {
+      const res = await axios.get(`${API_URL}/employment-status-requests/?status=${status}`, getAuthHeaders());
+      return res.data;
+    } catch (e) { handleError(e); }
+  }
+
+  async approveEmploymentStatusRequest(id) {
+    try {
+      const res = await axios.post(`${API_URL}/employment-status-requests/${id}/approve/`, {}, getAuthHeaders());
+      return res.data;
+    } catch (e) { handleError(e); }
+  }
+
+  async rejectEmploymentStatusRequest(id, reason = '') {
+    try {
+      const res = await axios.post(`${API_URL}/employment-status-requests/${id}/reject/`, { reason }, getAuthHeaders());
+      return res.data;
+    } catch (e) { handleError(e); }
+  }
 }
 
 export default new AMOService();

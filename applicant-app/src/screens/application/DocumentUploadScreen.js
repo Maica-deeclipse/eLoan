@@ -421,7 +421,7 @@ const DocumentUploadScreen = ({ navigation }) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Upload Documents</Text>
         <Text style={styles.subtitle}>
-          Please upload clear copies of the required documents. Accepted formats: JPG, PNG, PDF.
+          Please upload clear copies of the required documents. Accepted formats: JPG, PNG, PDF · Max 10 MB per file.
         </Text>
 
         {/* Upload Progress */}

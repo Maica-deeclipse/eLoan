@@ -38,6 +38,12 @@ export default function CreditCommitteeLayout() {
     navigate('/');
   };
 
+  const updateUser = (partialUser) => {
+    const updated = { ...user, ...partialUser };
+    setUser(updated);
+    localStorage.setItem('user', JSON.stringify(updated));
+  };
+
   const navItems = [
     { path: '/credit-committee/dashboard', icon: 'grid', label: 'Dashboard' },
     { path: '/credit-committee/applications', icon: 'file-text', label: 'Applications for Decision' },
@@ -193,20 +199,26 @@ export default function CreditCommitteeLayout() {
 
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                background: '#2563eb',
-                color: '#fff',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-              }}>
-                {user.firstname?.[0]}{user.lastname?.[0]}
-              </div>
+              {user.profile_picture ? (
+                <img src={user.profile_picture} alt="Profile"
+                  style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              ) : (
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: '#2563eb',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  flexShrink: 0,
+                }}>
+                  {user.firstname?.[0]}{user.lastname?.[0]}
+                </div>
+              )}
               <div>
                 <div style={{ fontWeight: 600, color: '#1f2937', fontSize: '0.875rem' }}>
                   {user.firstname} {user.lastname}
@@ -219,7 +231,7 @@ export default function CreditCommitteeLayout() {
 
         {/* Page Content */}
         <div style={{ padding: '1.5rem' }}>
-          <Outlet context={{ user, fetchUnreadCount }} />
+          <Outlet context={{ user, fetchUnreadCount, updateUser }} />
         </div>
       </main>
     </div>

@@ -103,7 +103,7 @@ export default function ApplicationDetail() {
     );
   }
 
-  const { application, financial_assessment, documents, comakers, committee_member, can_decide } = data;
+  const { application, financial_assessment, documents, comakers, committee_member, can_decide, decision_history } = data;
 
   return (
     <div>
@@ -112,16 +112,7 @@ export default function ApplicationDetail() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937', marginBottom: '0.25rem' }}>
             Application #{application.user_application_number ?? application.id}
           </h1>
-          <span style={{
-            background: '#fef3c7',
-            color: '#92400e',
-            padding: '0.25rem 0.75rem',
-            borderRadius: '9999px',
-            fontSize: '0.75rem',
-            fontWeight: 500,
-          }}>
-            {application.status}
-          </span>
+          <StatusBadge status={application.status} />
         </div>
         <button
           onClick={() => navigate('/credit-committee/applications')}
@@ -138,6 +129,23 @@ export default function ApplicationDetail() {
           &larr; Back to Applications
         </button>
       </div>
+
+      {!can_decide && (
+        <div style={{
+          background: '#f9fafb',
+          border: '1px solid #e5e7eb',
+          borderRadius: '0.5rem',
+          padding: '0.75rem 1rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          color: '#6b7280',
+          fontSize: '0.875rem',
+        }}>
+          <span>&#128274;</span> This application has already been decided. Viewing in read-only mode.
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: can_decide ? '2fr 1fr' : '1fr', gap: '1.5rem' }}>
         {/* Main Content */}
@@ -200,7 +208,6 @@ export default function ApplicationDetail() {
                   <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                     <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: '#6b7280' }}>Type</th>
                     <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: '#6b7280' }}>Uploaded</th>
-                    <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: '#6b7280' }}>Verified</th>
                     <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: '#6b7280' }}>Actions</th>
                   </tr>
                 </thead>
@@ -212,24 +219,8 @@ export default function ApplicationDetail() {
                         {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'N/A'}
                       </td>
                       <td style={{ padding: '0.75rem 0' }}>
-                        {doc.verified ? (
-                          <span style={{ color: '#10b981' }}>&#10004; Yes</span>
-                        ) : (
-                          <button
-                            onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/media/${doc.file_path}`, '_blank')}
-                            style={{
-                              background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
-                              padding: '0.25rem 0.6rem', borderRadius: '0.25rem', fontSize: '0.75rem',
-                              cursor: 'pointer', fontWeight: 500,
-                            }}
-                          >
-                            View
-                          </button>
-                        )}
-                      </td>
-                      <td style={{ padding: '0.75rem 0' }}>
                         <button
-                          onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/media/${doc.file_path}`, '_blank')}
+                          onClick={() => window.open(`${new URL(import.meta.env.VITE_API_URL || 'http://localhost:8000').origin}/media/${doc.file_path}`, '_blank')}
                           style={{
                             background: '#8b5cf6',
                             color: 'white',
@@ -263,6 +254,29 @@ export default function ApplicationDetail() {
                   <div style={{ fontSize: '0.75rem', color: '#10b981' }}>
                     Agreed: {new Date(cm.agreed_at).toLocaleDateString()}
                   </div>
+                </div>
+              ))}
+            </Card>
+          )}
+
+          {/* Decision History */}
+          {decision_history && decision_history.length > 0 && (
+            <Card title="F. Decision History">
+              {decision_history.map((d) => (
+                <div key={d.id} style={{ padding: '0.75rem 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                    <StatusBadge status={d.decision === 'approved' ? 'Approved – For Disbursement' : d.decision === 'rejected' ? 'Rejected by Credit Committee' : 'Returned to Treasurer'} />
+                    <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{new Date(d.decided_at).toLocaleString()}</span>
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: '#374151', marginTop: '0.25rem' }}>
+                    <span style={{ color: '#6b7280' }}>By: </span>{d.decided_by}
+                    <span style={{ color: '#6b7280', marginLeft: '1rem' }}>Meeting: </span>{new Date(d.meeting_date).toLocaleDateString()}
+                  </div>
+                  {d.remarks && (
+                    <div style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                      &ldquo;{d.remarks}&rdquo;
+                    </div>
+                  )}
                 </div>
               ))}
             </Card>
@@ -536,6 +550,29 @@ function InfoRow({ label, value, highlight, children }) {
         </span>
       )}
     </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const map = {
+    'Pending Credit Committee': { bg: '#fef3c7', color: '#92400e' },
+    'Approved – For Disbursement': { bg: '#d1fae5', color: '#065f46' },
+    'Approved by Credit Committee': { bg: '#d1fae5', color: '#065f46' },
+    'Rejected by Credit Committee': { bg: '#fee2e2', color: '#991b1b' },
+    'Returned to Treasurer': { bg: '#e0e7ff', color: '#3730a3' },
+  };
+  const style = map[status] || { bg: '#f3f4f6', color: '#374151' };
+  return (
+    <span style={{
+      background: style.bg,
+      color: style.color,
+      padding: '0.25rem 0.75rem',
+      borderRadius: '9999px',
+      fontSize: '0.75rem',
+      fontWeight: 500,
+    }}>
+      {status}
+    </span>
   );
 }
 

@@ -25,6 +25,7 @@ API Structure:
     /api/amo/notifications/mark-all-read/
     /api/amo/notifications/unread-count/
     /api/amo/settings/profile/
+    /api/amo/settings/profile/picture/
     /api/amo/settings/change-password/
 """
 
@@ -53,6 +54,11 @@ urlpatterns = [
     path('members/<int:pk>/fixed-deposit/', views.MemberFixedDepositView.as_view(), name='member_fixed_deposit'),
     path('members/<int:pk>/shares/', views.MemberSharesView.as_view(), name='member_shares'),
 
+    # Employment Status Change Requests
+    path('employment-status-requests/', views.EmploymentStatusRequestListView.as_view(), name='employment_status_requests'),
+    path('employment-status-requests/<int:pk>/approve/', views.ApproveEmploymentStatusRequestView.as_view(), name='approve_employment_status_request'),
+    path('employment-status-requests/<int:pk>/reject/', views.RejectEmploymentStatusRequestView.as_view(), name='reject_employment_status_request'),
+
     # Appeals
     path('appeals/', views.AppealListView.as_view(), name='appeals'),
     path('appeals/<int:pk>/approve/', views.AppealApproveView.as_view(), name='appeal_approve'),
@@ -78,5 +84,6 @@ urlpatterns = [
 
     # Settings
     path('settings/profile/', views.ProfileView.as_view(), name='profile'),
+    path('settings/profile/picture/', views.ProfilePictureView.as_view(), name='profile_picture'),
     path('settings/change-password/', views.ChangePasswordView.as_view(), name='change_password'),
 ]

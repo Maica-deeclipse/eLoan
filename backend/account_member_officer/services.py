@@ -12,7 +12,7 @@ from django.conf import settings
 from datetime import timedelta
 from decimal import Decimal
 
-from users.models import User, Applicant
+from users.models import User, Applicant, EmploymentStatusChangeRequest
 from applicant.models import Savings, SharedCapital, MembershipApprovalLog, MembershipAppeal
 from loans.models import AuditLog
 from .models import AMONotification
@@ -276,6 +276,30 @@ class MemberService:
             raise ValueError(' '.join(messages))
         applicant.save(update_fields=['subscribed_shares', 'paid_shares', 'profile_updated_at'])
         return applicant
+
+    @staticmethod
+    def approve_employment_status_request(request_id, performed_by):
+        """AMO approves an employment status change request; updates applicant's employment_status."""
+        req = EmploymentStatusChangeRequest.objects.get(pk=request_id, status='pending')
+        applicant = req.applicant
+        applicant.employment_status = req.requested_status
+        applicant.save(update_fields=['employment_status'])
+        req.status = 'approved'
+        req.reviewed_at = timezone.now()
+        req.reviewed_by = performed_by
+        req.save()
+        return req
+
+    @staticmethod
+    def reject_employment_status_request(request_id, performed_by, reason=''):
+        """AMO rejects an employment status change request."""
+        req = EmploymentStatusChangeRequest.objects.get(pk=request_id, status='pending')
+        req.status = 'rejected'
+        req.reviewed_at = timezone.now()
+        req.reviewed_by = performed_by
+        req.rejection_reason = reason
+        req.save()
+        return req
 
     @staticmethod
     def get_pending_with_deadline():

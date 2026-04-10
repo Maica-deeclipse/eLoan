@@ -1763,7 +1763,7 @@ class ProfilePictureView(ApplicantBaseView):
 
         return Response({
             'message': 'Profile picture updated successfully',
-            'picture_path': file_path,
+            'profile_picture': request.build_absolute_uri(user.profile_picture.url),
         })
 
     def delete(self, request):
@@ -1835,6 +1835,130 @@ class ProfileUpdateRequiredView(ApplicantBaseView):
             'update_required': months_since >= 6,
             'last_updated': profile_updated_at.date().isoformat(),
             'months_since_update': months_since,
+        })
+
+
+# =============================================================================
+# Employment Status Change Request API
+# =============================================================================
+
+class EmploymentStatusChangeRequestView(ApplicantBaseView):
+    """POST /api/applicant/employment-status-change/"""
+    parser_classes = [MultiPartParser, FormParser]
+
+    VALID_STATUSES = ['regular', 'casual', 'job_order', 'part_time']
+
+    def post(self, request):
+        from users.models import EmploymentStatusChangeRequest
+        from datetime import timedelta
+
+        applicant = request.user
+        requested_status = request.data.get('requested_status', '').strip()
+        coe_document = request.FILES.get('coe_document')
+
+        if not requested_status or requested_status not in self.VALID_STATUSES:
+            return Response(
+                {'error': f"Invalid status. Choose from: {', '.join(self.VALID_STATUSES)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not coe_document:
+            return Response(
+                {'error': 'Certificate of Employment (COE) document is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if requested_status == applicant.employment_status:
+            return Response(
+                {'error': 'The requested status is the same as your current status.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check for existing pending request
+        if EmploymentStatusChangeRequest.objects.filter(
+            applicant=applicant, status='pending'
+        ).exists():
+            return Response(
+                {'error': 'You already have a pending employment status change request.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Enforce 6-month cooldown based on most recent request (any status)
+        last_request = (
+            EmploymentStatusChangeRequest.objects
+            .filter(applicant=applicant)
+            .order_by('-requested_at')
+            .first()
+        )
+        if last_request:
+            six_months_ago = timezone.now() - timedelta(days=183)
+            if last_request.requested_at > six_months_ago:
+                next_allowed = last_request.requested_at + timedelta(days=183)
+                return Response(
+                    {
+                        'error': (
+                            'You can only update your employment status once every 6 months. '
+                            f'Next update available on: {next_allowed.date().isoformat()}.'
+                        ),
+                        'next_allowed_date': next_allowed.date().isoformat(),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        req = EmploymentStatusChangeRequest.objects.create(
+            applicant=applicant,
+            current_status=applicant.employment_status,
+            requested_status=requested_status,
+            coe_document=coe_document,
+        )
+        return Response(
+            {
+                'id': req.id,
+                'status': req.status,
+                'current_status': req.current_status,
+                'requested_status': req.requested_status,
+                'requested_at': req.requested_at.isoformat(),
+                'message': 'Employment status change request submitted. Awaiting AMO review.',
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class EmploymentStatusChangeLatestView(ApplicantBaseView):
+    """GET /api/applicant/employment-status-change/latest/"""
+
+    def get(self, request):
+        from users.models import EmploymentStatusChangeRequest
+        from datetime import timedelta
+
+        applicant = request.user
+        last_request = (
+            EmploymentStatusChangeRequest.objects
+            .filter(applicant=applicant)
+            .order_by('-requested_at')
+            .first()
+        )
+
+        six_months_ago = timezone.now() - timedelta(days=183)
+
+        if not last_request:
+            return Response({'has_request': False, 'can_request': True})
+
+        next_allowed = last_request.requested_at + timedelta(days=183)
+        can_request = (
+            last_request.status != 'pending'
+            and last_request.requested_at <= six_months_ago
+        )
+
+        return Response({
+            'has_request': True,
+            'id': last_request.id,
+            'status': last_request.status,
+            'current_status': last_request.current_status,
+            'requested_status': last_request.requested_status,
+            'requested_at': last_request.requested_at.isoformat(),
+            'reviewed_at': last_request.reviewed_at.isoformat() if last_request.reviewed_at else None,
+            'rejection_reason': last_request.rejection_reason,
+            'next_allowed_date': next_allowed.date().isoformat(),
+            'can_request': can_request,
         })
 
 

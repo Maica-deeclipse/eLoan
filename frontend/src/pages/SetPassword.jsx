@@ -198,6 +198,7 @@ function SetPassword() {
             <PasswordInput
               id="newPassword"
               name="newPassword"
+              autoComplete="new-password"
               value={formData.newPassword}
               onChange={handleChange}
               placeholder="••••••••"
@@ -213,6 +214,7 @@ function SetPassword() {
             <PasswordInput
               id="confirmPassword"
               name="confirmPassword"
+              autoComplete="new-password"
               value={formData.confirmPassword}
               onChange={handleChange}
               placeholder="••••••••"

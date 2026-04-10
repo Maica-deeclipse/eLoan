@@ -93,6 +93,10 @@ urlpatterns = [
     path('profile/update-required/', views.ProfileUpdateRequiredView.as_view(), name='profile_update_required'),
     path('autofill-data/', views.AutofillDataView.as_view(), name='autofill_data'),
 
+    # Employment Status Change Requests
+    path('employment-status-change/', views.EmploymentStatusChangeRequestView.as_view(), name='employment_status_change'),
+    path('employment-status-change/latest/', views.EmploymentStatusChangeLatestView.as_view(), name='employment_status_change_latest'),
+
     # Notifications
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),
     path('notifications/<int:pk>/read/', views.MarkNotificationReadView.as_view(), name='mark_read'),

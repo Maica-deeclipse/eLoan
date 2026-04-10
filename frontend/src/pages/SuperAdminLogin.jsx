@@ -79,9 +79,12 @@ export default function SuperAdminLogin() {
 
           <form onSubmit={handleSubmit}>
             <div style={styles.field}>
-              <label style={styles.label}>Email</label>
+              <label htmlFor="sa-email" style={styles.label}>Email</label>
               <input
+                id="sa-email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(''); }}
                 placeholder="admin@example.com"
@@ -92,8 +95,11 @@ export default function SuperAdminLogin() {
             </div>
 
             <div style={styles.field}>
-              <label style={styles.label}>Password</label>
+              <label htmlFor="sa-password" style={styles.label}>Password</label>
               <PasswordInput
+                id="sa-password"
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 placeholder="••••••••"

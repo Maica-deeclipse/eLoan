@@ -204,13 +204,14 @@ class FaceComparisonService:
                    'message': f'Error: {str(e)}'}
 
     @classmethod
-    def extract_face_from_document(cls, document_path, output_dir):
+    def extract_face_from_document(cls, document_path, output_dir, output_filename='id_face.jpg'):
         """
         Extract face from ID document image and save cropped version.
 
         Args:
             document_path (str): Path to ID document image
             output_dir (str): Directory to save cropped face
+            output_filename (str): Filename for the saved face crop (default: 'id_face.jpg')
 
         Returns:
             dict: {
@@ -258,7 +259,6 @@ class FaceComparisonService:
             os.makedirs(output_dir, exist_ok=True)
 
             # Save cropped face
-            output_filename = 'id_face.jpg'
             output_path = os.path.join(output_dir, output_filename)
             cv2.imwrite(output_path, face_crop)
 
@@ -553,7 +553,7 @@ class FaceComparisonService:
             try:
                 # Step 1: Extract face from ID document
                 logger.info("Extracting face from ID document...")
-                id_face_result = cls.extract_face_from_document(id_path_for_processing, faces_dir)
+                id_face_result = cls.extract_face_from_document(id_path_for_processing, faces_dir, output_filename='id_face.jpg')
 
                 if not id_face_result['success']:
                     face_verification.error_message = id_face_result['message']
@@ -596,7 +596,7 @@ class FaceComparisonService:
                 # internal detector misses a crop it falls back to using the whole crop
                 # as input — which is the face — so the embedding remains meaningful.
                 logger.info("Extracting face from selfie...")
-                selfie_face_result = cls.extract_face_from_document(selfie_path, faces_dir)
+                selfie_face_result = cls.extract_face_from_document(selfie_path, faces_dir, output_filename='selfie_face.jpg')
 
                 if not selfie_face_result['success']:
                     face_verification.error_message = f"Selfie: {selfie_face_result['message']}"

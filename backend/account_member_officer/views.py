@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings as django_settings
 
 from .services import (
@@ -19,8 +20,7 @@ from .services import (
     NotificationService,
     AppealService,
 )
-from users.models import User
-from users.models import Applicant
+from users.models import User, Applicant, EmploymentStatusChangeRequest
 from applicant.models import Savings, SharedCapital, MembershipAppeal
 from decimal import Decimal
 
@@ -956,6 +956,48 @@ class ProfileView(AMOBaseView):
         return Response({'message': 'Profile updated.'})
 
 
+class ProfilePictureView(AMOBaseView):
+    """
+    POST /api/amo/settings/profile/picture/
+    Upload or update profile picture.
+
+    DELETE /api/amo/settings/profile/picture/
+    Remove profile picture.
+    """
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        user = request.user
+
+        if 'profile_picture' not in request.FILES:
+            return Response(
+                {'error': 'No image file provided.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Delete old picture if exists
+        if user.profile_picture:
+            user.profile_picture.delete(save=False)
+
+        user.profile_picture = request.FILES['profile_picture']
+        user.save()
+
+        return Response({
+            'message': 'Profile picture updated successfully.',
+            'profile_picture': request.build_absolute_uri(user.profile_picture.url)
+        })
+
+    def delete(self, request):
+        user = request.user
+
+        if user.profile_picture:
+            user.profile_picture.delete(save=False)
+            user.profile_picture = None
+            user.save()
+
+        return Response({'message': 'Profile picture removed successfully.'})
+
+
 class ChangePasswordView(AMOBaseView):
     def post(self, request):
         user = request.user
@@ -971,3 +1013,86 @@ class ChangePasswordView(AMOBaseView):
         user.set_password(new_password)
         user.save()
         return Response({'message': 'Password changed successfully.'})
+
+
+# ---------------------------------------------------------------------------
+# Employment Status Change Requests
+# ---------------------------------------------------------------------------
+
+class EmploymentStatusRequestListView(AMOBaseView):
+    """GET /api/amo/employment-status-requests/?status=pending|approved|rejected|all"""
+
+    def get(self, request):
+        filter_status = request.query_params.get('status', 'all')
+        qs = EmploymentStatusChangeRequest.objects.select_related(
+            'applicant', 'reviewed_by'
+        )
+        if filter_status in ('pending', 'approved', 'rejected'):
+            qs = qs.filter(status=filter_status)
+
+        results = []
+        for req in qs:
+            a = req.applicant
+            results.append({
+                'id': req.id,
+                'applicant_id': a.id,
+                'applicant_name': f"{a.firstname} {a.lastname}".strip(),
+                'applicant_email': a.email,
+                'current_status': req.current_status,
+                'requested_status': req.requested_status,
+                'coe_document_url': (
+                    request.build_absolute_uri(req.coe_document.url)
+                    if req.coe_document
+                    else None
+                ),
+                'status': req.status,
+                'requested_at': req.requested_at.isoformat(),
+                'reviewed_at': req.reviewed_at.isoformat() if req.reviewed_at else None,
+                'reviewed_by': (
+                    f"{req.reviewed_by.firstname} {req.reviewed_by.lastname}".strip()
+                    if req.reviewed_by
+                    else None
+                ),
+                'rejection_reason': req.rejection_reason,
+            })
+        return Response({'requests': results})
+
+
+class ApproveEmploymentStatusRequestView(AMOBaseView):
+    """POST /api/amo/employment-status-requests/<id>/approve/"""
+
+    def post(self, request, pk):
+        try:
+            req = MemberService.approve_employment_status_request(pk, request.user)
+        except EmploymentStatusChangeRequest.DoesNotExist:
+            return Response(
+                {'error': 'Request not found or is not pending.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({
+            'message': (
+                f"Employment status change approved. "
+                f"{req.applicant.firstname}'s status updated to '{req.requested_status}'."
+            ),
+            'id': req.id,
+            'status': req.status,
+        })
+
+
+class RejectEmploymentStatusRequestView(AMOBaseView):
+    """POST /api/amo/employment-status-requests/<id>/reject/"""
+
+    def post(self, request, pk):
+        reason = request.data.get('reason', '').strip()
+        try:
+            req = MemberService.reject_employment_status_request(pk, request.user, reason)
+        except EmploymentStatusChangeRequest.DoesNotExist:
+            return Response(
+                {'error': 'Request not found or is not pending.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({
+            'message': 'Employment status change request rejected.',
+            'id': req.id,
+            'status': req.status,
+        })

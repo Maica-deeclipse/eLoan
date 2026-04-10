@@ -915,7 +915,7 @@ export default function RegisterWizardScreen({ navigation }) {
     <View>
       {/* BukSU ID Photo (Front) */}
       <SectionTitle title="BukSU ID Photo (Front)" />
-      <Text style={s.docHint}>Photograph the front of your BukSU ID card. Ensure your name and photo on the ID are clearly visible.</Text>
+      <Text style={s.docHint}>Photograph the front of your BukSU ID card. Ensure your name and photo on the ID are clearly visible. JPG or PNG · Max 10 MB</Text>
       {idPhoto ? (
         <View style={s.photoPreviewWrap}>
           <Image source={{ uri: idPhoto.uri }} style={s.idPhotoPreview} />
@@ -939,7 +939,7 @@ export default function RegisterWizardScreen({ navigation }) {
 
       {/* Payslip */}
       <SectionTitle title="Payslip (Proof of Income)" />
-      <Text style={s.docHint}>Upload your latest payslip as proof of your monthly income.</Text>
+      <Text style={s.docHint}>Upload your latest payslip as proof of your monthly income. JPG or PNG · Max 10 MB</Text>
       {payslip ? (
         <View style={s.photoPreviewWrap}>
           <Image source={{ uri: payslip.uri }} style={s.payslipPreview} />
@@ -963,7 +963,7 @@ export default function RegisterWizardScreen({ navigation }) {
 
       {/* Certificate of Employment */}
       <SectionTitle title="Certificate of Employment *" />
-      <Text style={s.docHint}>Upload your Certificate of Employment (COE) as proof of employment status.</Text>
+      <Text style={s.docHint}>Upload your Certificate of Employment (COE) as proof of employment status. JPG or PNG · Max 10 MB</Text>
       {coeDoc ? (
         <View style={s.photoPreviewWrap}>
           <Image source={{ uri: coeDoc.uri }} style={s.payslipPreview} />

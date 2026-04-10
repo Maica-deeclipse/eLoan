@@ -150,6 +150,7 @@ export default function StaffRegister() {
                 <label htmlFor="role">Role</label>
                 <select
                   id="role"
+                  name="role"
                   value={selectedRole}
                   onChange={(e) => { setSelectedRole(e.target.value); setError(''); }}
                   disabled={loading}
@@ -170,6 +171,8 @@ export default function StaffRegister() {
                 <label htmlFor="firstname">First Name</label>
                 <input
                   id="firstname"
+                  name="firstname"
+                  autoComplete="given-name"
                   value={firstname}
                   onChange={(e) => { setFirstname(e.target.value); setError(''); }}
                   disabled={loading}
@@ -180,6 +183,8 @@ export default function StaffRegister() {
                 <label htmlFor="lastname">Last Name</label>
                 <input
                   id="lastname"
+                  name="lastname"
+                  autoComplete="family-name"
                   value={lastname}
                   onChange={(e) => { setLastname(e.target.value); setError(''); }}
                   disabled={loading}
@@ -192,7 +197,9 @@ export default function StaffRegister() {
               <label htmlFor="email">Email</label>
               <input
                 id="email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(''); }}
                 disabled={loading}
@@ -204,7 +211,9 @@ export default function StaffRegister() {
               <label htmlFor="password">Password</label>
               <input
                 id="password"
+                name="password"
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 disabled={loading}
@@ -216,7 +225,9 @@ export default function StaffRegister() {
               <label htmlFor="confirmPassword">Confirm Password</label>
               <input
                 id="confirmPassword"
+                name="confirmPassword"
                 type="password"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
                 disabled={loading}
@@ -228,6 +239,8 @@ export default function StaffRegister() {
               <label htmlFor="employeeId">Employee ID</label>
               <input
                 id="employeeId"
+                name="employeeId"
+                autoComplete="off"
                 value={employeeId}
                 onChange={(e) => { setEmployeeId(e.target.value); setError(''); }}
                 disabled={loading}

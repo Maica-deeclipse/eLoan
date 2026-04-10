@@ -68,6 +68,32 @@ class ProfileService {
     });
     return response.data;
   }
+
+  /**
+   * Get latest employment status change request
+   */
+  async getLatestEmploymentStatusRequest() {
+    const response = await apiService.get('/applicant/employment-status-change/latest/');
+    return response.data;
+  }
+
+  /**
+   * Submit an employment status change request with COE document
+   */
+  async submitEmploymentStatusChangeRequest(requestedStatus, coeDoc) {
+    const formData = new FormData();
+    formData.append('requested_status', requestedStatus);
+    const ext = coeDoc.uri.split('.').pop() || 'jpg';
+    formData.append('coe_document', {
+      uri: coeDoc.uri,
+      type: `image/${ext}`,
+      name: `coe_${Date.now()}.${ext}`,
+    });
+    const response = await apiService.post('/applicant/employment-status-change/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
 }
 
 export default new ProfileService();

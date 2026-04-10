@@ -38,10 +38,17 @@ export default function AMOLayout() {
     navigate('/');
   };
 
+  const updateUser = (partialUser) => {
+    const updated = { ...user, ...partialUser };
+    setUser(updated);
+    localStorage.setItem('user', JSON.stringify(updated));
+  };
+
   const navItems = [
     { path: '/amo/dashboard', icon: 'grid', label: 'Dashboard' },
     { path: '/amo/applications', icon: 'user-check', label: 'Member Applications' },
     { path: '/amo/members', icon: 'users', label: 'Members' },
+    { path: '/amo/employment-status-requests', icon: 'briefcase', label: 'Status Requests' },
     { path: '/amo/savings-capital', icon: 'dollar-sign', label: 'Savings & Capital' },
     { path: '/amo/reports', icon: 'bar-chart-2', label: 'Reports' },
     { path: '/amo/activity-logs', icon: 'activity', label: 'Activity Logs' },
@@ -195,20 +202,26 @@ export default function AMOLayout() {
 
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                background: '#2563eb',
-                color: '#fff',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-              }}>
-                {user.firstname?.[0]}{user.lastname?.[0]}
-              </div>
+              {user.profile_picture ? (
+                <img src={user.profile_picture} alt="Profile"
+                  style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              ) : (
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: '#2563eb',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  flexShrink: 0,
+                }}>
+                  {user.firstname?.[0]}{user.lastname?.[0]}
+                </div>
+              )}
               <div>
                 <div style={{ fontWeight: 600, color: '#1f2937', fontSize: '0.875rem' }}>
                   {user.firstname} {user.lastname}
@@ -221,7 +234,7 @@ export default function AMOLayout() {
 
         {/* Page Content */}
         <div style={{ padding: '1.5rem' }}>
-          <Outlet context={{ user, fetchUnreadCount }} />
+          <Outlet context={{ user, fetchUnreadCount, updateUser }} />
         </div>
       </main>
     </div>
@@ -291,6 +304,12 @@ function Icon({ name }) {
         <line x1="3" y1="12" x2="21" y2="12"></line>
         <line x1="3" y1="6" x2="21" y2="6"></line>
         <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    ),
+    'briefcase': (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
       </svg>
     ),
   };

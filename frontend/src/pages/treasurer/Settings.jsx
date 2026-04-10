@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import treasurerService from '../../services/treasurer.service';
 import authService from '../../services/auth.service';
 import PasswordInput from '../../components/PasswordInput';
 
 export default function Settings() {
+  const { updateUser } = useOutletContext();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [preferences, setPreferences] = useState(null);
@@ -84,12 +86,17 @@ export default function Settings() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showMessage('error', 'Please select an image file');
+      showMessage('error', 'Please select an image file (JPG, PNG, GIF, or WebP)');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      showMessage('error', 'Image size must be less than 5MB');
+      showMessage('error', 'Image size must be less than 5 MB');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to update your profile picture?')) {
+      e.target.value = '';
       return;
     }
 
@@ -97,21 +104,24 @@ export default function Settings() {
       setSaving(true);
       const result = await treasurerService.uploadProfilePicture(file);
       setProfile({ ...profile, profile_picture: result.profile_picture });
+      updateUser({ profile_picture: result.profile_picture });
       showMessage('success', 'Profile picture updated!');
     } catch (err) {
       showMessage('error', err.response?.data?.error || 'Failed to upload picture');
     } finally {
       setSaving(false);
+      e.target.value = '';
     }
   };
 
   const handleRemovePicture = async () => {
-    if (!window.confirm('Remove your profile picture?')) return;
+    if (!window.confirm('Are you sure you want to remove your profile picture?')) return;
 
     try {
       setSaving(true);
       await treasurerService.removeProfilePicture();
       setProfile({ ...profile, profile_picture: null });
+      updateUser({ profile_picture: null });
       showMessage('success', 'Profile picture removed');
     } catch (err) {
       showMessage('error', err.response?.data?.error || 'Failed to remove picture');
@@ -309,16 +319,21 @@ export default function Settings() {
                   onChange={handlePictureChange}
                   style={{ display: 'none' }}
                 />
+                <p style={{ margin: '0.5rem 0 0', fontSize: '0.72rem', color: '#6b7280' }}>
+                  JPG, PNG, GIF or WebP &middot; Max 5 MB
+                </p>
               </div>
             </div>
 
             {/* Profile Form */}
             <form onSubmit={handleProfileSubmit}>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>First Name</label>
+                <label htmlFor="tr-firstname" style={labelStyle}>First Name</label>
                 <input
+                  id="tr-firstname"
                   type="text"
                   name="firstname"
+                  autoComplete="given-name"
                   value={profileForm.firstname}
                   onChange={handleProfileChange}
                   style={inputStyle}
@@ -326,10 +341,12 @@ export default function Settings() {
                 />
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Last Name</label>
+                <label htmlFor="tr-lastname" style={labelStyle}>Last Name</label>
                 <input
+                  id="tr-lastname"
                   type="text"
                   name="lastname"
+                  autoComplete="family-name"
                   value={profileForm.lastname}
                   onChange={handleProfileChange}
                   style={inputStyle}
@@ -337,9 +354,12 @@ export default function Settings() {
                 />
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Email</label>
+                <label htmlFor="tr-email" style={labelStyle}>Email</label>
                 <input
+                  id="tr-email"
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   value={profile?.email || ''}
                   disabled
                   style={{ ...inputStyle, background: '#f3f4f6', cursor: 'not-allowed' }}
@@ -382,9 +402,11 @@ export default function Settings() {
           <div style={{ padding: '1.5rem' }}>
             <form onSubmit={handlePasswordSubmit}>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Current Password</label>
+                <label htmlFor="tr-old-password" style={labelStyle}>Current Password</label>
                 <PasswordInput
+                  id="tr-old-password"
                   name="old_password"
+                  autoComplete="current-password"
                   value={passwordForm.old_password}
                   onChange={handlePasswordChange}
                   style={inputStyle}
@@ -392,9 +414,11 @@ export default function Settings() {
                 />
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>New Password</label>
+                <label htmlFor="tr-new-password" style={labelStyle}>New Password</label>
                 <PasswordInput
+                  id="tr-new-password"
                   name="new_password"
+                  autoComplete="new-password"
                   value={passwordForm.new_password}
                   onChange={handlePasswordChange}
                   style={inputStyle}
@@ -406,9 +430,11 @@ export default function Settings() {
                 </p>
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Confirm New Password</label>
+                <label htmlFor="tr-confirm-password" style={labelStyle}>Confirm New Password</label>
                 <PasswordInput
+                  id="tr-confirm-password"
                   name="confirm_password"
+                  autoComplete="new-password"
                   value={passwordForm.confirm_password}
                   onChange={handlePasswordChange}
                   style={inputStyle}

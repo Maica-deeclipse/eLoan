@@ -47,6 +47,7 @@ import AMOReports from './pages/account-member-officer/Reports';
 import AMOActivityLogs from './pages/account-member-officer/ActivityLogs';
 import AMONotifications from './pages/account-member-officer/Notifications';
 import AMOSettings from './pages/account-member-officer/Settings';
+import AMOEmploymentStatusRequests from './pages/account-member-officer/EmploymentStatusRequests';
 
 // Super Administrator Module
 import SuperAdminLayout from './components/superadmin/SuperAdminLayout';
@@ -123,6 +124,7 @@ function App() {
           <Route path="activity-logs" element={<AMOActivityLogs />} />
           <Route path="notifications" element={<AMONotifications />} />
           <Route path="settings" element={<AMOSettings />} />
+          <Route path="employment-status-requests" element={<AMOEmploymentStatusRequests />} />
         </Route>
 
         {/* Super Administrator Module */}

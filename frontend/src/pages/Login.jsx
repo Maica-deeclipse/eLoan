@@ -99,7 +99,7 @@ function Login() {
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
-              type="email" id="email" name="email"
+              type="email" id="email" name="email" autoComplete="email"
               value={formData.email} onChange={handleChange}
               placeholder="you@company.com" required disabled={loading || googleLoading}
             />
@@ -108,7 +108,7 @@ function Login() {
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <PasswordInput
-              id="password" name="password"
+              id="password" name="password" autoComplete="current-password"
               value={formData.password} onChange={handleChange}
               placeholder="••••••••" required disabled={loading || googleLoading}
             />
