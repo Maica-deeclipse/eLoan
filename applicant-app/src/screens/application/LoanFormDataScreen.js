@@ -24,6 +24,7 @@ import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
 import { getLoanTypeConfig } from '../../config/loanTypeConfig';
 import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraftStorage';
+import logger from '../../utils/logger';
 
 export default function LoanFormDataScreen({ navigation }) {
   const {
@@ -31,6 +32,7 @@ export default function LoanFormDataScreen({ navigation }) {
     setLoanFormData,
     dispatch,
     getPostLoanFormDataRoute,
+    getRouteForStep,
   } = useApplication();
 
   const { loanType, applicationId, loanFormData: savedFormData } = state;
@@ -91,6 +93,9 @@ export default function LoanFormDataScreen({ navigation }) {
       return;
     }
 
+    // Capture before any dispatches
+    const highestStepReached = state.currentStep;
+
     setSaving(true);
     try {
       // Save to backend — step 4 merges loan_form_data on the server
@@ -113,9 +118,15 @@ export default function LoanFormDataScreen({ navigation }) {
       } else {
         dispatch({ type: 'SET_CURRENT_STEP', payload: 5 });
       }
-      navigation.navigate(nextRoute);
+
+      // Smart-forward: skip back to where the user was if they came back to edit this step
+      if (highestStepReached >= 5) {
+        navigation.navigate(getRouteForStep(highestStepReached));
+      } else {
+        navigation.navigate(nextRoute);
+      }
     } catch (error) {
-      console.error('Save loan form data error:', error);
+      logger.error('Save loan form data error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Failed to save details');
     } finally {
       setSaving(false);

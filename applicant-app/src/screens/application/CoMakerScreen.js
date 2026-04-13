@@ -15,12 +15,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
+import logger from '../../utils/logger';
 
 const CoMakerScreen = ({ navigation }) => {
-  const { state, dispatch } = useApplication();
+  const { state, dispatch, getRouteForStep } = useApplication();
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [searchTotal, setSearchTotal] = useState(0);
+  const [searchOffset, setSearchOffset] = useState(0);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searching, setSearching] = useState(false);
   const [selectedCoMakers, setSelectedCoMakers] = useState(state.coMakers || []);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -35,25 +40,38 @@ const CoMakerScreen = ({ navigation }) => {
     }
   }, []);
 
-  const searchCoMakers = async () => {
+  const PAGE_SIZE = 20;
+
+  const searchCoMakers = async (loadMore = false) => {
     if (searchQuery.trim().length < 2) {
       Alert.alert('Search', 'Please enter at least 2 characters to search');
       return;
     }
 
-    setSearching(true);
+    const offset = loadMore ? searchOffset : 0;
+    if (loadMore) {
+      setLoadingMore(true);
+    } else {
+      setSearching(true);
+      setSearchResults([]);
+      setSearchOffset(0);
+    }
+
     try {
-      const response = await applicationService.searchUsers(searchQuery);
-      // Filter out already selected co-makers
-      const filteredResults = response.filter(
+      const data = await applicationService.searchUsers(searchQuery, offset, PAGE_SIZE);
+      const filtered = data.users.filter(
         (user) => !selectedCoMakers.find((cm) => cm.user_id === user.id)
       );
-      setSearchResults(filteredResults);
+      setSearchResults(prev => loadMore ? [...prev, ...filtered] : filtered);
+      setSearchTotal(data.total);
+      setSearchHasMore(data.has_more);
+      setSearchOffset(offset + PAGE_SIZE);
     } catch (error) {
-      console.error('Search error:', error);
+      logger.error('Search error:', error);
       Alert.alert('Error', 'Failed to search for co-makers');
     } finally {
       setSearching(false);
+      setLoadingMore(false);
     }
   };
 
@@ -86,7 +104,7 @@ const CoMakerScreen = ({ navigation }) => {
 
       Alert.alert('Success', `${user.full_name} has been added as a co-maker`);
     } catch (error) {
-      console.error('Add co-maker error:', error);
+      logger.error('Add co-maker error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Failed to add co-maker');
     } finally {
       setAddingCoMaker(null);
@@ -111,7 +129,7 @@ const CoMakerScreen = ({ navigation }) => {
               setSelectedCoMakers(updatedCoMakers);
               dispatch({ type: 'SET_COMAKERS', payload: updatedCoMakers });
             } catch (error) {
-              console.error('Remove co-maker error:', error);
+              logger.error('Remove co-maker error:', error);
               Alert.alert('Error', 'Failed to remove co-maker');
             }
           },
@@ -138,8 +156,17 @@ const CoMakerScreen = ({ navigation }) => {
       return;
     }
 
+    // Capture before dispatch
+    const highestStepReached = state.currentStep;
+
     dispatch({ type: 'SET_STEP', payload: 5 });
-    navigation.navigate('DocumentUpload');
+
+    // Smart-forward: if the user came back from FaceVerification or later, jump there
+    if (highestStepReached >= 6) {
+      navigation.navigate(getRouteForStep(highestStepReached));
+    } else {
+      navigation.navigate('DocumentUpload');
+    }
   };
 
   const renderSearchResult = ({ item }) => (
@@ -322,6 +349,9 @@ const CoMakerScreen = ({ navigation }) => {
                 setShowSearchModal(false);
                 setSearchQuery('');
                 setSearchResults([]);
+                setSearchTotal(0);
+                setSearchOffset(0);
+                setSearchHasMore(false);
               }}
             >
               <Ionicons name="close" size={28} color="#333" />
@@ -360,6 +390,26 @@ const CoMakerScreen = ({ navigation }) => {
               keyExtractor={(item) => item.id.toString()}
               style={styles.searchResultsList}
               contentContainerStyle={styles.searchResultsContent}
+              ListHeaderComponent={
+                <Text style={styles.resultCount}>
+                  Showing {searchResults.length} of {searchTotal} result{searchTotal !== 1 ? 's' : ''}
+                </Text>
+              }
+              ListFooterComponent={
+                searchHasMore ? (
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={() => searchCoMakers(true)}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? (
+                      <ActivityIndicator size="small" color="#0d6efd" />
+                    ) : (
+                      <Text style={styles.loadMoreText}>Load more results</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : null
+              }
             />
           ) : (
             <View style={styles.modalEmptyState}>
@@ -737,6 +787,21 @@ const styles = StyleSheet.create({
     color: '#adb5bd',
     marginTop: 8,
     textAlign: 'center',
+  },
+  resultCount: {
+    fontSize: 13,
+    color: '#6c757d',
+    marginBottom: 12,
+  },
+  loadMoreButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    color: '#0d6efd',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });
 

@@ -230,7 +230,8 @@ function applicationReducer(state, action) {
       };
 
     case 'SET_CURRENT_STEP':
-      return { ...state, currentStep: action.payload };
+      // Never decrease — currentStep tracks the highest step the user has reached
+      return { ...state, currentStep: Math.max(state.currentStep, action.payload) };
 
     case 'SET_STEP':
       return { ...state, currentStep: action.payload };
@@ -353,6 +354,24 @@ export function ApplicationProvider({ children }) {
     return 'DocumentUpload';
   };
 
+  /**
+   * Maps a step number to its wizard route name.
+   * Used by smart-forward navigation so screens can jump directly to wherever
+   * the user left off instead of replaying already-completed steps.
+   */
+  const getRouteForStep = (step) => {
+    if (step >= 7) return 'ReviewSubmit';
+    if (step === 6) return 'FaceVerification';
+    if (step === 5) return 'DocumentUpload';
+    if (step === 4) {
+      if (state.coMakerRequirement > 0) return 'CoMaker';
+      return 'DocumentUpload';
+    }
+    if (step === 3) return 'LoanDetails';
+    if (step === 2) return 'PersonalDetails';
+    return 'SelectLoanType';
+  };
+
   return (
     <ApplicationContext.Provider
       value={{
@@ -374,6 +393,7 @@ export function ApplicationProvider({ children }) {
         getPreviousStep,
         getPostLoanDetailsRoute,
         getPostLoanFormDataRoute,
+        getRouteForStep,
       }}
     >
       {children}

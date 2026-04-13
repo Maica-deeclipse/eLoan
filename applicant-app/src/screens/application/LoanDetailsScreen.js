@@ -21,6 +21,7 @@ import applicationService from '../../services/applicationService';
 import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraftStorage';
 import DropdownPicker from '../../components/DropdownPicker';
 import { isSemiMonthlyAllowed } from '../../config/loanTypeConfig';
+import logger from '../../utils/logger';
 
 // Fixed term options — only show values that don't exceed the loan type's max term
 const FIXED_TERM_MONTHS = [3, 6, 12, 24, 36, 48];
@@ -75,7 +76,7 @@ function generateAmountOptions(minAmount, maxAmount) {
 }
 
 export default function LoanDetailsScreen({ navigation }) {
-  const { state, setLoanDetails, dispatch, getNextStep, getPostLoanDetailsRoute } = useApplication();
+  const { state, setLoanDetails, dispatch, getNextStep, getPostLoanDetailsRoute, getRouteForStep } = useApplication();
   const { loanType, applicationId, coMakerRequirement, loanDetails: savedLoanDetails } = state;
 
   const [amount, setAmount] = useState(''); // stored as string for API; value from dropdown is a number
@@ -173,7 +174,7 @@ export default function LoanDetailsScreen({ navigation }) {
           purpose,
           installmentType,
         },
-      });
+      }).catch(e => logger.error('Draft autosave failed:', e));
     }, 350);
 
     return () => clearTimeout(timer);
@@ -235,7 +236,7 @@ export default function LoanDetailsScreen({ navigation }) {
       );
       setCalculation(result);
     } catch (error) {
-      console.error('Calculation error:', error);
+      logger.error('Calculation error:', error);
       setCalculation(null);
     } finally {
       setCalculating(false);
@@ -256,6 +257,9 @@ export default function LoanDetailsScreen({ navigation }) {
       Alert.alert('Validation Error', 'Please fill in all required fields correctly.');
       return;
     }
+
+    // Capture before any dispatches — state.currentStep won't update until re-render
+    const highestStepReached = state.currentStep;
 
     setSaving(true);
     try {
@@ -280,7 +284,6 @@ export default function LoanDetailsScreen({ navigation }) {
 
       dispatch({ type: 'VALIDATE_LOAN_DETAILS', payload: true });
 
-      // Navigate to next step (LoanFormData, CoMaker, or DocumentUpload)
       const nextRoute = getPostLoanDetailsRoute();
       const nextStep = getNextStep(3);
       dispatch({ type: 'SET_CURRENT_STEP', payload: nextStep });
@@ -298,9 +301,15 @@ export default function LoanDetailsScreen({ navigation }) {
         });
       }
 
-      navigation.navigate(nextRoute);
+      // Smart-forward: if the user came back from a later step to edit this one,
+      // jump back to where they were instead of replaying already-completed steps.
+      if (highestStepReached >= 5) {
+        navigation.navigate(getRouteForStep(highestStepReached));
+      } else {
+        navigation.navigate(nextRoute);
+      }
     } catch (error) {
-      console.error('Save loan details error:', error);
+      logger.error('Save loan details error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Failed to save loan details');
     } finally {
       setSaving(false);
