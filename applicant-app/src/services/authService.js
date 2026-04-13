@@ -2,6 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../config/api.config';
 import { setCachedToken, clearCachedToken } from './apiService';
+import logger from '../utils/logger';
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -147,7 +148,7 @@ class AuthService {
       return { success: false, error: 'Invalid response from server' };
     } catch (error) {
       clearTimeout(timeoutId);
-      console.error('[registerFull] error:', error?.message, '| name:', error?.name);
+      logger.error('[registerFull] error:', error?.message, '| name:', error?.name);
       if (error.name === 'AbortError') {
         return { success: false, error: 'Request timed out. Please try again.' };
       }
@@ -167,7 +168,7 @@ class AuthService {
         SecureStore.deleteItemAsync('user'),
       ]);
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout error:', error);
       // Continue even if deletion fails
     }
   }
@@ -278,7 +279,7 @@ class AuthService {
       return false;
     } catch (error) {
       // If refresh fails, user needs to log in again
-      console.error('Token refresh error:', error);
+      logger.error('Token refresh error:', error);
       return false;
     }
   }
@@ -295,7 +296,7 @@ class AuthService {
       }
       return null;
     } catch (error) {
-      console.error('Error getting current user:', error);
+      logger.error('Error getting current user:', error);
       return null;
     }
   }
@@ -308,7 +309,7 @@ class AuthService {
     try {
       return await SecureStore.getItemAsync('accessToken');
     } catch (error) {
-      console.error('Error getting access token:', error);
+      logger.error('Error getting access token:', error);
       return null;
     }
   }
@@ -351,7 +352,7 @@ class AuthService {
       const now = Math.floor(Date.now() / 1000);
       return exp > now + 60;
     } catch (error) {
-      console.error('Token validation error:', error);
+      logger.error('Token validation error:', error);
       return false;
     }
   }
@@ -367,17 +368,17 @@ class AuthService {
 
   /**
    * Login / register applicant via Google OAuth.
-   * Sends the Google access token to the backend which verifies it
-   * and checks that the email ends with buksu.edu.ph.
+   * Sends the Google ID token to the backend which verifies it cryptographically
+   * (signature, expiry, audience) and checks that the email ends with buksu.edu.ph.
    *
-   * @param {string} googleAccessToken - Access token from expo-auth-session Google provider
+   * @param {string} googleIdToken - ID token from expo-auth-session Google provider (response.params.id_token)
    * @returns {Promise<Object>} { success, user?, error?, isPending?, isNew? }
    */
-  async googleLogin(googleAccessToken) {
+  async googleLogin(googleIdToken) {
     try {
       const response = await axios.post(
         `${API_URL}/google/`,
-        { access_token: googleAccessToken },
+        { id_token: googleIdToken },
         { timeout: REQUEST_TIMEOUT_MS }
       );
 

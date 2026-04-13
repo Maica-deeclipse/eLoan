@@ -41,7 +41,10 @@ from .services import (
     CoMakerService,
     NotificationService
 )
-from .utils import get_client_ip, DocumentTypes, ApplicationStatuses
+from .utils import (
+    get_client_ip, DocumentTypes, ApplicationStatuses,
+    validate_file_type, ALLOWED_DOCUMENT_TYPES, ALLOWED_IMAGE_TYPES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +129,7 @@ class LoanTypeListView(ApplicantBaseView):
         loan_types = cache.get(cache_key)
         if loan_types is None:
             loan_types = LoanApplicationService.get_active_loan_types(user=request.user)
-            cache.set(cache_key, loan_types, 300)  # cache for 5 minutes
+            cache.set(cache_key, loan_types, settings.CACHE_TTL_LOAN_TYPES)
         return Response({'loan_types': loan_types})
 
 
@@ -143,7 +146,7 @@ class LoanTypeDetailView(ApplicantBaseView):
                     {'error': 'Loan type not found'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-            cache.set(cache_key, loan_type, 300)  # cache 5 minutes
+            cache.set(cache_key, loan_type, settings.CACHE_TTL_LOAN_TYPES)
         return Response(loan_type)
 
 
@@ -207,7 +210,7 @@ class LoanTypeRequiredDocumentsView(ApplicantBaseView):
             ]
 
         response_data = {'loan_type_id': pk, 'documents': documents}
-        cache.set(cache_key, response_data, 600)  # cache 10 minutes
+        cache.set(cache_key, response_data, settings.CACHE_TTL_REQUIRED_DOCS)
         return Response(response_data)
 
 
@@ -658,6 +661,11 @@ class DocumentUploadView(ApplicantBaseView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Validate actual file type via magic bytes before touching disk
+        is_valid, mime_error = validate_file_type(file, ALLOWED_DOCUMENT_TYPES)
+        if not is_valid:
+            return Response({'error': mime_error}, status=status.HTTP_400_BAD_REQUEST)
+
         # Save file
         ext = os.path.splitext(file.name)[1].lower()
         filename = f"{document_type}_{uuid.uuid4().hex[:12]}{ext}"
@@ -673,14 +681,16 @@ class DocumentUploadView(ApplicantBaseView):
             for chunk in file.chunks():
                 destination.write(chunk)
 
-        # Encrypt file at rest
+        # Encrypt file at rest — block upload if encryption fails to avoid storing plaintext PII
         from .encryption_utils import FileEncryptionService
         encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
         if not encrypt_success:
-            # Log encryption failure but don't block upload
-            import logging
-            logger = logging.getLogger('encryption')
+            os.remove(full_path)
             logger.error(f"Failed to encrypt document {file_path}: {encrypt_error}")
+            return Response(
+                {'error': 'Failed to secure file. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         document, error = DocumentService.upload_document(
             application,
@@ -731,6 +741,11 @@ class DocumentReplaceView(ApplicantBaseView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Validate actual file type via magic bytes before touching disk
+        is_valid, mime_error = validate_file_type(file, ALLOWED_DOCUMENT_TYPES)
+        if not is_valid:
+            return Response({'error': mime_error}, status=status.HTTP_400_BAD_REQUEST)
+
         # Save new file
         ext = os.path.splitext(file.name)[1].lower()
         filename = f"replaced_{uuid.uuid4().hex[:12]}{ext}"
@@ -742,6 +757,17 @@ class DocumentReplaceView(ApplicantBaseView):
         with open(full_path, 'wb+') as destination:
             for chunk in file.chunks():
                 destination.write(chunk)
+
+        # Encrypt replacement file at rest — block if encryption fails
+        from .encryption_utils import FileEncryptionService
+        encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
+        if not encrypt_success:
+            os.remove(full_path)
+            logger.error(f"Failed to encrypt replacement document {file_path}: {encrypt_error}")
+            return Response(
+                {'error': 'Failed to secure file. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         document, error = DocumentService.replace_document(pk, file_path, request.user)
 
@@ -802,14 +828,12 @@ class IDOCRScanView(ApplicantBaseView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Validate file type
-        allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
-        ext = os.path.splitext(image.name)[1].lower()
-        if ext not in allowed_extensions:
-            return Response(
-                {'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Validate actual file type via magic bytes (not extension — client-provided names are untrusted)
+        is_valid, mime_error = validate_file_type(image, ALLOWED_IMAGE_TYPES)
+        if not is_valid:
+            return Response({'error': mime_error}, status=status.HTTP_400_BAD_REQUEST)
+
+        ext = os.path.splitext(image.name)[1].lower() or '.jpg'
 
         # Save image to disk
         filename = f"id_scan_{uuid.uuid4().hex[:12]}{ext}"
@@ -831,34 +855,33 @@ class IDOCRScanView(ApplicantBaseView):
             profile_name = f"{user.firstname} {user.lastname}".strip()
 
         # Process OCR
+        from .encryption_utils import FileEncryptionService
         try:
             result = IDOCRService.process_id_image(full_path, profile_name)
-
-            # Encrypt ID image after OCR processing
-            from .encryption_utils import FileEncryptionService
-            encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
-            if not encrypt_success:
-                import logging
-                logger = logging.getLogger('encryption')
-                logger.error(f"Failed to encrypt ID scan {file_path}: {encrypt_error}")
-
-            # Add image path to response
-            result['image_path'] = file_path
-
-            if result.get('success'):
-                return Response(result, status=status.HTTP_200_OK)
-            else:
-                return Response(result, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-
         except Exception as e:
             import traceback
             logger.exception(f"OCR processing error: {str(e)}")
+            os.remove(full_path)
             return Response({
                 'success': False,
                 'error': f'OCR processing failed: {str(e)}',
                 'message': 'Could not process ID. Please ensure the image is clear and try again.',
                 'debug_info': traceback.format_exc() if settings.DEBUG else None,
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            # Always encrypt ID image — even on OCR failure, the file must not remain plaintext
+            if os.path.exists(full_path):
+                encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
+                if not encrypt_success:
+                    logger.error(f"Failed to encrypt ID scan {file_path}: {encrypt_error}")
+
+        # Add image path to response
+        result['image_path'] = file_path
+
+        if result.get('success'):
+            return Response(result, status=status.HTTP_200_OK)
+        else:
+            return Response(result, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 # =============================================================================
@@ -884,8 +907,13 @@ class FaceCaptureView(ApplicantBaseView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Validate actual file type via magic bytes (not extension — client-provided names are untrusted)
+        is_valid, mime_error = validate_file_type(image, ALLOWED_IMAGE_TYPES)
+        if not is_valid:
+            return Response({'error': mime_error}, status=status.HTTP_400_BAD_REQUEST)
+
         # Save image
-        ext = os.path.splitext(image.name)[1].lower()
+        ext = os.path.splitext(image.name)[1].lower() or '.jpg'
         filename = f"face_{uuid.uuid4().hex[:12]}{ext}"
         file_path = f"applicant/faces/{application.id}/{filename}"
 
@@ -917,18 +945,28 @@ class FaceCaptureView(ApplicantBaseView):
 
         # Perform face comparison using DeepFace
         # Lazy import — keeps TensorFlow out of Django's startup path so login/dashboard load instantly
+        from .encryption_utils import FileEncryptionService
+        comparison_error = None
         try:
             from .face_verification_service import FaceComparisonService
             verification = FaceComparisonService.verify_faces_for_application(application.id, captured_image_path=file_path)
+        except Exception as e:
+            comparison_error = e
+        finally:
+            # Always encrypt face image regardless of comparison outcome —
+            # face photos are sensitive biometric data and must never rest plaintext.
+            if os.path.exists(full_path):
+                encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
+                if not encrypt_success:
+                    logger.error(f"Failed to encrypt face image {file_path}: {encrypt_error}")
 
-            # Encrypt face image after processing
-            from .encryption_utils import FileEncryptionService
-            encrypt_success, encrypt_error = FileEncryptionService.encrypt_file(full_path)
-            if not encrypt_success:
-                import logging
-                logger = logging.getLogger('encryption')
-                logger.error(f"Failed to encrypt face image {file_path}: {encrypt_error}")
+        if comparison_error:
+            return Response({
+                'error': f'Face verification error: {str(comparison_error)}',
+                'message': 'An error occurred during face verification. Please try again.',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        if verification:
             # Build response based on verification result
             response_data = {
                 'id': verification.id,
@@ -954,12 +992,6 @@ class FaceCaptureView(ApplicantBaseView):
             else:
                 response_data['message'] = verification.error_message or 'Face verification failed'
                 return Response(response_data, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-        except Exception as e:
-            return Response({
-                'error': f'Face verification error: {str(e)}',
-                'message': 'An error occurred during face verification. Please try again.',
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class RetryFaceVerificationView(ApplicantBaseView):
@@ -1465,11 +1497,21 @@ class CombinedVerificationView(ApplicantBaseView):
 # Co-Maker API
 # =============================================================================
 class SearchUsersView(ApplicantBaseView):
-    """GET /api/applicant/search-users/?q=<search_term>"""
+    """GET /api/applicant/search-users/?q=<search_term>&limit=20&offset=0"""
 
     def get(self, request):
         query = request.query_params.get('q', '')
-        users = CoMakerService.search_registered_users(query, request.user.id)
+        limit = request.query_params.get('limit', 20)
+        offset = request.query_params.get('offset', 0)
+
+        try:
+            limit = int(limit)
+            offset = int(offset)
+        except (ValueError, TypeError):
+            limit = 20
+            offset = 0
+
+        result = CoMakerService.search_registered_users(query, request.user.id, limit=limit, offset=offset)
 
         return Response({
             'users': [
@@ -1480,8 +1522,12 @@ class SearchUsersView(ApplicantBaseView):
                     'lastname': u.lastname,
                     'full_name': f"{u.firstname} {u.lastname}",
                 }
-                for u in users
-            ]
+                for u in result['users']
+            ],
+            'total': result['total'],
+            'has_more': result['has_more'],
+            'offset': offset,
+            'limit': limit,
         })
 
 
@@ -2028,7 +2074,7 @@ class UnreadCountView(ApplicantBaseView):
         count = cache.get(cache_key)
         if count is None:
             count = NotificationService.get_unread_count(request.user)
-            cache.set(cache_key, count, 60)  # cache for 1 minute
+            cache.set(cache_key, count, settings.CACHE_TTL_NOTIFICATIONS)
         return Response({'unread_count': count})
 
 

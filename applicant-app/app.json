@@ -1,54 +1,53 @@
 {
-  "expo": {
-    "name": "eLoan",
-    "slug": "eloan-applicant",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/logoo.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/logoblue.png",
-      "resizeMode": "contain",
+"expo": {
+  "name": "eLoan",
+  "slug": "eloan-applicant",
+  "version": "1.0.0",
+  "orientation": "portrait",
+  "icon": "./assets/logoo.png",
+  "userInterfaceStyle": "light",
+  "newArchEnabled": true,
+  "splash": {
+    "image": "./assets/logoblue.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#ffffff"
+  },
+  "ios": {
+    "supportsTablet": true,
+    "bundleIdentifier": "com.eloan.applicant"
+  },
+  "android": {
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/logoblue.png",
       "backgroundColor": "#ffffff"
     },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.eloan.applicant"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/logoblue.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.eloan.applicant",
-      "permissions": [
-        "CAMERA",
-        "RECORD_AUDIO"
-      ]
-    },
-    "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow eLoan to access your camera for face verification.",
-          "microphonePermission": "Allow eLoan to access your microphone for video recording.",
-          "recordAudioAndroid": true
-        }
-      ],
-      "expo-font",
-      "expo-web-browser"
+    "edgeToEdgeEnabled": true,
+    "package": "com.eloan.applicant",
+    "permissions": [
+      "CAMERA",
+      "RECORD_AUDIO"
+    ]
+  },
+  "plugins": [
+    [
+      "expo-camera",
+      {
+        "cameraPermission": "Allow eLoan to access your camera for face verification.",
+        "microphonePermission": "Allow eLoan to access your microphone for video recording.",
+        "recordAudioAndroid": true
+      }
     ],
-    "web": {
-      "favicon": "./assets/logoo.png"
-    },
-    "scheme": "eloan",
-    "extra": {
-      "apiUrl": "http://10.0.0.23:8000/api/auth",
-      "googleClientId": "66164215961-49k2sd9e7q7qvs1355206ldr6o9o81o4.apps.googleusercontent.com",
-      "googleAndroidClientId": "YOUR_ANDROID_GOOGLE_CLIENT_ID",
-      "googleIosClientId": "YOUR_IOS_GOOGLE_CLIENT_ID"
-    }
+    "expo-font",
+    "expo-web-browser"
+  ],
+  "web": {
+    "favicon": "./assets/logoo.png"
+  },
+  "scheme": "eloan",
+  "extra": {
+    "googleClientId": "66164215961-49k2sd9e7q7qvs1355206ldr6o9o81o4.apps.googleusercontent.com",
+    "googleAndroidClientId": "YOUR_ANDROID_GOOGLE_CLIENT_ID",
+    "googleIosClientId": "YOUR_IOS_GOOGLE_CLIENT_ID"
   }
+}
 }

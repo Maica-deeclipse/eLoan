@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
 import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraftStorage';
+import logger from '../../utils/logger';
 
 const { width: W } = Dimensions.get('window');
 
@@ -267,7 +268,7 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
       const data = await applicationService.getLoanTypes();
       setLoanTypes(data);
     } catch (error) {
-      console.error('Load loan types error:', error);
+      logger.error('Load loan types error:', error);
       Alert.alert('Error', 'Failed to load loan types');
     } finally {
       setLoading(false);
@@ -342,7 +343,7 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
 
       navigation.navigate('PersonalDetails');
     } catch (error) {
-      console.error('Create application error:', error);
+      logger.error('Create application error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Failed to create application');
     } finally {
       setCreating(false);

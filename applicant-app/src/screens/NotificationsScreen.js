@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import notificationService from '../services/notificationService';
+import logger from '../utils/logger';
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const PRIMARY   = '#0f1c52';
@@ -95,7 +96,7 @@ export default function NotificationsScreen({ navigation }) {
       setNotifications(data);
       setUnreadCount(count);
     } catch (error) {
-      console.error('Load notifications error:', error);
+      logger.error('Load notifications error:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,7 +123,7 @@ export default function NotificationsScreen({ navigation }) {
         );
         setUnreadCount((prev) => Math.max(0, prev - 1));
       } catch (error) {
-        console.error('Mark as read error:', error);
+        logger.error('Mark as read error:', error);
       }
     }
     // Co-maker request notifications open the requests screen
@@ -141,7 +142,7 @@ export default function NotificationsScreen({ navigation }) {
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('Mark all as read error:', error);
+      logger.error('Mark all as read error:', error);
     }
   };
 
@@ -158,7 +159,7 @@ export default function NotificationsScreen({ navigation }) {
             );
             setUnreadCount((prev) => Math.max(0, prev - 1));
           } catch (error) {
-            console.error('Mark as read error:', error);
+            logger.error('Mark as read error:', error);
           }
         },
       });
@@ -171,7 +172,7 @@ export default function NotificationsScreen({ navigation }) {
           setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
           if (!notification.is_read) setUnreadCount((prev) => Math.max(0, prev - 1));
         } catch (error) {
-          console.error('Archive notification error:', error);
+          logger.error('Archive notification error:', error);
         }
       },
     });
@@ -184,7 +185,7 @@ export default function NotificationsScreen({ navigation }) {
           setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
           if (!notification.is_read) setUnreadCount((prev) => Math.max(0, prev - 1));
         } catch (error) {
-          console.error('Delete notification error:', error);
+          logger.error('Delete notification error:', error);
         }
       },
     });

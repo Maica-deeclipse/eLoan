@@ -7,6 +7,7 @@ import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
 import apiService from './apiService';
+import logger from '../utils/logger';
 
 /**
  * Simple in-memory TTL cache for data that rarely changes (loan types, required documents).
@@ -193,7 +194,7 @@ class ApplicationService {
       );
       return response.data;
     } catch (error) {
-      console.error('[FaceCapture] Failed:', error?.message, '| status:', error?.response?.status);
+      logger.error('[FaceCapture] Failed:', error?.message, '| status:', error?.response?.status);
       throw error;
     }
   }
@@ -248,7 +249,7 @@ class ApplicationService {
       return response.data;
     } catch (error) {
       const isTimeout = error?.code === 'ECONNABORTED';
-      console.error('[LivenessVideo] Failed:', error?.message, '| timeout:', isTimeout, '| status:', error?.response?.status);
+      logger.error('[LivenessVideo] Failed:', error?.message, '| timeout:', isTimeout, '| status:', error?.response?.status);
       throw error;
     }
   }
@@ -307,11 +308,12 @@ class ApplicationService {
   /**
    * Search users for co-maker
    */
-  async searchUsers(query) {
+  async searchUsers(query, offset = 0, limit = 20) {
     const response = await apiService.get('/applicant/search-users/', {
-      params: { q: query },
+      params: { q: query, offset, limit },
     });
-    return response.data.users;
+    // Return full pagination envelope: { users, total, has_more, offset, limit }
+    return response.data;
   }
 
   /**

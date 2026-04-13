@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import authService from '../services/authService';
 import { setOnUnauthorized } from '../services/apiService';
+import logger from '../utils/logger';
 
 const AuthContext = createContext();
 
@@ -50,7 +51,7 @@ export function AuthProvider({ children }) {
         }
       }
     } catch (error) {
-      console.error('Auth check error:', error);
+      logger.error('Auth check error:', error);
       await logout();
     } finally {
       setLoading(false);
@@ -95,7 +96,7 @@ export function AuthProvider({ children }) {
     try {
       await authService.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout error:', error);
     } finally {
       setUser(null);
       setIsAuthenticated(false);

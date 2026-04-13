@@ -1,22 +1,49 @@
 """
 Google OAuth Authentication
 
-- GoogleAuthView: For applicants. Verifies Google tokens, creates/logs in buksu.edu.ph users.
-- StaffGoogleAuthView: For staff/admins. Verifies Google tokens, logs in existing staff accounts.
+- GoogleAuthView: For applicants. Verifies Google ID tokens, creates/logs in buksu.edu.ph users.
+- StaffGoogleAuthView: For staff/admins. Verifies Google ID tokens, logs in existing staff accounts.
 """
 
-import requests
 import secrets
 import string
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from django.conf import settings
+
 from users.models import User, Role
+from applicant.throttles import LoginRateThrottle
+from applicant.utils import get_client_ip
+import logging
+
+security_log = logging.getLogger('security')
 
 ALLOWED_EMAIL_DOMAIN = 'buksu.edu.ph'
+
+
+def _verify_google_id_token(token):
+    """
+    Cryptographically verify a Google ID token.
+
+    Checks: RSA signature, expiry, issuer (accounts.google.com),
+    and audience (must match GOOGLE_CLIENT_ID — i.e. our app).
+
+    Returns the decoded token payload dict on success,
+    or raises ValueError if verification fails.
+    """
+    return id_token.verify_oauth2_token(
+        token,
+        google_requests.Request(),
+        settings.GOOGLE_CLIENT_ID,
+        clock_skew_in_seconds=10,
+    )
 
 
 class GoogleAuthView(APIView):
@@ -27,44 +54,37 @@ class GoogleAuthView(APIView):
     Only buksu.edu.ph email addresses are allowed (verifies BukSU affiliation).
 
     Request body:
-        { "access_token": "<google_oauth_access_token>" }
+        { "id_token": "<google_oauth_id_token>" }
 
     Response:
         { "tokens": { "access": "...", "refresh": "..." }, "user": {...}, "is_new": bool }
     """
     permission_classes = []
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
-        access_token = request.data.get('access_token')
-        if not access_token:
+        token = request.data.get('id_token')
+        if not token:
             return Response(
-                {'error': 'access_token is required'},
+                {'error': 'id_token is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Verify token with Google and get user info
+        ip = get_client_ip(request)
         try:
-            google_response = requests.get(
-                'https://www.googleapis.com/oauth2/v3/userinfo',
-                headers={'Authorization': f'Bearer {access_token}'},
-                timeout=10
-            )
-            if google_response.status_code != 200:
-                return Response(
-                    {'error': 'Invalid or expired Google token. Please sign in again.'},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-            google_user = google_response.json()
-        except requests.RequestException:
+            id_info = _verify_google_id_token(token)
+        except ValueError:
+            security_log.warning(f"GOOGLE_TOKEN_INVALID ip={ip} view=GoogleAuthView")
             return Response(
-                {'error': 'Failed to verify Google token. Check your connection.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
+                {'error': 'Invalid or expired Google token. Please sign in again.'},
+                status=status.HTTP_401_UNAUTHORIZED
             )
 
-        email = google_user.get('email', '')
-        email_verified = google_user.get('email_verified', False)
+        email = id_info.get('email', '')
+        email_verified = id_info.get('email_verified', False)
 
         if not email_verified:
+            security_log.warning(f"GOOGLE_EMAIL_UNVERIFIED email={email} ip={ip}")
             return Response(
                 {'error': 'Google email is not verified.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -81,9 +101,9 @@ class GoogleAuthView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        firstname = google_user.get('given_name', '') or email.split('@')[0]
-        lastname = google_user.get('family_name', '') or ''
-        picture = google_user.get('picture', '')
+        firstname = id_info.get('given_name', '') or email.split('@')[0]
+        lastname = id_info.get('family_name', '') or ''
+        picture = id_info.get('picture', '')
 
         is_new = False
         try:
@@ -169,6 +189,7 @@ class GoogleAuthView(APIView):
             )
 
         # Active user — generate JWT tokens and log in
+        security_log.info(f"LOGIN_SUCCESS email={user.email} role=Applicant method=google ip={ip}")
         refresh = RefreshToken.for_user(user)
 
         return Response(
@@ -202,45 +223,38 @@ class StaffGoogleAuthView(APIView):
     that matches their registered email.
 
     Request body:
-        { "access_token": "<google_oauth_access_token>" }
+        { "id_token": "<google_oauth_id_token>" }
 
     Response:
         { "tokens": { "access": "...", "refresh": "..." }, "user": {...} }
     """
     permission_classes = []
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
-        access_token = request.data.get('access_token')
-        if not access_token:
+        token = request.data.get('id_token')
+        if not token:
             return Response(
-                {'error': 'access_token is required'},
+                {'error': 'id_token is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Verify token with Google and get user info
+        ip = get_client_ip(request)
         try:
-            google_response = requests.get(
-                'https://www.googleapis.com/oauth2/v3/userinfo',
-                headers={'Authorization': f'Bearer {access_token}'},
-                timeout=10
-            )
-            if google_response.status_code != 200:
-                return Response(
-                    {'error': 'Invalid or expired Google token. Please sign in again.'},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-            google_user = google_response.json()
-        except requests.RequestException:
+            id_info = _verify_google_id_token(token)
+        except ValueError:
+            security_log.warning(f"GOOGLE_TOKEN_INVALID ip={ip} view=StaffGoogleAuthView")
             return Response(
-                {'error': 'Failed to verify Google token. Check your connection.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
+                {'error': 'Invalid or expired Google token. Please sign in again.'},
+                status=status.HTTP_401_UNAUTHORIZED
             )
 
-        email = google_user.get('email', '')
-        email_verified = google_user.get('email_verified', False)
-        picture = google_user.get('picture', '')
+        email = id_info.get('email', '')
+        email_verified = id_info.get('email_verified', False)
+        picture = id_info.get('picture', '')
 
         if not email_verified:
+            security_log.warning(f"GOOGLE_EMAIL_UNVERIFIED email={email} ip={ip}")
             return Response(
                 {'error': 'Google email is not verified.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -306,6 +320,10 @@ class StaffGoogleAuthView(APIView):
             )
 
         # Generate JWT tokens and log in
+        security_log.info(
+            f"LOGIN_SUCCESS email={user.email} role={user.role.name if user.role else 'unknown'} "
+            f"method=google ip={get_client_ip(request)}"
+        )
         refresh = RefreshToken.for_user(user)
 
         return Response(

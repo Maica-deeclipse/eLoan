@@ -29,15 +29,32 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
 
+# Google OAuth — Web Client ID used to verify the `aud` claim in ID tokens
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '10.0.0.23',
-    '10.0.0.52',
-]
+# HTTPS / cookie security — set these to True in production via .env
+# Safe to leave False in development (HTTP); enforced when behind TLS in production
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
+SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=0, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=False, cast=bool)
+SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=False, cast=bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=False, cast=bool)
+
+# Security headers set by Django's SecurityMiddleware
+SECURE_CONTENT_TYPE_NOSNIFF = True        # X-Content-Type-Options: nosniff
+SECURE_BROWSER_XSS_FILTER = True          # X-XSS-Protection: 1; mode=block (legacy, harmless)
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'  # Referrer-Policy
+X_FRAME_OPTIONS = 'DENY'                  # Reinforces XFrameOptionsMiddleware
+
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='localhost,127.0.0.1',
+    cast=lambda v: [h.strip() for h in v.split(',') if h.strip()],
+)
 
 
 # Application definition
@@ -154,11 +171,28 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'EXCEPTION_HANDLER': 'eloan_core.exceptions.eloan_exception_handler',
+    'DEFAULT_THROTTLE_RATES': {
+        # Auth endpoints (anonymous / pre-login)
+        'login': '5/min',
+        'registration': '10/hour',
+        'password_reset': '5/hour',
+        # Applicant API endpoints (authenticated)
+        'face_verification': '20/hour',
+        'liveness_check': '20/hour',
+        'document_upload': '10/hour',
+        'id_ocr': '5/hour',
+        'burst': '30/min',
+        'sustained': '100/hour',
+        # Anonymous general
+        'anon_burst': '10/min',
+        'anon_sustained': '30/hour',
+    },
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
@@ -234,10 +268,70 @@ CACHES = {
     }
 }
 
+# Cache TTLs (seconds) — override via environment variables if needed.
+CACHE_TTL_LOAN_TYPES     = config('CACHE_TTL_LOAN_TYPES',     default=300,  cast=int)  # 5 min
+CACHE_TTL_REQUIRED_DOCS  = config('CACHE_TTL_REQUIRED_DOCS',  default=600,  cast=int)  # 10 min
+CACHE_TTL_NOTIFICATIONS  = config('CACHE_TTL_NOTIFICATIONS',  default=60,   cast=int)  # 1 min
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Logging — security events written to logs/security.log (rotating, 10 MB × 5 files)
+_LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(_LOGS_DIR, exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} {levelname} [{name}] {message}',
+            'style': '{',
+        },
+        'security': {
+            'format': '{asctime} SECURITY {levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'security_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(_LOGS_DIR, 'security.log'),
+            'maxBytes': 10 * 1024 * 1024,   # 10 MB per file
+            'backupCount': 5,                # keep last 5 rotations
+            'formatter': 'security',
+            'encoding': 'utf-8',
+        },
+    },
+    'loggers': {
+        'security': {
+            'handlers': ['console', 'security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'encryption': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'face_verification': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
 
 # Email Configuration
 # For development: emails will be printed to console
@@ -262,15 +356,11 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
 # CORS Configuration
 # Allow requests from the frontend application and mobile app
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://10.0.0.23:3000',
-    'http://localhost:8081',
-    'http://10.0.0.23:8081',
-    'http://localhost:19000',
-    'http://localhost:19006',
-]
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost:3000,http://127.0.0.1:3000,http://localhost:8081,http://localhost:19000,http://localhost:19006',
+    cast=lambda v: [o.strip() for o in v.split(',') if o.strip()],
+)
 CORS_ALLOW_CREDENTIALS = True
 
 # Django Unfold Admin Configuration
@@ -469,3 +559,27 @@ UNFOLD = {
         },
     ],
 }
+
+# ---------------------------------------------------------------------------
+# Startup environment variable validation
+# ---------------------------------------------------------------------------
+# Fail fast with a clear message if any critical variable is missing or empty.
+# python-decouple already raises UndefinedValueError for vars with no default,
+# but this catches empty-string assignments (e.g. SECRET_KEY=) and lists all
+# missing vars in one error instead of failing one at a time.
+# ---------------------------------------------------------------------------
+from django.core.exceptions import ImproperlyConfigured  # noqa: E402
+
+_REQUIRED_VARS = {
+    'SECRET_KEY': SECRET_KEY,
+    'GOOGLE_CLIENT_ID': GOOGLE_CLIENT_ID,
+    'ENCRYPTION_KEY': ENCRYPTION_KEY,
+}
+
+_missing = [name for name, val in _REQUIRED_VARS.items() if not val]
+if _missing:
+    raise ImproperlyConfigured(
+        '\n\nThe following required environment variables are not set or are empty:\n'
+        + '\n'.join(f'  - {name}' for name in _missing)
+        + '\n\nSet them in your .env file. See backend/.env.example for reference.'
+    )

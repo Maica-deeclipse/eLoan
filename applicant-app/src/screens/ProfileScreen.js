@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import profileService from '../services/profileService';
+import logger from '../utils/logger';
 
 const EMP_STATUS_LABELS = {
   regular: 'Regular',
@@ -90,7 +91,7 @@ export default function ProfileScreen({ navigation }) {
       setPosition(profileData.profile.position || '');
       setEmpStatusRequest(empReqData);
     } catch (error) {
-      console.error('Load profile error:', error);
+      logger.error('Load profile error:', error);
     } finally {
       setLoading(false);
     }
@@ -110,7 +111,7 @@ export default function ProfileScreen({ navigation }) {
       setIsEditing(false);
       loadProfile();
     } catch (error) {
-      console.error('Save profile error:', error);
+      logger.error('Save profile error:', error);
       Alert.alert('Error', 'Failed to update profile');
     } finally {
       setSaving(false);

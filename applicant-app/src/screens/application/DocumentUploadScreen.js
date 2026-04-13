@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
+import logger from '../../utils/logger';
 
 // Fallback used while the API call is in flight
 const FALLBACK_DOCUMENTS = [
@@ -64,7 +65,7 @@ const DocumentUploadScreen = ({ navigation }) => {
         setRequiredDocs(normalized);
       }
     } catch (error) {
-      console.error('Load required documents error:', error);
+      logger.error('Load required documents error:', error);
       // Keep fallback list on error
     } finally {
       setLoading(false);
@@ -100,7 +101,7 @@ const DocumentUploadScreen = ({ navigation }) => {
         dispatch({ type: 'SET_DOCUMENTS', payload: docsMap });
       }
     } catch (error) {
-      console.error('Load documents error:', error);
+      logger.error('Load documents error:', error);
     }
   };
 
@@ -131,7 +132,7 @@ const DocumentUploadScreen = ({ navigation }) => {
         await uploadDocument(documentKey, result.assets[0]);
       }
     } catch (error) {
-      console.error('Image picker error:', error);
+      logger.error('Image picker error:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
   };
@@ -153,7 +154,7 @@ const DocumentUploadScreen = ({ navigation }) => {
         await uploadDocument(documentKey, result.assets[0]);
       }
     } catch (error) {
-      console.error('Camera error:', error);
+      logger.error('Camera error:', error);
       Alert.alert('Error', 'Failed to take photo');
     }
   };
@@ -169,7 +170,7 @@ const DocumentUploadScreen = ({ navigation }) => {
         await uploadDocument(documentKey, result.assets[0]);
       }
     } catch (error) {
-      console.error('Document picker error:', error);
+      logger.error('Document picker error:', error);
       Alert.alert('Error', 'Failed to pick document');
     }
   };
@@ -208,7 +209,7 @@ const DocumentUploadScreen = ({ navigation }) => {
       dispatch({ type: 'SET_DOCUMENTS', payload: updatedDocs });
       Alert.alert('Success', 'Document uploaded successfully');
     } catch (error) {
-      console.error('Upload error:', error);
+      logger.error('Upload error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Failed to upload document');
     } finally {
       setUploading(null);
@@ -245,7 +246,7 @@ const DocumentUploadScreen = ({ navigation }) => {
             setDocuments(updatedDocs);
             dispatch({ type: 'SET_DOCUMENTS', payload: updatedDocs });
           } catch (error) {
-            console.error('Delete error:', error);
+            logger.error('Delete error:', error);
             Alert.alert('Error', 'Failed to remove document');
           }
         },

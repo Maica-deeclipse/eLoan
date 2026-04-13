@@ -370,10 +370,21 @@ class LoanApplicationService:
             return False, "Cannot modify this application at its current status."
 
         if step_number == 3:
-            # Update loan details
-            amount = Decimal(str(data.get('amount_requested', 0)))
-            term = int(data.get('term_months', 1))
-            purpose = data.get('purpose', '')
+            # Parse and validate input types before business logic
+            try:
+                amount = Decimal(str(data.get('amount_requested', '')))
+            except Exception:
+                return False, "amount_requested must be a valid number."
+            try:
+                term = int(data.get('term_months', ''))
+            except (ValueError, TypeError):
+                return False, "term_months must be a valid integer."
+
+            purpose = str(data.get('purpose', '')).strip()
+            if not purpose:
+                return False, "Purpose is required."
+            if len(purpose) > 500:
+                return False, "Purpose must not exceed 500 characters."
 
             # Validate amount against loan type limits
             is_valid, error = validate_loan_amount(amount, application.loan_type)
@@ -886,12 +897,17 @@ class CoMakerService:
     """Service for co-maker management."""
 
     @staticmethod
-    def search_registered_users(search_term, exclude_user_id):
+    def search_registered_users(search_term, exclude_user_id, limit=20, offset=0):
         """
         Search for registered users to add as co-makers.
         Only returns active applicants.
+
+        Returns a dict: { users, total, has_more }
         """
-        users = User.objects.filter(
+        limit = min(int(limit), 50)   # cap at 50 per page
+        offset = max(int(offset), 0)
+
+        qs = User.objects.filter(
             role__name='Applicant',
             is_active=True,
             status='active',
@@ -899,13 +915,19 @@ class CoMakerService:
         ).exclude(pk=exclude_user_id)
 
         if search_term:
-            users = users.filter(
+            qs = qs.filter(
                 Q(email__icontains=search_term) |
                 Q(firstname__icontains=search_term) |
                 Q(lastname__icontains=search_term)
             )
 
-        return users[:20]  # Limit results
+        total = qs.count()
+        page = qs[offset: offset + limit]
+        return {
+            'users': list(page),
+            'total': total,
+            'has_more': (offset + limit) < total,
+        }
 
     @staticmethod
     def add_comaker(application, comaker_user_id, comaker_info_data, user):

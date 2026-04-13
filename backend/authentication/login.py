@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -5,6 +7,10 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from users.models import User
+from applicant.throttles import LoginRateThrottle
+from applicant.utils import get_client_ip
+
+security_log = logging.getLogger('security')
 
 
 class StaffLoginSerializer(serializers.Serializer):
@@ -94,16 +100,18 @@ class StaffLoginView(APIView):
     - Credit Committee
     - Super Administrator
     """
-    permission_classes = []  # No authentication required
+    permission_classes = []
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         serializer = StaffLoginSerializer(data=request.data)
+        ip = get_client_ip(request)
 
         if serializer.is_valid():
             user = serializer.validated_data['user']
             role = serializer.validated_data['role']
+            security_log.info(f"LOGIN_SUCCESS email={user.email} role={role} ip={ip}")
 
-            # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
 
             return Response({
@@ -122,6 +130,8 @@ class StaffLoginView(APIView):
                 }
             }, status=status.HTTP_200_OK)
 
+        email = request.data.get('email', 'unknown')
+        security_log.warning(f"LOGIN_FAILED email={email} ip={ip}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -134,10 +144,12 @@ class SuperAdminLoginView(APIView):
     Always returns role as 'Super Administrator'.
     """
     permission_classes = []
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         email = request.data.get('email', '').strip()
         password = request.data.get('password', '')
+        ip = get_client_ip(request)
 
         if not email or not password:
             return Response(
@@ -148,6 +160,7 @@ class SuperAdminLoginView(APIView):
         user = authenticate(username=email, password=password)
 
         if not user:
+            security_log.warning(f"LOGIN_FAILED email={email} role=SuperAdmin ip={ip}")
             return Response(
                 {'error': 'Invalid credentials.'},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -165,6 +178,7 @@ class SuperAdminLoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        security_log.info(f"LOGIN_SUCCESS email={user.email} role=SuperAdmin ip={ip}")
         refresh = RefreshToken.for_user(user)
 
         return Response({
@@ -237,15 +251,17 @@ class ApplicantLoginView(APIView):
     Validates that only users with 'Applicant' role can log in.
     Does not require role parameter (auto-validates against Applicant role).
     """
-    permission_classes = []  # No authentication required
+    permission_classes = []
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         serializer = ApplicantLoginSerializer(data=request.data)
+        ip = get_client_ip(request)
 
         if serializer.is_valid():
             user = serializer.validated_data['user']
+            security_log.info(f"LOGIN_SUCCESS email={user.email} role=Applicant ip={ip}")
 
-            # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
 
             return Response({
@@ -264,4 +280,6 @@ class ApplicantLoginView(APIView):
                 }
             }, status=status.HTTP_200_OK)
 
+        email = request.data.get('email', 'unknown')
+        security_log.warning(f"LOGIN_FAILED email={email} role=Applicant ip={ip}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -15,6 +15,7 @@ import { useApplication } from '../../context/ApplicationContext';
 import applicationService from '../../services/applicationService';
 import { clearLoanTypeDraft } from '../../utils/applicationDraftStorage';
 import { getLoanTypeConfig, hasExtraStep } from '../../config/loanTypeConfig';
+import logger from '../../utils/logger';
 
 const REQUIRED_DOCUMENT_KEYS = ['proof_of_income', 'membership_certificate'];
 
@@ -76,7 +77,7 @@ const ReviewSubmitScreen = ({ navigation }) => {
       const response = await applicationService.getApplication(state.applicationId);
       setApplicationData(response);
     } catch (error) {
-      console.error('Fetch error:', error);
+      logger.error('Fetch error:', error);
       Alert.alert('Error', 'Failed to load application details');
     } finally {
       setLoading(false);
@@ -139,7 +140,7 @@ const ReviewSubmitScreen = ({ navigation }) => {
                 ]
               );
             } catch (error) {
-              console.error('Submit error:', error);
+              logger.error('Submit error:', error);
 
               // Handle validation errors from backend
               let errorMessage = 'Failed to submit application. Please try again.';

@@ -13,6 +13,41 @@ Rates are configurable via settings.
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 
 
+# =============================================================================
+# Authentication throttles (applied to public/unauthenticated auth endpoints)
+# =============================================================================
+
+class LoginRateThrottle(AnonRateThrottle):
+    """
+    5 login attempts per minute per IP.
+    Prevents brute-force password and credential-stuffing attacks.
+    """
+    rate = '5/min'
+    scope = 'login'
+
+
+class RegistrationRateThrottle(AnonRateThrottle):
+    """
+    10 registration attempts per hour per IP.
+    Prevents account spam and enumeration via registration endpoint.
+    """
+    rate = '10/hour'
+    scope = 'registration'
+
+
+class PasswordResetThrottle(AnonRateThrottle):
+    """
+    5 password-reset requests per hour per IP.
+    Prevents email flooding and reset-link enumeration.
+    """
+    rate = '5/hour'
+    scope = 'password_reset'
+
+
+# =============================================================================
+# Applicant API throttles
+# =============================================================================
+
 class FaceVerificationThrottle(UserRateThrottle):
     """
     Rate limit for face verification endpoints.

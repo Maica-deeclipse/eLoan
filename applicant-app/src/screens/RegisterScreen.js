@@ -28,7 +28,7 @@ export default function RegisterScreen({ navigation }) {
 
   useEffect(() => {
     if (response?.type === 'success') {
-      handleGoogleToken(response.params.access_token);
+      handleGoogleToken(response.params.id_token);
     } else if (response?.type === 'error' || response?.type === 'dismiss') {
       setLoading(false);
       if (response?.type === 'error')

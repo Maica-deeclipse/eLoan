@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -8,6 +10,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import serializers
 from users.models import User
+from applicant.throttles import PasswordResetThrottle
+from applicant.utils import get_client_ip
+
+security_log = logging.getLogger('security')
 
 
 class PasswordResetTokenSerializer(serializers.Serializer):
@@ -62,14 +68,17 @@ class SetPasswordView(APIView):
 
     def post(self, request):
         serializer = PasswordResetTokenSerializer(data=request.data)
+        ip = get_client_ip(request)
 
         if serializer.is_valid():
             user = serializer.save()
+            security_log.info(f"PASSWORD_SET_SUCCESS email={user.email} ip={ip}")
             return Response({
                 'message': 'Password set successfully. You can now log in.',
                 'email': user.email
             }, status=status.HTTP_200_OK)
 
+        security_log.warning(f"PASSWORD_SET_FAILED ip={ip}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -138,10 +147,12 @@ class ForgotPasswordView(APIView):
     API endpoint for requesting a password reset link.
     Used when staff members click "Forgot Password?" on the login page.
     """
-    permission_classes = []  # No authentication required
+    permission_classes = []
+    throttle_classes = [PasswordResetThrottle]
 
     def post(self, request):
         email = request.data.get('email')
+        ip = get_client_ip(request)
 
         if not email:
             return Response({
@@ -191,11 +202,13 @@ eLoan Admin Team
                         fail_silently=False,
                     )
 
+                    security_log.info(f"PASSWORD_RESET_SENT email={user.email} ip={ip}")
                     return Response({
                         'message': 'Password reset link has been sent to your email.'
                     }, status=status.HTTP_200_OK)
 
                 except Exception as e:
+                    security_log.error(f"PASSWORD_RESET_EMAIL_FAILED email={user.email} ip={ip}")
                     return Response({
                         'error': 'Failed to send email. Please try again later.'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

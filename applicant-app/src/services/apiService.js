@@ -6,6 +6,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../config/api.config';
+import logger from '../utils/logger';
 
 /** Called when session is invalid (401 + refresh failed). AuthProvider uses this to logout. */
 let onUnauthorized = null;
@@ -51,7 +52,7 @@ apiService.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      console.error('Error getting token:', error);
+      logger.error('Error getting token:', error);
     }
     return config;
   },

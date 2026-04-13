@@ -12,6 +12,52 @@ import os
 import uuid
 from django.conf import settings
 
+# ---------------------------------------------------------------------------
+# File type validation via magic bytes
+# ---------------------------------------------------------------------------
+
+# Maps leading magic bytes → MIME type.
+# Checked in order — longer/more specific patterns first.
+_MAGIC_SIGNATURES = [
+    (b'\x89PNG\r\n\x1a\n', 'image/png'),
+    (b'\xff\xd8\xff',       'image/jpeg'),
+    (b'%PDF',               'application/pdf'),
+]
+
+ALLOWED_DOCUMENT_TYPES = frozenset({'image/jpeg', 'image/png', 'application/pdf'})
+ALLOWED_IMAGE_TYPES    = frozenset({'image/jpeg', 'image/png'})
+
+
+def detect_file_mime(file) -> str | None:
+    """
+    Detect the real MIME type of an uploaded file by reading its magic bytes.
+    Resets the file pointer to 0 afterwards so the file can still be read normally.
+
+    Returns the detected MIME string, or None if the type is unrecognised.
+    """
+    header = file.read(8)
+    file.seek(0)
+    for magic, mime in _MAGIC_SIGNATURES:
+        if header.startswith(magic):
+            return mime
+    return None
+
+
+def validate_file_type(file, allowed_types: frozenset) -> tuple[bool, str]:
+    """
+    Validate that the uploaded file's actual type (by magic bytes) is in allowed_types.
+
+    Returns (is_valid, error_message).  error_message is '' on success.
+    """
+    detected = detect_file_mime(file)
+    if detected is None:
+        return False, 'Unsupported file type. Only PDF, JPEG, and PNG files are accepted.'
+    if detected not in allowed_types:
+        labels = {'image/jpeg': 'JPEG', 'image/png': 'PNG', 'application/pdf': 'PDF'}
+        allowed_label = ', '.join(labels.get(t, t) for t in sorted(allowed_types))
+        return False, f'Invalid file type. Accepted formats: {allowed_label}.'
+    return True, ''
+
 
 def calculate_monthly_amortization(principal, annual_interest_rate, term_months):
     """

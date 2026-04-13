@@ -1,12 +1,20 @@
 import secrets
 import string
-import requests
+import logging
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 from rest_framework import serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.conf import settings
 from users.models import User, Role, Applicant, AdminUser
+from applicant.throttles import RegistrationRateThrottle, LoginRateThrottle
+from applicant.utils import get_client_ip
+
+security_log = logging.getLogger('security')
 
 STAFF_ROLES = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Officer']
 
@@ -23,6 +31,22 @@ class StaffRegistrationSerializer(serializers.Serializer):
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError('An account with this email already exists.')
+        return value
+
+    def validate_password(self, value):
+        errors = []
+        if not any(c.isupper() for c in value):
+            errors.append('one uppercase letter')
+        if not any(c.islower() for c in value):
+            errors.append('one lowercase letter')
+        if not any(c.isdigit() for c in value):
+            errors.append('one number')
+        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?/' for c in value):
+            errors.append('one special character (!@#$%^&* etc.)')
+        if errors:
+            raise serializers.ValidationError(
+                f'Password must contain at least: {", ".join(errors)}.'
+            )
         return value
 
     def create(self, validated_data):
@@ -52,11 +76,14 @@ class StaffRegistrationView(APIView):
     Creates account with 'pending' status — requires Super Admin approval to login.
     """
     permission_classes = []
+    throttle_classes = [RegistrationRateThrottle]
 
     def post(self, request):
         serializer = StaffRegistrationSerializer(data=request.data)
+        ip = get_client_ip(request)
         if serializer.is_valid():
             admin_user = serializer.save()
+            security_log.info(f"REGISTRATION_SUCCESS email={admin_user.email} role={admin_user.role.name} method=password ip={ip}")
             return Response({
                 'message': 'Registration submitted. Your account is pending Super Admin approval.',
                 'user': {
@@ -68,6 +95,7 @@ class StaffRegistrationView(APIView):
                     'account_status': admin_user.account_status,
                 }
             }, status=status.HTTP_201_CREATED)
+        security_log.warning(f"REGISTRATION_FAILED email={request.data.get('email', 'unknown')} ip={ip}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -80,17 +108,18 @@ class StaffGoogleRegistrationView(APIView):
     pending staff account. Employee ID and role must still be provided.
 
     Request body:
-        { "access_token": "...", "role": "Bookkeeper", "employee_id": "EMP-001" }
+        { "id_token": "...", "role": "Bookkeeper", "employee_id": "EMP-001" }
     """
     permission_classes = []
+    throttle_classes = [RegistrationRateThrottle]
 
     def post(self, request):
-        access_token = request.data.get('access_token')
+        token = request.data.get('id_token')
         role_name = request.data.get('role', '').strip()
         employee_id = request.data.get('employee_id', '').strip()
 
-        if not access_token:
-            return Response({'error': 'access_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not token:
+            return Response({'error': 'id_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
         if not role_name:
             return Response({'error': 'role is required.'}, status=status.HTTP_400_BAD_REQUEST)
         if not employee_id:
@@ -98,32 +127,32 @@ class StaffGoogleRegistrationView(APIView):
         if role_name not in STAFF_ROLES:
             return Response({'error': f'Invalid role. Must be one of: {", ".join(STAFF_ROLES)}.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify token and get user info from Google
-        try:
-            google_response = requests.get(
-                'https://www.googleapis.com/oauth2/v3/userinfo',
-                headers={'Authorization': f'Bearer {access_token}'},
-                timeout=10
-            )
-            if google_response.status_code != 200:
-                return Response({'error': 'Invalid or expired Google token.'}, status=status.HTTP_401_UNAUTHORIZED)
-            google_user = google_response.json()
-        except requests.RequestException:
-            return Response({'error': 'Failed to verify Google token. Check your connection.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        ip = get_client_ip(request)
 
-        email = google_user.get('email', '').lower().strip()
-        email_verified = google_user.get('email_verified', False)
+        # Cryptographically verify the Google ID token (signature, expiry, audience)
+        try:
+            id_info = id_token.verify_oauth2_token(
+                token,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=10,
+            )
+        except ValueError:
+            security_log.warning(f"GOOGLE_TOKEN_INVALID ip={ip} view=StaffGoogleRegistrationView")
+            return Response({'error': 'Invalid or expired Google token.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        email = id_info.get('email', '').lower().strip()
+        email_verified = id_info.get('email_verified', False)
 
         if not email_verified:
             return Response({'error': 'Google email is not verified.'}, status=status.HTTP_403_FORBIDDEN)
         if not email:
             return Response({'error': 'Could not retrieve email from Google account.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        existing = User.objects.select_related('role').filter(email=email).first()
+        existing = User.objects.filter(email=email).first()
         if existing:
-            role_info = f" as '{existing.role.name}'" if existing.role else ""
             return Response(
-                {'error': f"An account with this email already exists{role_info}. Please log in instead."},
+                {'error': 'An account with this email already exists. Please log in instead.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -138,8 +167,8 @@ class StaffGoogleRegistrationView(APIView):
         except Role.DoesNotExist:
             return Response({'error': f'Role "{role_name}" not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        firstname = google_user.get('given_name', '') or email.split('@')[0]
-        lastname = google_user.get('family_name', '') or ''
+        firstname = id_info.get('given_name', '') or email.split('@')[0]
+        lastname = id_info.get('family_name', '') or ''
 
         # Generate secure random password — user authenticates via Google, not password
         random_password = ''.join(
@@ -164,6 +193,7 @@ class StaffGoogleRegistrationView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+        security_log.info(f"REGISTRATION_SUCCESS email={user.email} role={user.role.name} method=google ip={ip}")
         return Response({
             'message': 'Registration submitted. Your account is pending Super Admin approval.',
             'user': {
@@ -239,14 +269,17 @@ class ApplicantRegistrationView(APIView):
     Creates account with 'pending' status — AMO reviews and approves/rejects.
     """
     permission_classes = []
+    throttle_classes = [RegistrationRateThrottle]
 
     def post(self, request):
         import json
         from decimal import Decimal
         from applicant.models import ApplicantBeneficiary
 
+        ip = get_client_ip(request)
         serializer = ApplicantRegistrationSerializer(data=request.data)
         if not serializer.is_valid():
+            security_log.warning(f"REGISTRATION_FAILED email={request.data.get('email', 'unknown')} role=Applicant ip={ip}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         applicant = serializer.save()
@@ -325,6 +358,7 @@ class ApplicantRegistrationView(APIView):
         except (json.JSONDecodeError, Exception):
             pass
 
+        security_log.info(f"REGISTRATION_SUCCESS email={applicant.email} role=Applicant ip={ip}")
         return Response({
             'message': 'Registration successful. Your account is pending approval by the Account Member Officer.',
             'user': {

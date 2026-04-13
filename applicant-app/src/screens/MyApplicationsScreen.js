@@ -22,6 +22,7 @@ const { width: W } = Dimensions.get('window');
 import { SafeAreaView } from 'react-native-safe-area-context';
 import applicationService from '../services/applicationService';
 import { clearLoanTypeDraft } from '../utils/applicationDraftStorage';
+import logger from '../utils/logger';
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const PRIMARY   = '#0f1c52';
@@ -213,7 +214,7 @@ export default function MyApplicationsScreen({ navigation }) {
       const data = await applicationService.getApplications();
       setApplications(data);
     } catch (error) {
-      console.error('Load applications error:', error);
+      logger.error('Load applications error:', error);
       Alert.alert('Error', 'Failed to load applications');
     } finally {
       setLoading(false);

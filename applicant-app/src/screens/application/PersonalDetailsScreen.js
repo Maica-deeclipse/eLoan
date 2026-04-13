@@ -21,6 +21,7 @@ import { useApplication } from '../../context/ApplicationContext';
 import profileService from '../../services/profileService';
 import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraftStorage';
 import DropdownPicker from '../../components/DropdownPicker';
+import logger from '../../utils/logger';
 
 const EMPLOYMENT_STATUS_OPTIONS = [
   { label: 'Permanent', value: 'permanent' },
@@ -70,7 +71,7 @@ export default function PersonalDetailsScreen({ navigation }) {
           employerName, position, monthlyIncome,
           employmentStatus, civilStatus, tin, dateOfBirth,
         },
-      });
+      }).catch(e => logger.error('Draft autosave failed:', e));
     }, 350);
     return () => clearTimeout(timer);
   }, [
@@ -120,7 +121,7 @@ export default function PersonalDetailsScreen({ navigation }) {
         setDateOfBirth(local.dateOfBirth         ?? data.date_of_birth     ?? '');
       }
     } catch (error) {
-      console.error('Load autofill error:', error);
+      logger.error('Load autofill error:', error);
     } finally {
       setLoading(false);
     }
@@ -190,7 +191,7 @@ export default function PersonalDetailsScreen({ navigation }) {
 
       navigation.navigate('LoanDetails');
     } catch (error) {
-      console.error('Save profile error:', error);
+      logger.error('Save profile error:', error);
       Alert.alert('Error', 'Failed to save personal details');
     } finally {
       setSaving(false);

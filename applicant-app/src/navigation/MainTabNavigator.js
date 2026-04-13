@@ -15,6 +15,7 @@ import ProfileScreen         from '../screens/ProfileScreen';
 
 // Services
 import notificationService from '../services/notificationService';
+import logger from '../utils/logger';
 
 const Tab = createBottomTabNavigator();
 
@@ -59,7 +60,7 @@ export default function MainTabNavigator({ navigation }) {
       const count = await notificationService.getUnreadCount();
       setUnreadCount(count);
     } catch (error) {
-      console.error('Error loading unread count:', error);
+      logger.error('Error loading unread count:', error);
     }
   };
 

@@ -26,6 +26,7 @@ python-dotenv>=1.0.0  # Alternative for loading .env files
 
 # Security & Encryption
 cryptography>=42.0.0  # File encryption at rest using Fernet (AES-128)
+google-auth>=2.28.0   # Cryptographic verification of Google ID tokens (audience + signature check)
 
 # Face Recognition & Computer Vision
 opencv-python>=4.9.0  # OpenCV for face detection using Haar Cascades

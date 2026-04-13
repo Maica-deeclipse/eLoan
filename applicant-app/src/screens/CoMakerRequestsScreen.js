@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import applicationService from '../services/applicationService';
+import logger from '../utils/logger';
 
 // ── Design tokens (match rest of app) ────────────────────────────────────────
 const PRIMARY   = '#0f1c52';
@@ -213,7 +214,7 @@ export default function CoMakerRequestsScreen({ navigation }) {
       const data = await applicationService.getCoMakerRequests();
       setRequests(data);
     } catch (err) {
-      console.error('CoMakerRequestsScreen load error:', err);
+      logger.error('CoMakerRequestsScreen load error:', err);
       Alert.alert('Error', 'Failed to load co-maker requests.');
     } finally {
       setLoading(false);
@@ -256,7 +257,7 @@ export default function CoMakerRequestsScreen({ navigation }) {
           : `You have rejected the co-maker request from ${selected.applicant_name}. They have been notified.`
       );
     } catch (err) {
-      console.error('Respond error:', err);
+      logger.error('Respond error:', err);
       Alert.alert('Error', err.response?.data?.error || 'Failed to respond to request.');
       setResponding(null);
     }

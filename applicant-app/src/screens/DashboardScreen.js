@@ -22,6 +22,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import dashboardService from '../services/dashboardService';
+import logger from '../utils/logger';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -139,7 +140,7 @@ export default function DashboardScreen({ navigation }) {
       setNotifs(dashData.notifications || []);
       setCanApply(canApplyRes);
     } catch (err) {
-      console.error('Dashboard error:', err);
+      logger.error('Dashboard error:', err);
       if (err.response?.status === 401) await logout();
     } finally {
       setLoading(false);

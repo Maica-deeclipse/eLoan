@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import applicationService from '../services/applicationService';
 import { clearLoanTypeDraft } from '../utils/applicationDraftStorage';
+import logger from '../utils/logger';
 
 const getStatusColor = (status) => {
   const colors = {
@@ -70,7 +71,7 @@ export default function ApplicationDetailScreen({ route, navigation }) {
       const data = await applicationService.getApplication(id);
       setApplication(data);
     } catch (error) {
-      console.error('Load application error:', error);
+      logger.error('Load application error:', error);
       Alert.alert('Error', 'Failed to load application details');
       navigation.goBack();
     } finally {

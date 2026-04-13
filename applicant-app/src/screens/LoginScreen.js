@@ -42,8 +42,8 @@ export default function LoginScreen({ navigation }) {
 
   useEffect(() => {
     if (response?.type === 'success') {
-      const { access_token } = response.params;
-      handleGoogleToken(access_token);
+      const { id_token } = response.params;
+      handleGoogleToken(id_token);
     } else if (response?.type === 'error') {
       setGoogleLoading(false);
       setError('Google sign-in was cancelled or failed.');
