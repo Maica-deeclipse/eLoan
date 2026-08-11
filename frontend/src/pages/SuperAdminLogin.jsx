@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
+import ReCAPTCHA from 'react-google-recaptcha';
 import authService from '../services/auth.service';
 import PasswordInput from '../components/PasswordInput';
 import logoblue from '../assets/logoblue.png';
@@ -12,15 +13,19 @@ export default function SuperAdminLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const captchaRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    const captchaToken = captchaRef.current?.getValue() || '';
+    if (!captchaToken) { setError('Please complete the CAPTCHA verification.'); return; }
     setLoading(true);
     try {
-      await authService.superAdminLogin(email, password);
+      await authService.superAdminLogin(email, password, captchaToken);
       navigate('/superadmin/dashboard');
     } catch (err) {
+      captchaRef.current?.reset();
       setError(err.response?.data?.error || 'Invalid credentials.');
     } finally {
       setLoading(false);
@@ -106,6 +111,13 @@ export default function SuperAdminLogin() {
                 required
                 disabled={loading || googleLoading}
                 style={styles.input}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
+              <ReCAPTCHA
+                ref={captchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'}
               />
             </div>
 

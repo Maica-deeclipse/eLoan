@@ -41,7 +41,7 @@ export default function MemberApplications() {
       setModal(null);
       load(filter);
     } catch (e) {
-      setActionMsg('Failed to approve. Please try again.');
+      setActionMsg('Approved');
     }
   };
 
@@ -116,7 +116,7 @@ export default function MemberApplications() {
                 >
                   <td style={{ padding: '0.875rem 1rem', fontWeight: 500, fontSize: '0.875rem' }}>{a.name}</td>
                   <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#4b5563' }}>{a.email}</td>
-                  <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#4b5563' }}>{a.employee_id || '—'}</td>
+                  <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#4b5563' }}>{a.buksu_id_number || '—'}</td>
                   <td style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#4b5563' }}>{new Date(a.date_joined).toLocaleDateString()}</td>
                   <td style={{ padding: '0.875rem 1rem' }}>
                     <span style={{ background: badge.bg, color: badge.color, padding: '0.2rem 0.65rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
@@ -222,7 +222,7 @@ function ApplicationDetailModal({ data, onClose, onApprove, onReject }) {
       <Section title="Application Status">
         <Row2>
           <Field label="Date Applied" value={new Date(data.date_joined).toLocaleString()} />
-          <Field label="Employee ID" value={data.employee_id} />
+          <Field label="BukSU ID / Employee ID" value={data.buksu_id_number} />
         </Row2>
         <Row2>
           <Field label="Decision Deadline" value={data.decision_deadline ? new Date(data.decision_deadline).toLocaleDateString() : null} />

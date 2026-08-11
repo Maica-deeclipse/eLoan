@@ -12,8 +12,11 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Sharing from 'expo-sharing';
 import applicationService from '../services/applicationService';
 import { clearLoanTypeDraft } from '../utils/applicationDraftStorage';
 import logger from '../utils/logger';
@@ -61,6 +64,9 @@ export default function ApplicationDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [openingDocumentId, setOpeningDocumentId] = useState(null);
+  const [previewImageUri, setPreviewImageUri] = useState(null);
+  const [previewVisible, setPreviewVisible] = useState(false);
 
   useEffect(() => {
     loadApplication();
@@ -163,6 +169,33 @@ export default function ApplicationDetailScreen({ route, navigation }) {
       Alert.alert('Download Failed', error.message || 'Could not download the PDF. Please try again.');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleViewDocument = async (doc) => {
+    setOpeningDocumentId(doc.id);
+    try {
+      const preview = await applicationService.getDocumentPreview(doc.id, doc.file_path);
+
+      if (preview.isImage) {
+        setPreviewImageUri(preview.uri);
+        setPreviewVisible(true);
+        return;
+      }
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(preview.uri, {
+          dialogTitle: doc.document_name || 'Open document',
+          mimeType: doc.file_path?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined,
+        });
+        return;
+      }
+
+      Alert.alert('Preview Unavailable', 'This file type cannot be previewed on this device.');
+    } catch (error) {
+      Alert.alert('View Failed', error.message || 'Could not open the document.');
+    } finally {
+      setOpeningDocumentId(null);
     }
   };
 
@@ -270,17 +303,17 @@ export default function ApplicationDetailScreen({ route, navigation }) {
                     Uploaded: {new Date(doc.uploaded_at).toLocaleDateString()}
                   </Text>
                 </View>
-                <View style={[
-                  styles.verifiedBadge,
-                  { backgroundColor: doc.verified ? '#d1fae5' : '#fef3c7' }
-                ]}>
-                  <Text style={[
-                    styles.verifiedText,
-                    { color: doc.verified ? '#059669' : '#d97706' }
-                  ]}>
-                    {doc.verified ? 'Verified' : 'Pending'}
-                  </Text>
-                </View>
+                <TouchableOpacity
+                  style={styles.viewBadge}
+                  onPress={() => handleViewDocument(doc)}
+                  disabled={openingDocumentId === doc.id}
+                >
+                  {openingDocumentId === doc.id ? (
+                    <ActivityIndicator size="small" color="#2563eb" />
+                  ) : (
+                    <Text style={styles.viewBadgeText}>View</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             ))}
           </SectionCard>
@@ -368,6 +401,25 @@ export default function ApplicationDetailScreen({ route, navigation }) {
           </>
         )}
       </ScrollView>
+
+      <Modal
+        visible={previewVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewVisible(false)}
+      >
+        <View style={styles.previewOverlay}>
+          <TouchableOpacity
+            style={styles.previewCloseButton}
+            onPress={() => setPreviewVisible(false)}
+          >
+            <Text style={styles.previewCloseText}>Close</Text>
+          </TouchableOpacity>
+          {previewImageUri ? (
+            <Image source={{ uri: previewImageUri }} style={styles.previewImage} resizeMode="contain" />
+          ) : null}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -508,14 +560,18 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     marginTop: 2,
   },
-  verifiedBadge: {
+  viewBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+    backgroundColor: '#dbeafe',
+    minWidth: 62,
+    alignItems: 'center',
   },
-  verifiedText: {
+  viewBadgeText: {
     fontSize: 11,
     fontFamily: 'Poppins_500Medium',
+    color: '#2563eb',
   },
   verificationRow: {
     flexDirection: 'row',
@@ -571,5 +627,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
+  },
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  previewCloseButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 2,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  previewCloseText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  previewImage: {
+    width: '100%',
+    height: '80%',
   },
 });

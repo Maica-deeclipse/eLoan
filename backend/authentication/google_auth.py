@@ -17,6 +17,8 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from django.conf import settings
+from django.core.mail import send_mail
+from django.utils import timezone as _tz
 
 from users.models import User, Role
 from applicant.throttles import LoginRateThrottle
@@ -167,6 +169,27 @@ class GoogleAuthView(APIView):
                 status='active',
             )
             is_new = True
+
+            # Send security notification email to the registered address
+            try:
+                timestamp = _tz.now().strftime('%B %d, %Y at %I:%M %p UTC')
+                send_mail(
+                    subject='eLoan Account Registration Notification',
+                    message=(
+                        f'Hello {firstname},\n\n'
+                        f'Your BukSU Google account ({email}) was used to create an eLoan account '
+                        f'on {timestamp} from IP {ip}.\n\n'
+                        f'Your account is currently pending administrator approval. '
+                        f'You will be notified once it has been reviewed.\n\n'
+                        f'If you did not perform this registration, please contact the system administrator immediately.\n\n'
+                        f'— eLoan System'
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass  # Email failure must never block account creation
 
             # Return pending status for new accounts
             return Response(

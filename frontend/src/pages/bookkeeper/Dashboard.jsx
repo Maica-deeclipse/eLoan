@@ -187,8 +187,7 @@ export default function Dashboard() {
                     background: activity.action === 'verified' ? '#d1fae5' : '#fee2e2',
                     color: activity.action === 'verified' ? '#059669' : '#dc2626',
                     flexShrink: 0,
-                  }}>
-                    {activity.action === 'verified' ? '&#10004;' : '&#10006;'}
+                  }}> 
                   </div>
                   <div>
                     <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>

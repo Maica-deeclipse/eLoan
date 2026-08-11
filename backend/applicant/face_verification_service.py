@@ -701,7 +701,7 @@ class FaceComparisonService:
 
                 elif distance <= review_max_distance:
                     # Borderline: allow to proceed but flag for bookkeeper review
-                    face_verification.is_match = False
+                    face_verification.is_match = True
                     face_verification.verification_status = 'Needs Review'
                     face_verification.verified_at = timezone.now()
                     face_verification.error_message = None
@@ -761,8 +761,8 @@ class FaceComparisonService:
                     from loans.models import AuditLog
                     AuditLog.objects.create(
                         user=application.user,
-                        action=f"Face verification flagged for review (name mismatch) for application #{application.id}",
-                        action_type='FACE_VERIFY_REVIEW',
+                        action=f"Face verification failed (name mismatch) for application #{application.id}",
+                        action_type='FACE_VERIFY_FAIL',
                         severity='WARNING',
                         success=False,
                         failure_reason="OCR name on BukSU ID does not match profile name",

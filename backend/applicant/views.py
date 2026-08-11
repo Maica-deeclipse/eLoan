@@ -6,13 +6,14 @@ All endpoints require JWT authentication and Applicant role.
 """
 
 from decimal import Decimal
+import mimetypes
 import os
 import uuid
 import logging
 
 from django.conf import settings
 from django.core.cache import cache
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.views import APIView
@@ -29,7 +30,7 @@ from .throttles import (
 )
 
 from shared.services.pdf_service import LoanApplicationPDFService
-from loans.models import AuditLog, FaceVerification, LivenessCheck
+from loans.models import AuditLog, FaceVerification, LivenessCheck, LoanDocument
 
 from .services import (
     ApplicantDashboardService,
@@ -715,6 +716,47 @@ class DocumentUploadView(ApplicantBaseView):
 
 class DocumentDetailView(ApplicantBaseView):
     """GET/DELETE /api/applicant/documents/<id>/"""
+
+    def get(self, request, pk):
+        try:
+            document = LoanDocument.objects.select_related('loan_application').get(pk=pk)
+        except LoanDocument.DoesNotExist:
+            return Response(
+                {'error': 'Document not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if document.loan_application.user != request.user:
+            return Response(
+                {'error': "You don't have permission to view this document."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not document.file_path:
+            return Response(
+                {'error': 'Document file is missing'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        full_path = os.path.join(settings.MEDIA_ROOT, document.file_path)
+        if not os.path.exists(full_path):
+            return Response(
+                {'error': 'Document file not found on server'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        from .encryption_utils import FileEncryptionService
+        success, decrypted_data, _ = FileEncryptionService.decrypt_file(full_path)
+        if success:
+            file_bytes = decrypted_data
+        else:
+            with open(full_path, 'rb') as f:
+                file_bytes = f.read()
+
+        content_type, _ = mimetypes.guess_type(document.file_path)
+        response = HttpResponse(file_bytes, content_type=content_type or 'application/octet-stream')
+        response['Content-Disposition'] = f'inline; filename="{os.path.basename(document.file_path)}"'
+        return response
 
     def delete(self, request, pk):
         success, error = DocumentService.delete_document(pk, request.user)

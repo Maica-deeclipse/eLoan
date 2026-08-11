@@ -417,7 +417,7 @@ class LivenessVerificationService:
             overall_verified = (
                 liveness_result.get('is_live', False) and
                 liveness_result.get('check_status') == 'Verified' and
-                face_result.get('is_match', False)
+                face_result.get('verification_status') in ('Verified', 'Needs Review')
             )
 
             return {

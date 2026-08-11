@@ -55,6 +55,21 @@ class CreditCommitteeService {
     }
   }
 
+  async getApplicationDocument(applicationId, documentId) {
+    try {
+      const response = await axios.get(
+        `${API_URL}/applications/${applicationId}/documents/${documentId}/view/`,
+        {
+          ...getAuthHeaders(),
+          responseType: 'blob',
+        }
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
   async submitDecision(id, decision, remarks, meetingDate, rejectionCategory = null) {
     try {
       const response = await axios.post(

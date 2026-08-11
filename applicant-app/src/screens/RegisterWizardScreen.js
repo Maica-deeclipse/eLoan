@@ -7,7 +7,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import Constants from 'expo-constants';
+import Recaptcha from 'react-native-recaptcha-that-works';
 import authService from '../services/authService';
+import DatePickerField from '../components/DatePickerField';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CIVIL_STATUS_OPTIONS = [
@@ -82,139 +85,6 @@ function Dropdown({ label, value, options, onChange, placeholder = 'Select...', 
             ))}
           </View>
         </TouchableOpacity>
-      </Modal>
-    </View>
-  );
-}
-
-// ─── Date Picker ─────────────────────────────────────────────────────────────
-const MONTHS_LIST = [
-  { label: 'January', value: '01' }, { label: 'February', value: '02' },
-  { label: 'March', value: '03' },   { label: 'April', value: '04' },
-  { label: 'May', value: '05' },     { label: 'June', value: '06' },
-  { label: 'July', value: '07' },    { label: 'August', value: '08' },
-  { label: 'September', value: '09' },{ label: 'October', value: '10' },
-  { label: 'November', value: '11' }, { label: 'December', value: '12' },
-];
-
-function DatePickerField({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-
-  const _cur = new Date().getFullYear();
-  const YEARS = Array.from({ length: _cur - 18 - (_cur - 100) + 1 }, (_, i) => String(_cur - 100 + i));
-
-  const getDaysInMonth = (y, m) => (!y || !m ? 31 : new Date(parseInt(y), parseInt(m), 0).getDate());
-
-  const initParts = () => {
-    if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const [y, m, d] = value.split('-');
-      return { y, m, d };
-    }
-    return { y: String(_cur - 25), m: '01', d: '01' };
-  };
-
-  const [selYear, setSelYear] = useState(() => initParts().y);
-  const [selMonth, setSelMonth] = useState(() => initParts().m);
-  const [selDay, setSelDay] = useState(() => initParts().d);
-
-  const DAYS = Array.from(
-    { length: getDaysInMonth(selYear, selMonth) },
-    (_, i) => String(i + 1).padStart(2, '0'),
-  );
-
-  const confirm = () => {
-    const maxDay = getDaysInMonth(selYear, selMonth);
-    const safeDay = String(Math.min(parseInt(selDay, 10), maxDay)).padStart(2, '0');
-    onChange(`${selYear}-${selMonth}-${safeDay}`);
-    setSelDay(safeDay);
-    setOpen(false);
-  };
-
-  const displayValue = (() => {
-    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-    const [y, m, d] = value.split('-');
-    const mon = MONTHS_LIST.find(mo => mo.value === m);
-    return `${mon ? mon.label : m} ${parseInt(d, 10)}, ${y}`;
-  })();
-
-  return (
-    <View>
-      <TouchableOpacity style={dd.btn} onPress={() => setOpen(true)} activeOpacity={0.7}>
-        <Text style={[dd.btnText, !displayValue && dd.placeholder]}>
-          {displayValue || 'Select date of birth'}
-        </Text>
-        <Text style={dd.arrow}>📅</Text>
-      </TouchableOpacity>
-
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <View style={dp.overlay}>
-          <View style={dp.sheet}>
-            <View style={dp.header}>
-              <Text style={dp.title}>Date of Birth</Text>
-              <TouchableOpacity onPress={() => setOpen(false)}>
-                <Text style={dp.cancel}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={dp.columns}>
-              {/* Month */}
-              <View style={dp.colWrap}>
-                <Text style={dp.colLabel}>Month</Text>
-                <ScrollView style={dp.col} showsVerticalScrollIndicator={false}>
-                  {MONTHS_LIST.map(m => (
-                    <TouchableOpacity
-                      key={m.value}
-                      style={[dp.item, selMonth === m.value && dp.itemSel]}
-                      onPress={() => setSelMonth(m.value)}
-                    >
-                      <Text style={[dp.itemText, selMonth === m.value && dp.itemTextSel]}>
-                        {m.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              {/* Day */}
-              <View style={[dp.colWrap, { flex: 0, width: 72 }]}>
-                <Text style={dp.colLabel}>Day</Text>
-                <ScrollView style={dp.col} showsVerticalScrollIndicator={false}>
-                  {DAYS.map(d => (
-                    <TouchableOpacity
-                      key={d}
-                      style={[dp.item, selDay === d && dp.itemSel]}
-                      onPress={() => setSelDay(d)}
-                    >
-                      <Text style={[dp.itemText, selDay === d && dp.itemTextSel]}>
-                        {parseInt(d, 10)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              {/* Year */}
-              <View style={[dp.colWrap, { flex: 0, width: 84 }]}>
-                <Text style={dp.colLabel}>Year</Text>
-                <ScrollView style={dp.col} showsVerticalScrollIndicator={false}>
-                  {YEARS.map(y => (
-                    <TouchableOpacity
-                      key={y}
-                      style={[dp.item, selYear === y && dp.itemSel]}
-                      onPress={() => setSelYear(y)}
-                    >
-                      <Text style={[dp.itemText, selYear === y && dp.itemTextSel]}>{y}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-
-            <TouchableOpacity style={dp.confirmBtn} onPress={confirm}>
-              <Text style={dp.confirmText}>Confirm</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </Modal>
     </View>
   );
@@ -379,7 +249,10 @@ export default function RegisterWizardScreen({ navigation }) {
   const [empCategory, setEmpCategory] = useState('');
   const [empStatus, setEmpStatus] = useState('');
   const [office, setOffice] = useState('');
+  const [position, setPosition] = useState('');
+  const [yearsEmployed, setYearsEmployed] = useState('');
   const [monthlyIncome, setMonthlyIncome] = useState('');
+  const [netTakeHomePay, setNetTakeHomePay] = useState('');
 
   // ── Step 4: Parents ──
   const [fatherName, setFatherName] = useState('');
@@ -411,6 +284,8 @@ export default function RegisterWizardScreen({ navigation }) {
   const [cameraVisible, setCameraVisible] = useState(false);
   const [cameraFrameType, setCameraFrameType] = useState('square');
   const cameraSetterRef = useRef(null);
+  const recaptchaRef = useRef(null);
+  const pendingFormDataRef = useRef(null);
 
   const openCamera = (setter, frameType = 'square') => {
     cameraSetterRef.current = setter;
@@ -463,8 +338,13 @@ export default function RegisterWizardScreen({ navigation }) {
       if (!empCategory) return setError('Employment category is required.') || false;
       if (!empStatus) return setError('Employment status is required.') || false;
       if (!office.trim()) return setError('Office/Department is required.') || false;
+      if (!position.trim()) return setError('Position is required.') || false;
+      if (!yearsEmployed.trim()) return setError('Years employed is required.') || false;
+      if (isNaN(Number(yearsEmployed)) || Number(yearsEmployed) < 0) return setError('Years employed must be a valid number.') || false;
       if (!monthlyIncome.trim()) return setError('Monthly income is required.') || false;
       if (isNaN(Number(monthlyIncome)) || Number(monthlyIncome) <= 0) return setError('Monthly income must be a valid positive number.') || false;
+      if (!netTakeHomePay.trim()) return setError('Net take-home pay is required.') || false;
+      if (isNaN(Number(netTakeHomePay)) || Number(netTakeHomePay) <= 0) return setError('Net take-home pay must be a valid positive number.') || false;
     }
     if (step === 4) {
       if (!emergencyName.trim()) return setError('Emergency contact name is required.') || false;
@@ -539,10 +419,37 @@ export default function RegisterWizardScreen({ navigation }) {
     setBeneficiaries(prev => prev.filter((_, i) => i !== idx));
 
   // ─── Submit ──────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!validate()) return;
-    setLoading(true);
     setError('');
+    // Build FormData and store it, then open CAPTCHA
+    const formData = _buildFormData();
+    if (!formData) return;
+    pendingFormDataRef.current = formData;
+    recaptchaRef.current?.open();
+  };
+
+  const handleRegisterWithToken = async (captchaToken) => {
+    const formData = pendingFormDataRef.current;
+    pendingFormDataRef.current = null;
+    if (!formData) return;
+    formData.append('captcha_token', captchaToken);
+    setLoading(true);
+    try {
+      const result = await authService.registerFull(formData);
+      if (result.success) {
+        setSuccess(true);
+      } else {
+        setError(result.error || 'Registration failed. Please try again.');
+      }
+    } catch {
+      setError('Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const _buildFormData = () => {
     try {
       const effectivePermStreet = sameAsPresent ? presentStreet : permStreet;
       const effectivePermBarangay = sameAsPresent ? presentBarangay : permBarangay;
@@ -580,7 +487,10 @@ export default function RegisterWizardScreen({ navigation }) {
       formData.append('employment_category', empCategory);
       formData.append('employment_status', empStatus);
       formData.append('office', office.trim());
+      formData.append('position', position.trim());
+      formData.append('years_employed', yearsEmployed.trim());
       formData.append('monthly_income', monthlyIncome.trim());
+      formData.append('net_take_home_pay', netTakeHomePay.trim());
       formData.append('father_name', fatherName.trim());
       formData.append('father_occupation', fatherOccupation.trim());
       formData.append('father_contact', fatherContact.trim());
@@ -617,16 +527,10 @@ export default function RegisterWizardScreen({ navigation }) {
         });
       }
 
-      const result = await authService.registerFull(formData);
-      if (result.success) {
-        setSuccess(true);
-      } else {
-        setError(result.error || 'Registration failed. Please try again.');
-      }
+      return formData;
     } catch {
-      setError('Registration failed. Please try again.');
-    } finally {
-      setLoading(false);
+      setError('Failed to prepare registration. Please try again.');
+      return null;
     }
   };
 
@@ -807,10 +711,25 @@ export default function RegisterWizardScreen({ navigation }) {
       <Field label="Office / Department" required>
         <Input placeholder="e.g. College of Technologies" value={office} onChangeText={setOffice} />
       </Field>
+      <Field label="Position" required>
+        <Input placeholder="e.g. Professor I, Clerk III" value={position} onChangeText={setPosition} autoCapitalize="words" />
+      </Field>
+      <Field label="Years Employed" required>
+        <Input
+          placeholder="e.g. 5" value={yearsEmployed}
+          onChangeText={setYearsEmployed} keyboardType="numeric"
+        />
+      </Field>
       <Field label="Monthly Income (PHP)" required>
         <Input
           placeholder="e.g. 25000" value={monthlyIncome}
           onChangeText={setMonthlyIncome} keyboardType="numeric"
+        />
+      </Field>
+      <Field label="Net Take-Home Pay (PHP)" required>
+        <Input
+          placeholder="e.g. 18000" value={netTakeHomePay}
+          onChangeText={setNetTakeHomePay} keyboardType="numeric"
         />
       </Field>
     </View>
@@ -886,7 +805,7 @@ export default function RegisterWizardScreen({ navigation }) {
             <Input placeholder="e.g. Spouse, Child, Sibling" value={benRelation} onChangeText={setBenRelation} autoCapitalize="words" />
           </Field>
           <Field label="Date of Birth">
-            <Input placeholder="YYYY-MM-DD" value={benDob} onChangeText={setBenDob} keyboardType="numeric" />
+            <DatePickerField value={benDob} onChange={setBenDob} placeholder="Select date of birth" />
           </Field>
           <Field label="Contact Number">
             <Input placeholder="09XXXXXXXXX" value={benContact} onChangeText={setBenContact} keyboardType="phone-pad" />
@@ -1064,6 +983,17 @@ export default function RegisterWizardScreen({ navigation }) {
         onCapture={handleCameraCapture}
         onClose={() => setCameraVisible(false)}
       />
+
+      {/* reCAPTCHA modal — opens on final submit */}
+      <Recaptcha
+        ref={recaptchaRef}
+        siteKey={Constants.expoConfig?.extra?.recaptchaSiteKey || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'}
+        baseUrl="https://eloan.buksu.edu.ph"
+        onVerify={handleRegisterWithToken}
+        onExpire={() => setError('CAPTCHA expired. Please submit again.')}
+        onError={() => setError('CAPTCHA verification failed. Please try again.')}
+        size="normal"
+      />
     </SafeAreaView>
   );
 }
@@ -1101,35 +1031,6 @@ const dd = StyleSheet.create({
   check: { fontSize: 14, color: '#02327a', fontFamily: 'Poppins_700Bold' },
 });
 
-// ─── Date Picker Styles ───────────────────────────────────────────────────────
-const dp = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 28 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
-  },
-  title: { fontSize: 16, fontWeight: '700', color: '#1f2937' },
-  cancel: { fontSize: 14, color: '#6b7280' },
-  columns: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, gap: 8 },
-  colWrap: { flex: 1 },
-  colLabel: {
-    fontSize: 11, fontWeight: '700', color: '#9ca3af', textAlign: 'center',
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
-  },
-  col: { height: 210, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 10 },
-  item: { paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center' },
-  itemSel: { backgroundColor: '#eff6ff' },
-  itemText: { fontSize: 14, color: '#374151' },
-  itemTextSel: { color: '#02327a', fontWeight: '700' },
-  confirmBtn: {
-    marginHorizontal: 20, marginTop: 16, backgroundColor: '#02327a',
-    borderRadius: 10, paddingVertical: 14, alignItems: 'center',
-  },
-  confirmText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-});
-
 // ─── Main Styles ──────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
@@ -1143,7 +1044,7 @@ const s = StyleSheet.create({
   backBtn: { width: 36, alignItems: 'flex-start' },
   backArrow: { fontSize: 28, color: '#02327a', lineHeight: 32 },
   headerCenter: { flex: 1, alignItems: 'center' },
-  stepLabel: { fontSize: 11, color: '#9ca3af', fontFamily: 'Poppins_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5 },
+  stepLabel: { fontSize: 11, color: '#9ca3af', fontFamily: 'Poppins_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, paddingRight: 0.5 },
   stepTitle: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: '#1f2937', marginTop: 2 },
 
   // Progress

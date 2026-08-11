@@ -10,11 +10,12 @@ class AuthService {
    * @param {string} role
    * @returns {Promise} User data and tokens
    */
-  async login(email, password, role) {
+  async login(email, password, role, captchaToken = '') {
     const response = await axios.post(`${API_URL}/login/`, {
       email,
       password,
-      role
+      role,
+      captcha_token: captchaToken,
     });
 
     if (response.data.tokens) {
@@ -128,8 +129,12 @@ class AuthService {
    * @param {string} password
    * @returns {Promise}
    */
-  async superAdminLogin(email, password) {
-    const response = await axios.post(`${API_URL}/superadmin/login/`, { email, password });
+  async superAdminLogin(email, password, captchaToken = '') {
+    const response = await axios.post(`${API_URL}/superadmin/login/`, {
+      email,
+      password,
+      captcha_token: captchaToken,
+    });
     if (response.data.tokens) {
       localStorage.setItem('accessToken', response.data.tokens.access);
       localStorage.setItem('refreshToken', response.data.tokens.refresh);

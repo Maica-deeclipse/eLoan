@@ -12,7 +12,7 @@ from rest_framework import status
 from django.conf import settings
 from users.models import User, Role, Applicant, AdminUser
 from applicant.throttles import RegistrationRateThrottle, LoginRateThrottle
-from applicant.utils import get_client_ip
+from applicant.utils import get_client_ip, verify_recaptcha
 
 security_log = logging.getLogger('security')
 
@@ -79,8 +79,12 @@ class StaffRegistrationView(APIView):
     throttle_classes = [RegistrationRateThrottle]
 
     def post(self, request):
-        serializer = StaffRegistrationSerializer(data=request.data)
         ip = get_client_ip(request)
+        captcha_ok, captcha_err = verify_recaptcha(request.data.get('captcha_token', ''), ip)
+        if not captcha_ok:
+            return Response({'error': captcha_err}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = StaffRegistrationSerializer(data=request.data)
         if serializer.is_valid():
             admin_user = serializer.save()
             security_log.info(f"REGISTRATION_SUCCESS email={admin_user.email} role={admin_user.role.name} method=password ip={ip}")
@@ -277,6 +281,10 @@ class ApplicantRegistrationView(APIView):
         from applicant.models import ApplicantBeneficiary
 
         ip = get_client_ip(request)
+        captcha_ok, captcha_err = verify_recaptcha(request.data.get('captcha_token', ''), ip)
+        if not captcha_ok:
+            return Response({'error': captcha_err}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = ApplicantRegistrationSerializer(data=request.data)
         if not serializer.is_valid():
             security_log.warning(f"REGISTRATION_FAILED email={request.data.get('email', 'unknown')} role=Applicant ip={ip}")
@@ -292,7 +300,7 @@ class ApplicantRegistrationView(APIView):
             'permanent_address_line1', 'permanent_address_barangay',
             'permanent_city', 'permanent_province', 'permanent_zip_code',
             'buksu_id_number', 'employment_category', 'employment_status',
-            'office', 'father_name', 'father_occupation', 'father_contact',
+            'office', 'position', 'father_name', 'father_occupation', 'father_contact',
             'mother_name', 'mother_occupation', 'mother_contact',
             'emergency_contact_name', 'emergency_contact_number', 'emergency_contact_relationship',
         ]
@@ -311,11 +319,27 @@ class ApplicantRegistrationView(APIView):
             except ValueError:
                 pass
 
+        # Years employed
+        years_employed = request.data.get('years_employed', '').strip()
+        if years_employed:
+            try:
+                applicant.years_employed = int(years_employed)
+            except Exception:
+                pass
+
         # Monthly income
         income = request.data.get('monthly_income', '').strip()
         if income:
             try:
                 applicant.monthly_income = Decimal(income)
+            except Exception:
+                pass
+
+        # Net take-home pay
+        net_pay = request.data.get('net_take_home_pay', '').strip()
+        if net_pay:
+            try:
+                applicant.net_take_home_pay = Decimal(net_pay)
             except Exception:
                 pass
 

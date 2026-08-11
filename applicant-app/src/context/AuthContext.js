@@ -58,9 +58,9 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const login = async (email, password) => {
+  const login = async (email, password, captchaToken = '') => {
     try {
-      const result = await authService.login(email, password);
+      const result = await authService.login(email, password, captchaToken);
       if (result.success) {
         setUser(result.user);
         setIsAuthenticated(true);

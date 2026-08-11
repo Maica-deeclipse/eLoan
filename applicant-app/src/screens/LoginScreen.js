@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import Recaptcha from 'react-native-recaptcha-that-works';
 
 const logoImg = require('../../assets/logoo.png');
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +30,9 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  const recaptchaRef = useRef(null);
+  // Holds validated email/password while CAPTCHA modal is open
+  const pendingLoginRef = useRef(null);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: Constants.expoConfig?.extra?.googleClientId,
@@ -52,15 +56,24 @@ export default function LoginScreen({ navigation }) {
     }
   }, [response]);
 
-  const handleManualLogin = async () => {
+  const handleManualLogin = () => {
     if (!email.trim() || !password) {
       setError('Please enter your email and password.');
       return;
     }
     setError('');
+    // Store credentials then open reCAPTCHA modal
+    pendingLoginRef.current = { email: email.trim().toLowerCase(), password };
+    recaptchaRef.current?.open();
+  };
+
+  const handleCaptchaVerify = async (token) => {
+    const creds = pendingLoginRef.current;
+    if (!creds) return;
+    pendingLoginRef.current = null;
     setLoading(true);
     try {
-      const result = await login(email.trim().toLowerCase(), password);
+      const result = await login(creds.email, creds.password, token);
       if (!result.success) {
         setError(result.error || 'Login failed. Please try again.');
       }
@@ -204,6 +217,17 @@ export default function LoginScreen({ navigation }) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* reCAPTCHA modal — opens programmatically on login press */}
+      <Recaptcha
+        ref={recaptchaRef}
+        siteKey={Constants.expoConfig?.extra?.recaptchaSiteKey || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'}
+        baseUrl="https://eloan.buksu.edu.ph"
+        onVerify={handleCaptchaVerify}
+        onExpire={() => setError('CAPTCHA expired. Please try again.')}
+        onError={() => setError('CAPTCHA verification failed. Please try again.')}
+        size="normal"
+      />
     </SafeAreaView>
   );
 }

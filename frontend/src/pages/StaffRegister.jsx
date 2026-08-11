@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
+import ReCAPTCHA from 'react-google-recaptcha';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/auth';
 const VALID_ROLES = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Officer'];
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 
 export default function StaffRegister() {
   const { role: urlRole } = useParams();
@@ -15,6 +17,7 @@ export default function StaffRegister() {
   const [googleData, setGoogleData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const captchaRef = useRef(null);
 
   // Manual form state
   const [firstname, setFirstname] = useState('');
@@ -38,6 +41,8 @@ export default function StaffRegister() {
     if (password.length < 8) return setError('Password must be at least 8 characters.');
     if (password !== confirmPassword) return setError('Passwords do not match.');
     if (!employeeId.trim()) return setError('Employee ID is required.');
+    const captchaToken = captchaRef.current?.getValue() || '';
+    if (RECAPTCHA_SITE_KEY && !captchaToken) return setError('Please complete the CAPTCHA verification.');
 
     setLoading(true);
     try {
@@ -48,9 +53,11 @@ export default function StaffRegister() {
         password,
         role: selectedRole,
         employee_id: employeeId.trim(),
+        captcha_token: captchaToken,
       });
       setStep('success');
     } catch (err) {
+      captchaRef.current?.reset();
       const data = err.response?.data;
       const firstError = data && typeof data === 'object'
         ? Object.values(data).flat()[0]
@@ -247,6 +254,12 @@ export default function StaffRegister() {
                 placeholder="EMP-001"
               />
             </div>
+
+            {RECAPTCHA_SITE_KEY && (
+              <div style={{ display: 'flex', justifyContent: 'center', margin: '0.75rem 0' }}>
+                <ReCAPTCHA ref={captchaRef} sitekey={RECAPTCHA_SITE_KEY} />
+              </div>
+            )}
 
             <button type="submit" className="login-button" disabled={loading}>
               {loading ? 'Submitting...' : 'Register'}

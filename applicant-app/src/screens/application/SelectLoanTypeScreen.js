@@ -489,6 +489,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: 'rgba(255,255,255,0.55)',
     letterSpacing: 1.2,
+    paddingRight: 1.2,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
@@ -569,6 +570,7 @@ const styles = StyleSheet.create({
     color: MUTED,
     fontFamily: 'Poppins_600SemiBold',
     letterSpacing: 0.5,
+    paddingRight: 0.5,
   },
   selectedBadge: {
     backgroundColor: PRIMARY,
@@ -635,6 +637,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
+    paddingRight: 0.4,
   },
   detailValue: {
     fontSize: 14,
@@ -697,5 +700,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_700Bold',
     letterSpacing: 0.3,
+    paddingRight: 0.3,
   },
 });

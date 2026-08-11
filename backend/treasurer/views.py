@@ -5,12 +5,17 @@ REST API endpoints for the React frontend.
 All endpoints require JWT authentication and Treasurer role.
 """
 
+import mimetypes
+import os
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
+from django.conf import settings
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.hashers import check_password
 from django.utils import timezone
@@ -45,6 +50,7 @@ from bookkeeper.services import NotificationService
 from loans.models import LoanApplication, LoanType
 from users.models import UserPreferences
 from django.db.models import Q
+from applicant.encryption_utils import FileEncryptionService
 
 
 class TreasurerBaseView(APIView):
@@ -231,6 +237,62 @@ class ApplicationDetailView(TreasurerBaseView):
             ],
             'can_evaluate': can_evaluate,
         })
+
+
+class ApplicationDocumentView(TreasurerBaseView):
+    """
+    GET /api/treasurer/applications/<pk>/documents/<doc_id>/view/
+    Decrypt and stream an applicant document for treasurer review.
+    """
+
+    def get(self, request, pk, doc_id):
+        application = TreasurerApplicationService.get_application_by_id(pk)
+
+        if not application:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        allowed_statuses = ['Verified by Bookkeeper', 'Pending Credit Committee',
+                          'Rejected by Treasurer', 'Disbursed', 'Paid', 'Active', 'Overdue']
+        if application.current_status and application.current_status.status_name not in allowed_statuses:
+            return Response(
+                {'error': 'This application is not accessible to treasurer.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        document = application.documents.filter(pk=doc_id).first()
+        if not document:
+            return Response(
+                {'error': 'Document not found for this application'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not document.file_path:
+            return Response(
+                {'error': 'Document file is missing'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        full_path = os.path.join(settings.MEDIA_ROOT, document.file_path)
+        if not os.path.exists(full_path):
+            return Response(
+                {'error': 'Document file not found on server'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        success, decrypted_data, _ = FileEncryptionService.decrypt_file(full_path)
+        if success:
+            file_bytes = decrypted_data
+        else:
+            with open(full_path, 'rb') as f:
+                file_bytes = f.read()
+
+        content_type, _ = mimetypes.guess_type(document.file_path)
+        response = HttpResponse(file_bytes, content_type=content_type or 'application/octet-stream')
+        response['Content-Disposition'] = f'inline; filename="{os.path.basename(document.file_path)}"'
+        return response
 
 
 class EvaluateApplicationView(TreasurerBaseView):

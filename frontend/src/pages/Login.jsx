@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
+import ReCAPTCHA from 'react-google-recaptcha';
 import authService from '../services/auth.service';
 import PasswordInput from '../components/PasswordInput';
 import '../styles/Login.css';
@@ -30,6 +31,7 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const captchaRef = useRef(null);
 
   const redirectByRole = (role) => {
     switch (role) {
@@ -47,15 +49,20 @@ function Login() {
     setError('');
   };
 
+  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     if (!formData.role) { setError('Please select your role.'); return; }
+    const captchaToken = captchaRef.current?.getValue() || '';
+    if (RECAPTCHA_SITE_KEY && !captchaToken) { setError('Please complete the CAPTCHA verification.'); return; }
     setLoading(true);
     try {
-      const response = await authService.login(formData.email, formData.password, formData.role);
+      const response = await authService.login(formData.email, formData.password, formData.role, captchaToken);
       redirectByRole(response.user.role);
     } catch (err) {
+      captchaRef.current?.reset();
       if (err.response?.data?.error) setError(err.response.data.error);
       else if (err.response?.data?.non_field_errors) setError(err.response.data.non_field_errors[0]);
       else setError('Invalid email or password.');
@@ -117,6 +124,12 @@ function Login() {
           <div className="form-footer">
             <Link to="/forgot-password" className="forgot-link">Forgot Password?</Link>
           </div>
+
+          {RECAPTCHA_SITE_KEY && (
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '0.75rem 0' }}>
+              <ReCAPTCHA ref={captchaRef} sitekey={RECAPTCHA_SITE_KEY} />
+            </div>
+          )}
 
           <button type="submit" className="login-button" disabled={loading || googleLoading}>
             {loading ? 'Logging in...' : 'Login'}

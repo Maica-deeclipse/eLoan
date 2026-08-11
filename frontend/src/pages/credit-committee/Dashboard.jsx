@@ -73,7 +73,6 @@ export default function Dashboard() {
           color="#10b981"
         />
         <StatCard
-          icon="&#10006;"
           label="Rejected (This Month)"
           value={stats.rejected_this_month || 0}
           color="#ef4444"

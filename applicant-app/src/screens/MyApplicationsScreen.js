@@ -182,9 +182,14 @@ const ApplicationItem = ({ application, onPress, onResume, onDeleteDraft }) => {
   );
 };
 
+const ACTIVE_STATUSES = [
+  'Submitted', 'Verified by Bookkeeper', 'Pending Credit Committee',
+  'Approved by Credit Committee', 'Disbursed', 'Active',
+];
+
 const TAB_OPTIONS = [
   { label: 'ACTIVE\nLOANS',    value: 'active'    },
-  { label: 'APPLIED\nLOANS',   value: 'applied'   },
+  { label: 'ALL\nLOANS',       value: 'applied'   },
   { label: 'AVAILABLE\nLOANS', value: 'available' },
 ];
 
@@ -283,12 +288,8 @@ export default function MyApplicationsScreen({ navigation }) {
   };
 
   const filteredApplications = applications.filter((app) => {
-    if (filter === 'active') {
-      return ['Submitted', 'Verified by Bookkeeper', 'Pending Credit Committee',
-        'Approved by Credit Committee', 'Disbursed', 'Active'].includes(app.status);
-    }
-    if (filter === 'applied') return app.status === 'Paid';
-    if (filter === 'available') return app.status.includes('Rejected');
+    if (filter === 'active') return ACTIVE_STATUSES.includes(app.status);
+    if (filter === 'applied') return !ACTIVE_STATUSES.includes(app.status);
     return true;
   });
 
@@ -605,6 +606,7 @@ const ltCard = StyleSheet.create({
     color: MUTED,
     fontFamily: 'Poppins_600SemiBold',
     letterSpacing: 0.5,
+    paddingRight: 0.5,
   },
   loanName: {
     fontSize: 20,
@@ -657,6 +659,7 @@ const ltCard = StyleSheet.create({
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
+    paddingRight: 0.4,
   },
   detailValue: {
     fontSize: 14,

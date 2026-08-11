@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from users.models import User
 from applicant.throttles import LoginRateThrottle
-from applicant.utils import get_client_ip
+from applicant.utils import get_client_ip, verify_recaptcha
 
 security_log = logging.getLogger('security')
 
@@ -104,8 +104,12 @@ class StaffLoginView(APIView):
     throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
-        serializer = StaffLoginSerializer(data=request.data)
         ip = get_client_ip(request)
+        captcha_ok, captcha_err = verify_recaptcha(request.data.get('captcha_token', ''), ip)
+        if not captcha_ok:
+            return Response({'error': captcha_err}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = StaffLoginSerializer(data=request.data)
 
         if serializer.is_valid():
             user = serializer.validated_data['user']
@@ -150,6 +154,10 @@ class SuperAdminLoginView(APIView):
         email = request.data.get('email', '').strip()
         password = request.data.get('password', '')
         ip = get_client_ip(request)
+
+        captcha_ok, captcha_err = verify_recaptcha(request.data.get('captcha_token', ''), ip)
+        if not captcha_ok:
+            return Response({'error': captcha_err}, status=status.HTTP_400_BAD_REQUEST)
 
         if not email or not password:
             return Response(
@@ -255,8 +263,12 @@ class ApplicantLoginView(APIView):
     throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
-        serializer = ApplicantLoginSerializer(data=request.data)
         ip = get_client_ip(request)
+        captcha_ok, captcha_err = verify_recaptcha(request.data.get('captcha_token', ''), ip)
+        if not captcha_ok:
+            return Response({'error': captcha_err}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = ApplicantLoginSerializer(data=request.data)
 
         if serializer.is_valid():
             user = serializer.validated_data['user']

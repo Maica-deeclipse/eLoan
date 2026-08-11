@@ -69,6 +69,21 @@ class BookkeeperService {
     }
   }
 
+  async getApplicationDocument(applicationId, documentId) {
+    try {
+      const response = await axios.get(
+        `${API_URL}/applications/${applicationId}/documents/${documentId}/view/`,
+        {
+          ...getAuthHeaders(),
+          responseType: 'blob',
+        }
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
   /**
    * Verify (approve) an application
    * @param {number} id - Application ID

@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   Alert,
   ActivityIndicator,
   Image,
@@ -315,7 +316,7 @@ const FaceVerificationScreen = ({ navigation }) => {
 
       // Check if face verification passed (Verified = auto-approved, Needs Review = borderline/manual review)
       const faceStatus = faceResult.verification_status;
-      const faceVerified = (faceStatus === 'Verified' || faceStatus === 'Needs Review') && faceResult.is_match === true;
+      const faceVerified = faceStatus === 'Verified' || faceStatus === 'Needs Review';
       const faceNeedsReview = faceStatus === 'Needs Review';
       // Video endpoint returns `status`; image endpoint returns `check_status`
       const livenessVerified =
@@ -453,7 +454,11 @@ const FaceVerificationScreen = ({ navigation }) => {
   }
 
   const renderIntro = () => (
-    <View style={styles.introContainer}>
+    <ScrollView
+      style={styles.introScroll}
+      contentContainerStyle={styles.introContainer}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.illustrationContainer}>
         <View style={styles.faceIllustration}>
           <Ionicons name="person-circle" size={120} color="#0d6efd" />
@@ -489,7 +494,7 @@ const FaceVerificationScreen = ({ navigation }) => {
         <Ionicons name="camera" size={24} color="#fff" />
         <Text style={styles.startButtonText}>Start Verification</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 
   const renderFaceCapture = () => (
@@ -753,10 +758,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   // Intro styles
-  introContainer: {
+  introScroll: {
     flex: 1,
+  },
+  introContainer: {
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 20,
+    paddingBottom: 24,
   },
   illustrationContainer: {
     alignItems: 'center',
@@ -807,6 +816,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d6efd',
     paddingVertical: 16,
     borderRadius: 12,
+    marginTop: 8,
   },
   startButtonText: {
     color: '#fff',

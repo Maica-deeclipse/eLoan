@@ -10,6 +10,9 @@ Utility functions for:
 from decimal import Decimal, ROUND_HALF_UP
 import os
 import uuid
+import urllib.request
+import urllib.parse
+import json as _json
 from django.conf import settings
 
 # ---------------------------------------------------------------------------
@@ -200,6 +203,48 @@ def generate_file_path(base_path, original_filename, prefix=''):
     unique_id = uuid.uuid4().hex[:12]
     filename = f"{prefix}_{unique_id}{ext}" if prefix else f"{unique_id}{ext}"
     return os.path.join(base_path, filename)
+
+
+def verify_recaptcha(token: str, remote_ip: str = '') -> tuple[bool, str]:
+    """
+    Verify a Google reCAPTCHA v2 response token against the server-side API.
+
+    Returns (success: bool, error_message: str).
+    When settings.RECAPTCHA_BYPASS is True (dev/test), always returns (True, '').
+    """
+    if getattr(settings, 'RECAPTCHA_BYPASS', False):
+        return True, ''
+
+    secret_key = getattr(settings, 'RECAPTCHA_SECRET_KEY', '')
+    if not secret_key:
+        return False, 'reCAPTCHA is not configured on the server.'
+
+    if not token:
+        return False, 'CAPTCHA token is required.'
+
+    try:
+        data = urllib.parse.urlencode({
+            'secret': secret_key,
+            'response': token,
+            'remoteip': remote_ip,
+        }).encode()
+        req = urllib.request.Request(
+            'https://www.google.com/recaptcha/api/siteverify',
+            data=data,
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            result = _json.loads(resp.read().decode())
+    except Exception:
+        return False, 'CAPTCHA verification request failed. Please try again.'
+
+    if result.get('success'):
+        return True, ''
+
+    errors = result.get('error-codes', [])
+    if 'timeout-or-duplicate' in errors:
+        return False, 'CAPTCHA has expired. Please complete it again.'
+    return False, 'CAPTCHA verification failed. Please try again.'
 
 
 def get_client_ip(request):

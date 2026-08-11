@@ -47,7 +47,8 @@
   "extra": {
     "googleClientId": "66164215961-49k2sd9e7q7qvs1355206ldr6o9o81o4.apps.googleusercontent.com",
     "googleAndroidClientId": "YOUR_ANDROID_GOOGLE_CLIENT_ID",
-    "googleIosClientId": "YOUR_IOS_GOOGLE_CLIENT_ID"
+    "googleIosClientId": "YOUR_IOS_GOOGLE_CLIENT_ID",
+    "recaptchaSiteKey": "YOUR_RECAPTCHA_V2_SITE_KEY"
   }
 }
 }

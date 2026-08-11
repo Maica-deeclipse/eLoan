@@ -79,62 +79,126 @@ class CreditCommitteeApplicationService:
 class DecisionService:
     """Service for Credit Committee decisions."""
 
+    # Number of CC member approvals required to fully approve an application
+    REQUIRED_APPROVALS = 1
+
+    @staticmethod
+    def get_current_round_since(application):
+        """
+        Return the datetime when the application last entered 'Pending Credit Committee'
+        status, used to scope decisions to the current review round.
+        """
+        from loans.models import StatusChangeLog
+        log = StatusChangeLog.objects.filter(
+            application=application,
+            to_status__status_name='Pending Credit Committee',
+        ).order_by('-changed_at').first()
+        if log:
+            return log.changed_at
+        return application.application_date
+
+    @staticmethod
+    def has_member_decided(application, committee_member):
+        """Return True if the member already voted in the current review round."""
+        since = DecisionService.get_current_round_since(application)
+        return CreditCommitteeDecision.objects.filter(
+            application=application,
+            decided_by=committee_member,
+            decided_at__gte=since,
+        ).exists()
+
+    @staticmethod
+    def get_current_round_approvals(application):
+        """Return QS of approved decisions in the current review round."""
+        since = DecisionService.get_current_round_since(application)
+        return CreditCommitteeDecision.objects.filter(
+            application=application,
+            decision='approved',
+            decided_at__gte=since,
+        ).select_related('decided_by')
+
     @staticmethod
     def submit_decision(application, committee_member, decision, remarks, meeting_date, rejection_category=None, ip_address=None):
         """
         Submit a Credit Committee decision.
 
-        Args:
-            application: LoanApplication instance
-            committee_member: User making decision
-            decision: 'approved', 'rejected', or 'returned'
-            remarks: Required explanation
-            meeting_date: Date of committee meeting
-            ip_address: For audit trail
+        For 'approved': records the vote and checks approval count.
+          - Status stays 'Pending Credit Committee' until REQUIRED_APPROVALS approvals
+            are collected, then advances to 'Approved – For Disbursement'.
+        For 'rejected' / 'returned': immediately changes status (as before).
 
         Returns:
-            CreditCommitteeDecision: Created decision record
+            tuple: (CreditCommitteeDecision, approval_count)
+              approval_count is the total approvals so far (only meaningful for
+              'approved' decisions; 0 for others).
         """
-        # Determine new status
-        # Approved loans go directly to "Approved – For Disbursement" so the
-        # Treasurer can release funds without an extra manual step.
-        status_map = {
-            'approved': 'Approved – For Disbursement',
-            'rejected': CreditCommitteeApplicationService.STATUS_REJECTED,
-            'returned': CreditCommitteeApplicationService.STATUS_RETURNED,
-        }
+        from django.db import transaction
 
-        new_status_name = status_map[decision]
-        new_status, _ = ApplicationStatus.objects.get_or_create(
-            status_name=new_status_name
-        )
+        # Guard: prevent duplicate votes in the same round
+        if DecisionService.has_member_decided(application, committee_member):
+            raise ValueError('You have already submitted a decision for this application in the current review round.')
 
-        # Update application status and record approval timestamp
-        update_fields = ['current_status']
-        application.current_status = new_status
         if decision == 'approved':
-            from django.utils import timezone as _tz
-            application.approved_at = _tz.now()
-            update_fields.append('approved_at')
-        application.save(update_fields=update_fields)
+            with transaction.atomic():
+                cc_decision = CreditCommitteeDecision.objects.create(
+                    application=application,
+                    decided_by=committee_member,
+                    decision=decision,
+                    remarks=remarks,
+                    meeting_date=meeting_date,
+                    ip_address=ip_address,
+                )
 
-        # Create decision record (immutable audit trail)
-        cc_decision = CreditCommitteeDecision.objects.create(
-            application=application,
-            decided_by=committee_member,
-            decision=decision,
-            remarks=remarks,
-            rejection_category=rejection_category,
-            meeting_date=meeting_date,
-            ip_address=ip_address
-        )
+                approval_count = DecisionService.get_current_round_approvals(application).count()
 
-        # Send notifications
-        CreditCommitteeNotificationService.notify_decision(
-            application, committee_member, decision, remarks
-        )
+                if approval_count >= DecisionService.REQUIRED_APPROVALS:
+                    # All required approvals received — advance status
+                    new_status, _ = ApplicationStatus.objects.get_or_create(
+                        status_name='Approved – For Disbursement'
+                    )
+                    application.current_status = new_status
+                    from django.utils import timezone as _tz
+                    application.approved_at = _tz.now()
+                    application.save(update_fields=['current_status', 'approved_at'])
 
-        return cc_decision
+                    CreditCommitteeNotificationService.notify_full_approval(
+                        application, committee_member, remarks
+                    )
+                else:
+                    # Partial approval — keep status, notify about progress
+                    CreditCommitteeNotificationService.notify_partial_approval(
+                        application, committee_member, approval_count, DecisionService.REQUIRED_APPROVALS
+                    )
+
+                return cc_decision, approval_count
+
+        else:
+            # 'rejected' or 'returned' — immediate status change
+            status_map = {
+                'rejected': CreditCommitteeApplicationService.STATUS_REJECTED,
+                'returned': CreditCommitteeApplicationService.STATUS_RETURNED,
+            }
+            new_status, _ = ApplicationStatus.objects.get_or_create(
+                status_name=status_map[decision]
+            )
+            application.current_status = new_status
+            application.save(update_fields=['current_status'])
+
+            cc_decision = CreditCommitteeDecision.objects.create(
+                application=application,
+                decided_by=committee_member,
+                decision=decision,
+                remarks=remarks,
+                rejection_category=rejection_category,
+                meeting_date=meeting_date,
+                ip_address=ip_address,
+            )
+
+            CreditCommitteeNotificationService.notify_decision(
+                application, committee_member, decision, remarks
+            )
+
+            return cc_decision, 0
 
     @staticmethod
     def get_decision_history(filters=None):
@@ -398,94 +462,147 @@ class CreditCommitteeNotificationService:
     """Service for Credit Committee notifications."""
 
     @staticmethod
+    def _get_all_staff_by_roles(role_names):
+        """Helper: return all active users for the given role name(s)."""
+        from users.models import User, Role
+        roles = Role.objects.filter(name__in=role_names)
+        return User.objects.filter(role__in=roles, is_active=True)
+
+    @staticmethod
+    def notify_partial_approval(application, approving_member, approval_count, required):
+        """
+        Notify all CC, Treasurer, and Bookkeeper members that a CC member has
+        approved an application but the required threshold has not yet been reached.
+        """
+        from users.models import User, Role
+        remaining = required - approval_count
+        member_name = f"{application.user.firstname} {application.user.lastname}"
+        approver_name = f"{approving_member.firstname} {approving_member.lastname}"
+
+        recipients = CreditCommitteeNotificationService._get_all_staff_by_roles(
+            ['Credit Committee', 'Treasurer', 'Bookkeeper']
+        )
+        for user in recipients:
+            Notification.objects.create(
+                user=user,
+                title='CC Approval Progress Update',
+                message=(
+                    f'{approver_name} approved loan application #{application.id} '
+                    f'for {member_name} ({application.loan_type.loan_name}). '
+                    f'{approval_count}/{required} approvals received. '
+                    f'{remaining} more approval{"s" if remaining > 1 else ""} needed.'
+                ),
+                notification_type='info',
+                related_application=application,
+            )
+
+    @staticmethod
+    def notify_full_approval(application, approving_member, remarks):
+        """
+        Notify all CC, Treasurer, Bookkeeper, AMO, and the applicant that the
+        application has received all required CC approvals.
+        """
+        from users.models import User, Role
+        member_name = f"{application.user.firstname} {application.user.lastname}"
+
+        # Notify applicant
+        Notification.objects.create(
+            user=application.user,
+            title='Loan Application Approved',
+            message=(
+                f'Your loan application for {application.loan_type.loan_name} '
+                f'has been fully approved by the Credit Committee.'
+            ),
+            notification_type='approval',
+            related_application=application,
+        )
+
+        # Notify Treasurer, Bookkeeper, Credit Committee
+        staff_recipients = CreditCommitteeNotificationService._get_all_staff_by_roles(
+            ['Treasurer', 'Bookkeeper', 'Credit Committee']
+        )
+        for user in staff_recipients:
+            Notification.objects.create(
+                user=user,
+                title='Loan Fully Approved – CC Decision Complete',
+                message=(
+                    f'Loan application #{application.id} for {member_name} '
+                    f'({application.loan_type.loan_name}, '
+                    f'₱{application.amount_requested:,.2f}) has received all required '
+                    f'Credit Committee approvals and is now approved for disbursement.'
+                ),
+                notification_type='approval',
+                related_application=application,
+            )
+
+        # Notify AMO
+        try:
+            from account_member_officer.models import AMONotification
+            amo_role = Role.objects.get(name='Account Member Officer')
+            amo_users = User.objects.filter(role=amo_role, is_active=True)
+            for amo in amo_users:
+                AMONotification.objects.create(
+                    user=amo,
+                    title='Loan Fully Approved – Action Required',
+                    message=(
+                        f'Loan application #{application.id} for {member_name} '
+                        f'has been fully approved by the Credit Committee. '
+                        f'Please coordinate with the Treasurer for fund release.'
+                    ),
+                    notification_type='action_required',
+                )
+        except Role.DoesNotExist:
+            pass
+
+    @staticmethod
     def notify_decision(application, committee_member, decision, remarks):
         """
-        Notify relevant parties about the Credit Committee decision.
-
-        Args:
-            application: LoanApplication instance
-            committee_member: User who made the decision
-            decision: 'approved', 'rejected', or 'returned'
-            remarks: Decision remarks
+        Notify relevant parties about a rejection or return-to-treasurer decision.
+        (Full approval notifications are handled by notify_full_approval.)
         """
         from users.models import User, Role
 
         decision_text = {
-            'approved': 'approved',
             'rejected': 'rejected',
-            'returned': 'returned to the Treasurer for further review'
+            'returned': 'returned to the Treasurer for further review',
         }
 
-        notification_type = {
-            'approved': 'approval',
+        notification_type_map = {
             'rejected': 'rejection',
-            'returned': 'status_change'
+            'returned': 'status_change',
         }
 
         # Notify applicant
         Notification.objects.create(
             user=application.user,
             title='Loan Application Decision',
-            message=f'Your loan application for {application.loan_type.loan_name} '
-                    f'has been {decision_text[decision]} by the Credit Committee.',
-            notification_type=notification_type[decision],
-            related_application=application
+            message=(
+                f'Your loan application for {application.loan_type.loan_name} '
+                f'has been {decision_text[decision]} by the Credit Committee.'
+            ),
+            notification_type=notification_type_map[decision],
+            related_application=application,
         )
 
-        # If approved, notify Treasurer and AMO to proceed with fund release
-        if decision == 'approved':
-            try:
-                from account_member_officer.models import AMONotification
+        # Notify CC, Treasurer, Bookkeeper about the decision
+        staff_recipients = CreditCommitteeNotificationService._get_all_staff_by_roles(
+            ['Treasurer', 'Bookkeeper', 'Credit Committee']
+        )
+        member_name = f"{application.user.firstname} {application.user.lastname}"
+        decider_name = f"{committee_member.firstname} {committee_member.lastname}"
 
-                treasurer_role = Role.objects.get(name='Treasurer')
-                treasurers = User.objects.filter(role=treasurer_role, is_active=True)
-                member_name = f"{application.user.firstname} {application.user.lastname}"
-
-                for treasurer in treasurers:
-                    Notification.objects.create(
-                        user=treasurer,
-                        title='Loan Approved – Proceed to Fund Release',
-                        message=f'Loan application #{application.id} for {member_name} '
-                                f'({application.loan_type.loan_name}, '
-                                f'₱{application.amount_requested:,.2f}) has been approved by the '
-                                f'Credit Committee. Please verify fund availability and process disbursement.',
-                        notification_type='action_required',
-                        related_application=application
-                    )
-
-                amo_role = Role.objects.get(name='Account Member Officer')
-                amo_users = User.objects.filter(role=amo_role, is_active=True)
-
-                for amo in amo_users:
-                    AMONotification.objects.create(
-                        user=amo,
-                        title='Loan Approved – Action Required',
-                        message=f'Loan application #{application.id} for {member_name} '
-                                f'has been approved by the Credit Committee. '
-                                f'Please coordinate with the Treasurer for fund release.',
-                        notification_type='action_required',
-                    )
-            except Role.DoesNotExist:
-                pass
-
-        # If returned, notify all Treasurers
-        if decision == 'returned':
-            try:
-                treasurer_role = Role.objects.get(name='Treasurer')
-                treasurers = User.objects.filter(role=treasurer_role, is_active=True)
-
-                for treasurer in treasurers:
-                    Notification.objects.create(
-                        user=treasurer,
-                        title='Application Returned for Review',
-                        message=f'Application #{application.id} from '
-                                f'{application.user.firstname} {application.user.lastname} '
-                                f'has been returned by the Credit Committee. Reason: {remarks}',
-                        notification_type='action_required',
-                        related_application=application
-                    )
-            except Role.DoesNotExist:
-                pass
+        for user in staff_recipients:
+            Notification.objects.create(
+                user=user,
+                title=f'Application {"Rejected" if decision == "rejected" else "Returned to Treasurer"}',
+                message=(
+                    f'{decider_name} has {decision_text[decision]} application #{application.id} '
+                    f'for {member_name} ({application.loan_type.loan_name}). '
+                    f'Reason: {remarks}'
+                ),
+                notification_type=notification_type_map[decision],
+                related_application=application,
+            )
 
     @staticmethod
     def get_notifications(user, limit=50):

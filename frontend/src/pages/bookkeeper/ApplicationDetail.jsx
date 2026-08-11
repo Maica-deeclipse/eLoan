@@ -93,6 +93,23 @@ export default function ApplicationDetail() {
     }
   };
 
+  const openDocument = async (documentId) => {
+    const previewWindow = window.open('', '_blank');
+    try {
+      const blob = await bookkeeperService.getApplicationDocument(id, documentId);
+      const objectUrl = URL.createObjectURL(blob);
+      if (previewWindow) {
+        previewWindow.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, '_blank');
+      }
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (err) {
+      if (previewWindow) previewWindow.close();
+      alert(err.response?.data?.error || 'Failed to open document');
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -113,8 +130,6 @@ export default function ApplicationDetail() {
   }
 
   const { application, personal_details, documents, comakers, verification_history, face_verification, liveness_check, can_review } = data;
-
-  const mediaBase = new URL(import.meta.env.VITE_API_URL || 'http://localhost:8000').origin;
 
   return (
     <div>
@@ -327,11 +342,10 @@ export default function ApplicationDetail() {
                 </thead>
                 <tbody>
                   {documents.map((doc) => {
-                    const fileUrl = `${mediaBase}/media/${doc.file_path}`;
                     return (
                       <tr
                         key={doc.id}
-                        onClick={() => window.open(fileUrl, '_blank')}
+                        onClick={() => openDocument(doc.id)}
                         style={{ borderBottom: '1px solid #e5e7eb', cursor: 'pointer' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#f0f9ff')}
                         onMouseLeave={e => (e.currentTarget.style.background = '')}
@@ -349,7 +363,7 @@ export default function ApplicationDetail() {
                             </span>
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); window.open(fileUrl, '_blank'); }}
+                              onClick={(e) => { e.stopPropagation(); openDocument(doc.id); }}
                               style={{
                                 background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
                                 padding: '0.25rem 0.6rem', borderRadius: '0.25rem', fontSize: '0.75rem',
@@ -511,7 +525,7 @@ export default function ApplicationDetail() {
                     cursor: processing ? 'not-allowed' : 'pointer', opacity: processing ? 0.7 : 1,
                   }}
                 >
-                  &#10006; Reject Application
+                  Reject Application
                 </button>
               </Card>
             </>
@@ -529,7 +543,7 @@ export default function ApplicationDetail() {
                     </>
                   ) : application.status.includes('Rejected') ? (
                     <>
-                      <div style={{ fontSize: '3rem', color: '#ef4444' }}>&#10006;</div>
+                      <div style={{ fontSize: '3rem', color: '#ef4444' }}></div>
                       <h4 style={{ color: '#ef4444', marginTop: '0.5rem' }}>Rejected</h4>
                       <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>This application has been rejected.</p>
                     </>

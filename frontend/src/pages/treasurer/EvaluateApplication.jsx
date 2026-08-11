@@ -85,6 +85,23 @@ export default function EvaluateApplication() {
     }
   };
 
+  const openDocument = async (documentId) => {
+    const previewWindow = window.open('', '_blank');
+    try {
+      const blob = await treasurerService.getApplicationDocument(id, documentId);
+      const objectUrl = URL.createObjectURL(blob);
+      if (previewWindow) {
+        previewWindow.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, '_blank');
+      }
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (err) {
+      if (previewWindow) previewWindow.close();
+      setError(err.response?.data?.error || 'Failed to open document');
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -164,8 +181,6 @@ export default function EvaluateApplication() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {documents.map((doc) => {
-                  const mediaBase = new URL(import.meta.env.VITE_API_URL || 'http://localhost:8000').origin;
-                  const fileUrl = `${mediaBase}/media/${doc.file_path}`;
                   return (
                     <div
                       key={doc.id}
@@ -183,7 +198,7 @@ export default function EvaluateApplication() {
                         <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>&#10004; Verified</span>
                       ) : (
                         <button
-                          onClick={() => window.open(fileUrl, '_blank')}
+                          onClick={() => openDocument(doc.id)}
                           style={{
                             background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
                             padding: '0.25rem 0.6rem', borderRadius: '0.25rem', fontSize: '0.75rem',

@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  greetSub:   { fontSize: 13, color: 'rgba(255,255,255,0.65)', letterSpacing: 0.4 },
+  greetSub:   { fontSize: 13, color: 'rgba(255,255,255,0.65)', letterSpacing: 0.4, paddingRight: 0.4 },
   greetName:  { fontSize: 22, fontFamily: 'Poppins_700Bold', color: WHITE, marginTop: 2 },
   logoBubble: {
     width: 50, height: 50, borderRadius: 25,
@@ -538,6 +538,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_800ExtraBold',
     color: PRIMARY,
     letterSpacing: 1.2,
+    paddingRight: 1.2,
     textTransform: 'uppercase',
     opacity: 0.6,
     marginBottom: 10,
@@ -619,6 +620,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
+    paddingRight: 0.4,
   },
   statBoxValue: { fontSize: 12, fontFamily: 'Poppins_800ExtraBold' },
 

@@ -172,6 +172,26 @@ class ApplicationService {
   }
 
   /**
+   * Download or preview an applicant document via authenticated endpoint.
+   */
+  async getDocumentPreview(documentId, filePath = '') {
+    const token = await SecureStore.getItemAsync('accessToken');
+    const baseUrl = apiService.defaults.baseURL;
+    const url = `${baseUrl}/applicant/documents/${documentId}/`;
+    const ext = (filePath.split('.').pop() || 'bin').toLowerCase();
+    const localUri = `${FileSystem.cacheDirectory}document_${documentId}_${Date.now()}.${ext}`;
+
+    const { uri } = await FileSystem.downloadAsync(url, localUri, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return {
+      uri,
+      isImage: /\.(jpg|jpeg|png|gif|webp)$/i.test(filePath || ''),
+    };
+  }
+
+  /**
    * Upload face capture
    */
   async uploadFaceCapture(applicationId, imageUri) {

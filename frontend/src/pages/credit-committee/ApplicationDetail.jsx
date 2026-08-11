@@ -84,6 +84,23 @@ export default function ApplicationDetail() {
     }
   };
 
+  const openDocument = async (documentId) => {
+    const previewWindow = window.open('', '_blank');
+    try {
+      const blob = await creditCommitteeService.getApplicationDocument(id, documentId);
+      const objectUrl = URL.createObjectURL(blob);
+      if (previewWindow) {
+        previewWindow.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, '_blank');
+      }
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (err) {
+      if (previewWindow) previewWindow.close();
+      alert(err.response?.data?.error || 'Failed to open document');
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -103,7 +120,13 @@ export default function ApplicationDetail() {
     );
   }
 
-  const { application, financial_assessment, documents, comakers, committee_member, can_decide, decision_history } = data;
+  const {
+    application, financial_assessment, documents, comakers, committee_member,
+    can_decide, decision_history, approval_progress, current_user_has_decided,
+    current_user_decision_type,
+  } = data;
+
+  const isPendingCC = application.status === 'Pending Credit Committee';
 
   return (
     <div>
@@ -130,7 +153,78 @@ export default function ApplicationDetail() {
         </button>
       </div>
 
-      {!can_decide && (
+      {/* Approval Progress Banner — shown while pending CC */}
+      {isPendingCC && approval_progress && approval_progress.required > 1 && (
+        <div style={{
+          background: '#f0fdf4',
+          border: '1px solid #86efac',
+          borderRadius: '0.5rem',
+          padding: '1rem 1.25rem',
+          marginBottom: '1rem',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <span style={{ fontWeight: 600, color: '#166534', fontSize: '0.9375rem' }}>
+              CC Approval Progress: {approval_progress.count} / {approval_progress.required}
+            </span>
+            <span style={{
+              background: approval_progress.count >= approval_progress.required ? '#16a34a' : '#6b7280',
+              color: '#fff',
+              borderRadius: '9999px',
+              padding: '0.2rem 0.75rem',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+            }}>
+              {approval_progress.count >= approval_progress.required
+                ? 'Fully Approved'
+                : `${approval_progress.required - approval_progress.count} more needed`}
+            </span>
+          </div>
+          {/* Progress bar */}
+          <div style={{ background: '#dcfce7', borderRadius: '9999px', height: '8px', marginBottom: '0.5rem' }}>
+            <div style={{
+              background: '#16a34a',
+              borderRadius: '9999px',
+              height: '8px',
+              width: `${Math.min(100, (approval_progress.count / approval_progress.required) * 100)}%`,
+              transition: 'width 0.3s',
+            }} />
+          </div>
+          {approval_progress.approvers.length > 0 && (
+            <div style={{ fontSize: '0.8125rem', color: '#166534' }}>
+              Approved by:{' '}
+              {approval_progress.approvers.map((a, i) => (
+                <span key={i}>
+                  <strong>{a.name}</strong>
+                  <span style={{ color: '#4ade80' }}> ({new Date(a.decided_at).toLocaleDateString()})</span>
+                  {i < approval_progress.approvers.length - 1 ? ', ' : ''}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Already-voted banner (current user approved but waiting for more) */}
+      {isPendingCC && approval_progress && approval_progress.required > 1 && current_user_has_decided && current_user_decision_type === 'approved' && (
+        <div style={{
+          background: '#eff6ff',
+          border: '1px solid #93c5fd',
+          borderRadius: '0.5rem',
+          padding: '0.75rem 1rem',
+          marginBottom: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          color: '#1e40af',
+          fontSize: '0.875rem',
+        }}>
+          <span>&#10003;</span> You have already approved this application. Waiting for the remaining{' '}
+          {approval_progress ? approval_progress.required - approval_progress.count : ''} approval(s).
+        </div>
+      )}
+
+      {/* Locked / read-only banner */}
+      {!can_decide && !isPendingCC && (
         <div style={{
           background: '#f9fafb',
           border: '1px solid #e5e7eb',
@@ -220,7 +314,7 @@ export default function ApplicationDetail() {
                       </td>
                       <td style={{ padding: '0.75rem 0' }}>
                         <button
-                          onClick={() => window.open(`${new URL(import.meta.env.VITE_API_URL || 'http://localhost:8000').origin}/media/${doc.file_path}`, '_blank')}
+                          onClick={() => openDocument(doc.id)}
                           style={{
                             background: '#8b5cf6',
                             color: 'white',
@@ -265,7 +359,7 @@ export default function ApplicationDetail() {
               {decision_history.map((d) => (
                 <div key={d.id} style={{ padding: '0.75rem 0', borderBottom: '1px solid #f3f4f6' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                    <StatusBadge status={d.decision === 'approved' ? 'Approved – For Disbursement' : d.decision === 'rejected' ? 'Rejected by Credit Committee' : 'Returned to Treasurer'} />
+                    <StatusBadge status={d.decision === 'approved' ? 'CC Approved' : d.decision === 'rejected' ? 'Rejected by Credit Committee' : 'Returned to Treasurer'} />
                     <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{new Date(d.decided_at).toLocaleString()}</span>
                   </div>
                   <div style={{ fontSize: '0.875rem', color: '#374151', marginTop: '0.25rem' }}>
@@ -330,7 +424,7 @@ export default function ApplicationDetail() {
                         onChange={(e) => setDecision(e.target.value)}
                         style={{ marginRight: '0.75rem' }}
                       />
-                      <span style={{ fontWeight: 500, color: '#991b1b' }}>&#10006; Reject</span>
+                      <span style={{ fontWeight: 500, color: '#991b1b' }}>Reject</span>
                     </label>
                     <label style={{
                       display: 'flex',
@@ -558,6 +652,7 @@ function StatusBadge({ status }) {
     'Pending Credit Committee': { bg: '#fef3c7', color: '#92400e' },
     'Approved – For Disbursement': { bg: '#d1fae5', color: '#065f46' },
     'Approved by Credit Committee': { bg: '#d1fae5', color: '#065f46' },
+    'CC Approved': { bg: '#d1fae5', color: '#065f46' },
     'Rejected by Credit Committee': { bg: '#fee2e2', color: '#991b1b' },
     'Returned to Treasurer': { bg: '#e0e7ff', color: '#3730a3' },
   };

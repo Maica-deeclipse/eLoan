@@ -32,6 +32,12 @@ SECRET_KEY = config('SECRET_KEY')
 # Google OAuth — Web Client ID used to verify the `aud` claim in ID tokens
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID')
 
+# Google reCAPTCHA v2 — Secret key used for server-side token verification
+# Get keys at: https://www.google.com/recaptcha/admin
+RECAPTCHA_SECRET_KEY = config('RECAPTCHA_SECRET_KEY', default='')
+# Set RECAPTCHA_BYPASS=True in .env to skip CAPTCHA checks during development/testing
+RECAPTCHA_BYPASS = config('RECAPTCHA_BYPASS', default=False, cast=bool)
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 

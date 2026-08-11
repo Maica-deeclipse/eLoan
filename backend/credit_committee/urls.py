@@ -32,6 +32,7 @@ urlpatterns = [
     # Applications
     path('applications/', views.ApplicationListView.as_view(), name='applications'),
     path('applications/<int:pk>/', views.ApplicationDetailView.as_view(), name='application_detail'),
+    path('applications/<int:pk>/documents/<int:doc_id>/view/', views.ApplicationDocumentView.as_view(), name='application_document_view'),
     path('applications/<int:pk>/decide/', views.SubmitDecisionView.as_view(), name='submit_decision'),
 
     # Decision History

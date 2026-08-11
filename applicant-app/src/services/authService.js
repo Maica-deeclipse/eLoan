@@ -17,11 +17,11 @@ class AuthService {
    * @param {string} password - User password
    * @returns {Promise<Object>} { success: boolean, user?: Object, error?: string }
    */
-  async login(email, password) {
+  async login(email, password, captchaToken = '') {
     try {
       const response = await axios.post(
         `${API_URL}/applicant/login/`,
-        { email, password },
+        { email, password, captcha_token: captchaToken },
         { timeout: REQUEST_TIMEOUT_MS }
       );
 

@@ -155,6 +155,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Poppins_600SemiBold',
     letterSpacing: 0.2,
+    paddingRight: 0.2,
   },
   iconWrap: {
     width: 36,

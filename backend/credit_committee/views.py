@@ -5,12 +5,17 @@ REST API endpoints for the React frontend.
 All endpoints require JWT authentication and Credit Committee role.
 """
 
+import mimetypes
+import os
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
+from django.conf import settings
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.hashers import check_password
 from django.utils import timezone
@@ -21,10 +26,12 @@ from .services import (
     DecisionService,
     CreditCommitteeDashboardService,
     CreditCommitteeReportService,
-    CreditCommitteeNotificationService
+    CreditCommitteeNotificationService,
 )
+from .models import CreditCommitteeDecision
 from loans.models import LoanApplication, LoanType, StatusChangeLog
 from users.models import UserPreferences
+from applicant.encryption_utils import FileEncryptionService
 
 
 def _days_in_stage(application, status_name):
@@ -162,10 +169,23 @@ class ApplicationDetailView(CreditCommitteeBaseView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        can_decide = (
+        is_pending_cc = (
             application.current_status and
             application.current_status.status_name == 'Pending Credit Committee'
         )
+
+        # Current-round approval tracking
+        current_round_approvals = DecisionService.get_current_round_approvals(application)
+        approval_count = current_round_approvals.count()
+        current_user_decision = None
+        if is_pending_cc:
+            current_user_decision = CreditCommitteeDecision.objects.filter(
+                application=application,
+                decided_by=request.user,
+                decided_at__gte=DecisionService.get_current_round_since(application),
+            ).first()
+
+        can_decide = is_pending_cc and current_user_decision is None
 
         # Get latest treasurer evaluation for financial assessment
         treasurer_eval = application.treasurer_evaluations.first() if application.treasurer_evaluations.exists() else None
@@ -261,8 +281,69 @@ class ApplicationDetailView(CreditCommitteeBaseView):
             'committee_member': {
                 'name': f"{request.user.firstname} {request.user.lastname}",
                 'email': request.user.email,
-            }
+            },
+            'approval_progress': {
+                'count': approval_count,
+                'required': DecisionService.REQUIRED_APPROVALS,
+                'approvers': [
+                    {
+                        'name': f"{d.decided_by.firstname} {d.decided_by.lastname}",
+                        'decided_at': d.decided_at.isoformat(),
+                    }
+                    for d in current_round_approvals
+                ],
+            } if is_pending_cc or approval_count > 0 else None,
+            'current_user_has_decided': current_user_decision is not None,
+            'current_user_decision_type': current_user_decision.decision if current_user_decision else None,
         })
+
+
+class ApplicationDocumentView(CreditCommitteeBaseView):
+    """
+    GET /api/credit-committee/applications/<pk>/documents/<doc_id>/view/
+    Decrypt and stream an applicant document for committee review.
+    """
+
+    def get(self, request, pk, doc_id):
+        application = CreditCommitteeApplicationService.get_application_by_id(pk)
+
+        if not application:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        document = application.documents.filter(pk=doc_id).first()
+        if not document:
+            return Response(
+                {'error': 'Document not found for this application'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not document.file_path:
+            return Response(
+                {'error': 'Document file is missing'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        full_path = os.path.join(settings.MEDIA_ROOT, document.file_path)
+        if not os.path.exists(full_path):
+            return Response(
+                {'error': 'Document file not found on server'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        success, decrypted_data, _ = FileEncryptionService.decrypt_file(full_path)
+        if success:
+            file_bytes = decrypted_data
+        else:
+            with open(full_path, 'rb') as f:
+                file_bytes = f.read()
+
+        content_type, _ = mimetypes.guess_type(document.file_path)
+        response = HttpResponse(file_bytes, content_type=content_type or 'application/octet-stream')
+        response['Content-Disposition'] = f'inline; filename="{os.path.basename(document.file_path)}"'
+        return response
 
 
 class SubmitDecisionView(CreditCommitteeBaseView):
@@ -277,6 +358,13 @@ class SubmitDecisionView(CreditCommitteeBaseView):
         if not application.current_status or application.current_status.status_name != 'Pending Credit Committee':
             return Response(
                 {'error': 'This application cannot be decided on.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Guard: prevent duplicate votes in the same review round
+        if DecisionService.has_member_decided(application, request.user):
+            return Response(
+                {'error': 'You have already submitted a decision for this application in the current review round.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -339,27 +427,43 @@ class SubmitDecisionView(CreditCommitteeBaseView):
             ip_address = request.META.get('REMOTE_ADDR')
 
         try:
-            cc_decision = DecisionService.submit_decision(
+            cc_decision, approval_count = DecisionService.submit_decision(
                 application=application,
                 committee_member=request.user,
                 decision=decision,
                 rejection_category=rejection_category if decision == 'rejected' else None,
                 remarks=remarks,
                 meeting_date=meeting_date,
-                ip_address=ip_address
+                ip_address=ip_address,
             )
 
-            decision_text = {
-                'approved': 'approved',
-                'rejected': 'rejected',
-                'returned': 'returned to Treasurer'
-            }
+            # Refresh application to get latest status
+            application.refresh_from_db(fields=['current_status'])
+
+            if decision == 'approved':
+                required = DecisionService.REQUIRED_APPROVALS
+                if approval_count >= required:
+                    msg = f'Application #{application.id} has been approved and is now ready for disbursement.'
+                else:
+                    remaining = required - approval_count
+                    msg = (
+                        f'Your approval has been recorded ({approval_count}/{required}). '
+                        f'{remaining} more approval{"s" if remaining > 1 else ""} needed.'
+                    )
+            elif decision == 'rejected':
+                msg = f'Application #{application.id} has been rejected.'
+            else:
+                msg = f'Application #{application.id} has been returned to the Treasurer.'
 
             return Response({
-                'message': f'Application #{application.id} has been {decision_text[decision]}.',
+                'message': msg,
                 'decision_id': cc_decision.id,
                 'new_status': application.current_status.status_name if application.current_status else None,
+                'approval_count': approval_count,
+                'required_approvals': DecisionService.REQUIRED_APPROVALS,
             })
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response(
                 {'error': str(e)},

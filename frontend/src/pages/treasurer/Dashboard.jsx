@@ -73,7 +73,6 @@ export default function Dashboard() {
           color="#10b981"
         />
         <StatCard
-          icon="&#10006;"
           label="Not Recommended (30d)"
           value={stats.not_recommended_applications || 0}
           color="#ef4444"

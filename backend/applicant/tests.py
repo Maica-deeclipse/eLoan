@@ -1235,12 +1235,45 @@ class TestLivenessVerificationService(TestCase):
             os.unlink(path)
 
     # ------------------------------------------------------------------
-    # TC-LC-023: Detection details stored as JSON-parseable string
+    # TC-LC-023: Needs Review face result still counts as overall verified
+    # ------------------------------------------------------------------
+    @patch('applicant.face_verification_service.FaceComparisonService.verify_faces_for_application')
+    @patch('applicant.liveness_service.LivenessVerificationService.verify_liveness_for_application')
+    def test_verify_with_face_comparison_accepts_needs_review(self, mock_liveness, mock_verify_faces):
+        """TC-LC-023: Needs Review should remain passable when liveness succeeded."""
+        from applicant.liveness_service import LivenessVerificationService
+
+        mock_liveness.return_value = {
+            'success': True,
+            'is_live': True,
+            'confidence': 85.0,
+            'check_status': 'Verified',
+            'error_message': None,
+        }
+        mock_verify_faces.return_value = MagicMock(
+            verification_status='Needs Review',
+            similarity_score=Decimal('73.00'),
+            is_match=False,
+            error_message=None,
+        )
+
+        result = LivenessVerificationService.verify_with_face_comparison(
+            self.application.id,
+            'selfie.jpg',
+            'combined'
+        )
+
+        self.assertTrue(result['success'])
+        self.assertTrue(result['overall_verified'])
+        self.assertEqual(result['face_comparison']['verification_status'], 'Needs Review')
+
+    # ------------------------------------------------------------------
+    # TC-LC-024: Detection details stored as JSON-parseable string
     # ------------------------------------------------------------------
     @patch('applicant.liveness_service.MediaPipeLivenessService')
     @override_settings(LIVENESS_DETECTION={'MIN_CONFIDENCE_THRESHOLD': 70, 'ENABLED': True})
     def test_detection_details_stored_as_json(self, MockDetector):
-        """TC-LC-023: detection_details field is valid JSON after save."""
+        """TC-LC-024: detection_details field is valid JSON after save."""
         from applicant.liveness_service import LivenessVerificationService
         from loans.models import LivenessCheck
 

@@ -704,12 +704,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 11, fontFamily: 'Poppins_800ExtraBold', color: PRIMARY,
-    letterSpacing: 1.0, textTransform: 'uppercase',
+    letterSpacing: 1.0, paddingRight: 1.0, textTransform: 'uppercase',
     opacity: 0.55, marginBottom: 14,
   },
   field:      { marginBottom: 14 },
   fieldRow:   { flexDirection: 'row' },
-  fieldLabel: { fontSize: 11, color: MUTED, marginBottom: 4, fontFamily: 'Poppins_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.4 },
+  fieldLabel: { fontSize: 11, color: MUTED, marginBottom: 4, fontFamily: 'Poppins_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.4, paddingRight: 0.4 },
   fieldValue: { fontSize: 15, color: PRIMARY, fontFamily: 'Poppins_500Medium' },
   input: {
     borderWidth: 1.5, borderColor: 'rgba(15,28,82,0.15)',

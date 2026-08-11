@@ -21,6 +21,7 @@ import { useApplication } from '../../context/ApplicationContext';
 import profileService from '../../services/profileService';
 import { getLoanTypeDraft, saveLoanTypeDraft } from '../../utils/applicationDraftStorage';
 import DropdownPicker from '../../components/DropdownPicker';
+import DatePickerField from '../../components/DatePickerField';
 import logger from '../../utils/logger';
 
 const EMPLOYMENT_STATUS_OPTIONS = [
@@ -302,12 +303,12 @@ export default function PersonalDetailsScreen({ navigation }) {
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>Date of Birth</Text>
-              <TextInput
-                style={styles.input}
+              <DatePickerField
                 value={dateOfBirth}
-                onChangeText={setDateOfBirth}
-                placeholder="YYYY-MM-DD"
-                keyboardType="numbers-and-punctuation"
+                onChange={setDateOfBirth}
+                title="Date of Birth"
+                placeholder="Select date of birth"
+                style={styles.input}
               />
             </View>
             <View style={styles.field}>
