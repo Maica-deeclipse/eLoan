@@ -126,6 +126,22 @@
   text-decoration: underline;
 }
 
+.role-selection-login-link {
+  margin-top: 14px;
+  background: none;
+  border: 0;
+  color: #17236a;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.role-selection-login-link:hover {
+  color: #0f1540;
+  text-decoration: underline;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .role-selection-card {

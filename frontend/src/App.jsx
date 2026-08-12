@@ -63,15 +63,16 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Role Selection (Home) */}
-        <Route path="/" element={<RoleSelection />} />
+        {/* Login (Home) */}
+        <Route path="/" element={<Login />} />
 
         {/* Superadmin Login (dedicated, not linked from role selection) */}
         <Route path="/superadmin/login" element={<SuperAdminLogin />} />
 
         {/* Authentication Routes */}
+        <Route path="/login" element={<Login />} />
         <Route path="/login/:role" element={<Login />} />
-        <Route path="/staff/register" element={<StaffRegister />} />
+        <Route path="/staff/register" element={<RoleSelection />} />
         <Route path="/staff/register/:role" element={<StaffRegister />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/set-password/:uid/:token" element={<SetPassword />} />

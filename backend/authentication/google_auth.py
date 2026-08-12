@@ -301,6 +301,8 @@ class StaffGoogleAuthView(APIView):
             )
 
         # Reject applicants — they should use /api/auth/google/ instead
+        assigned_role = 'Super Administrator' if user.is_superuser else (user.role.name if user.role else '')
+
         if user.role and user.role.name == 'Applicant':
             return Response(
                 {'error': 'This login is for staff only. Applicants should use the mobile app.'},
@@ -308,12 +310,12 @@ class StaffGoogleAuthView(APIView):
             )
 
         # Block cross-role login: user already has a different role
-        if requested_role and user.role and user.role.name != requested_role:
+        if requested_role and assigned_role != requested_role:
             return Response(
                 {
                     'error': (
-                        f"Your account is registered as '{user.role.name}'. "
-                        f"Please select '{user.role.name}' on the role selection screen to sign in."
+                        f"Your account is registered as '{assigned_role}'. "
+                        f"Please select '{assigned_role}' on the role selection screen to sign in."
                     )
                 },
                 status=status.HTTP_403_FORBIDDEN
@@ -344,7 +346,7 @@ class StaffGoogleAuthView(APIView):
 
         # Generate JWT tokens and log in
         security_log.info(
-            f"LOGIN_SUCCESS email={user.email} role={user.role.name if user.role else 'unknown'} "
+            f"LOGIN_SUCCESS email={user.email} role={assigned_role or 'unknown'} "
             f"method=google ip={get_client_ip(request)}"
         )
         refresh = RefreshToken.for_user(user)
@@ -360,7 +362,7 @@ class StaffGoogleAuthView(APIView):
                     'email': user.email,
                     'firstname': user.firstname,
                     'lastname': user.lastname,
-                    'role': user.role.name if user.role else '',
+                    'role': assigned_role,
                     'account_status': user.account_status,
                     'picture': picture,
                 },

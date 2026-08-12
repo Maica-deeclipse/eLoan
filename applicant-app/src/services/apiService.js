@@ -4,7 +4,7 @@
  */
 
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 import { API_URL } from '../config/api.config';
 import logger from '../utils/logger';
 
@@ -45,8 +45,8 @@ const apiService = axios.create({
 apiService.interceptors.request.use(
   async (config) => {
     try {
-      // Use in-memory cache first; fall back to SecureStore only when necessary
-      const token = _cachedAccessToken ?? await SecureStore.getItemAsync('accessToken');
+      // Use in-memory cache first; fall back to storage only when necessary
+      const token = _cachedAccessToken ?? await getItemAsync('accessToken');
       if (token) {
         _cachedAccessToken = token; // keep cache warm
         config.headers.Authorization = `Bearer ${token}`;
@@ -73,7 +73,7 @@ apiService.interceptors.response.use(
       clearCachedToken(); // stale token — force fresh read on next request
 
       try {
-        const refreshToken = await SecureStore.getItemAsync('refreshToken');
+        const refreshToken = await getItemAsync('refreshToken');
         if (!refreshToken) {
           throw new Error('No refresh token');
         }
@@ -86,7 +86,7 @@ apiService.interceptors.response.use(
         const { access } = response.data;
 
         // Store new access token and warm up cache
-        await SecureStore.setItemAsync('accessToken', access);
+        await setItemAsync('accessToken', access);
         setCachedToken(access);
 
         // Retry original request with new token
@@ -96,9 +96,9 @@ apiService.interceptors.response.use(
         // Refresh failed - clear tokens and notify app to show login
         clearCachedToken();
         await Promise.all([
-          SecureStore.deleteItemAsync('accessToken'),
-          SecureStore.deleteItemAsync('refreshToken'),
-          SecureStore.deleteItemAsync('user'),
+          deleteItemAsync('accessToken'),
+          deleteItemAsync('refreshToken'),
+          deleteItemAsync('user'),
         ]);
 
         if (typeof onUnauthorized === 'function') {

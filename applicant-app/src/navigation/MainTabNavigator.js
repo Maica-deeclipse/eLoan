@@ -8,10 +8,10 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 // Screens
-import DashboardScreen       from '../screens/DashboardScreen';
-import MyApplicationsScreen  from '../screens/MyApplicationsScreen';
-import NotificationsScreen   from '../screens/NotificationsScreen';
-import ProfileScreen         from '../screens/ProfileScreen';
+import DashboardScreen from '../screens/DashboardScreen';
+import MyApplicationsScreen from '../screens/MyApplicationsScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 // Services
 import notificationService from '../services/notificationService';
@@ -20,16 +20,16 @@ import logger from '../utils/logger';
 const Tab = createBottomTabNavigator();
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
-const NAVY  = '#0f1c52';
+const NAVY = '#0f1c52';
 const WHITE = '#FFFFFF';
 const MUTED = '#94A3B8';
 
 // ── Tab Icon Component ─────────────────────────────────────────────────────────
 const ICONS = {
-  home:          require('../../assets/house.png'),
-  applications:  require('../../assets/loans.png'),
+  home: require('../../assets/house.png'),
+  applications: require('../../assets/loans.png'),
   notifications: require('../../assets/alerts.png'),
-  settings:      require('../../assets/settings.png'),
+  settings: require('../../assets/settings.png'),
 };
 
 const TabIcon = ({ name, focused }) => (
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   // ── FAB ──
   fabOuter: {
     position: 'absolute',
-    top: -24,
+    top: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

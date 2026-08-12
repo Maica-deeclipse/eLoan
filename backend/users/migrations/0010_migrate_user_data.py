@@ -170,6 +170,8 @@ def migrate_users_backward(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('applicant', '0007_member_share_fields'),
+        ('superadmin', '0001_initial'),
         ('users', '0009_remove_user_employee_id_adminuser_applicant'),
     ]
 

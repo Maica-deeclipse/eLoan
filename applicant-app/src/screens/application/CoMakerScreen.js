@@ -31,7 +31,22 @@ const CoMakerScreen = ({ navigation }) => {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [addingCoMaker, setAddingCoMaker] = useState(null);
 
-  const requiredCoMakers = state.selectedLoanType?.required_comakers || 0;
+  const MAX_CO_MAKERS = 3;
+  const getEffectiveRequiredCoMakers = (loanType, amount) => {
+    const base = Number(loanType?.required_comakers || 0);
+    const loanAmount = Number(amount || 0);
+
+    if (loanAmount >= 50000) return Math.min(MAX_CO_MAKERS, Math.max(base, 3));
+    if (loanAmount >= 25000) return Math.min(MAX_CO_MAKERS, Math.max(base, 2));
+    if (loanAmount >= 10000) return Math.min(MAX_CO_MAKERS, Math.max(base, 1));
+    return Math.max(base, 0);
+  };
+
+  const requiredCoMakers = getEffectiveRequiredCoMakers(
+    state.selectedLoanType,
+    state.loanDetails?.amount
+  );
+  const coMakerLimit = MAX_CO_MAKERS;
 
   useEffect(() => {
     // Initialize from state if available
@@ -76,8 +91,13 @@ const CoMakerScreen = ({ navigation }) => {
   };
 
   const addCoMaker = async (user) => {
+    if (selectedCoMakers.length >= coMakerLimit) {
+      Alert.alert('Limit Reached', `You can only add up to ${coMakerLimit} co-makers in total.`);
+      return;
+    }
+
     if (selectedCoMakers.length >= requiredCoMakers) {
-      Alert.alert('Limit Reached', `You can only add ${requiredCoMakers} co-maker(s) for this loan type`);
+      Alert.alert('Maximum Reached', `This loan needs at least ${requiredCoMakers} co-maker(s) and no more than ${coMakerLimit} total.`);
       return;
     }
 
@@ -199,6 +219,7 @@ const CoMakerScreen = ({ navigation }) => {
           <Text style={styles.coMakerNumberText}>{index + 1}</Text>
         </View>
         <View style={styles.coMakerInfo}>
+          <Text style={styles.coMakerRank}>Co-Maker Rank {index + 1}</Text>
           <Text style={styles.coMakerName}>{coMaker.full_name}</Text>
           <Text style={styles.coMakerEmail}>{coMaker.email}</Text>
           {coMaker.contact_number && (
@@ -219,8 +240,8 @@ const CoMakerScreen = ({ navigation }) => {
             coMaker.status === 'accepted'
               ? styles.statusApproved
               : coMaker.status === 'rejected'
-              ? styles.statusRejected
-              : styles.statusPending,
+                ? styles.statusRejected
+                : styles.statusPending,
           ]}
         >
           <Text
@@ -232,8 +253,8 @@ const CoMakerScreen = ({ navigation }) => {
             {coMaker.status === 'accepted'
               ? 'Accepted'
               : coMaker.status === 'rejected'
-              ? 'Rejected'
-              : 'Pending Consent'}
+                ? 'Rejected'
+                : 'Pending Consent'}
           </Text>
         </View>
       </View>
@@ -253,14 +274,13 @@ const CoMakerScreen = ({ navigation }) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Co-Makers</Text>
         <Text style={styles.subtitle}>
-          This loan type requires {requiredCoMakers} co-maker(s). Co-makers must be registered
-          members of the cooperative.
+          This loan requires at least {requiredCoMakers} co-maker(s). Higher loan amounts may require a higher co-maker rank, and the total co-maker limit is {coMakerLimit}.
         </Text>
 
         {/* Selected Co-Makers */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Selected Co-Makers ({selectedCoMakers.length}/{requiredCoMakers})
+            Selected Co-Makers ({selectedCoMakers.length}/{coMakerLimit})
           </Text>
 
           {selectedCoMakers.length === 0 ? (
@@ -279,7 +299,7 @@ const CoMakerScreen = ({ navigation }) => {
         </View>
 
         {/* Add Co-Maker Button */}
-        {selectedCoMakers.length < requiredCoMakers && (
+        {selectedCoMakers.length < coMakerLimit && (
           <TouchableOpacity
             style={styles.searchButton}
             onPress={() => setShowSearchModal(true)}
@@ -540,6 +560,12 @@ const styles = StyleSheet.create({
   },
   coMakerInfo: {
     flex: 1,
+  },
+  coMakerRank: {
+    fontSize: 11,
+    color: '#0d6efd',
+    fontFamily: 'Poppins_600SemiBold',
+    marginBottom: 4,
   },
   coMakerName: {
     fontSize: 16,

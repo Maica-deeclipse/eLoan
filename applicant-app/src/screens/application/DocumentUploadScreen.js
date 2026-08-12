@@ -57,16 +57,24 @@ const DocumentUploadScreen = ({ navigation }) => {
     try {
       const docs = await applicationService.getRequiredDocuments(loanTypeId);
       if (docs && docs.length > 0) {
-        // Normalize snake_case `accepted_types` from API → camelCase used by this screen
         const normalized = docs.map((d) => ({
           ...d,
+          key: d.key || d.document_key,
           acceptedTypes: d.acceptedTypes || d.accepted_types || ['image', 'pdf'],
         }));
-        setRequiredDocs(normalized);
+
+        const repeatCoMakerKeys = new Set(['comaker_payslip', 'comaker_id', 'valid_id', 'valid_id_copy']);
+        const filtered = state.coMakers?.length > 0
+          ? normalized.filter((doc) => {
+            const key = (doc.key || '').toLowerCase();
+            return repeatCoMakerKeys.has(key) || key === 'other_documents';
+          })
+          : normalized;
+
+        setRequiredDocs(filtered.length > 0 ? filtered : normalized);
       }
     } catch (error) {
       logger.error('Load required documents error:', error);
-      // Keep fallback list on error
     } finally {
       setLoading(false);
     }
@@ -423,6 +431,7 @@ const DocumentUploadScreen = ({ navigation }) => {
         <Text style={styles.title}>Upload Documents</Text>
         <Text style={styles.subtitle}>
           Please upload clear copies of the required documents. Accepted formats: JPG, PNG, PDF · Max 10 MB per file.
+          {state.coMakers?.length > 0 ? '\nRepeat co-makers only need a payslip and a previously submitted valid ID.' : ''}
         </Text>
 
         {/* Upload Progress */}

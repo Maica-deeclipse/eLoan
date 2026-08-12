@@ -7,8 +7,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import Constants from 'expo-constants';
-import Recaptcha from 'react-native-recaptcha-that-works';
 import authService from '../services/authService';
 import DatePickerField from '../components/DatePickerField';
 
@@ -284,8 +282,6 @@ export default function RegisterWizardScreen({ navigation }) {
   const [cameraVisible, setCameraVisible] = useState(false);
   const [cameraFrameType, setCameraFrameType] = useState('square');
   const cameraSetterRef = useRef(null);
-  const recaptchaRef = useRef(null);
-  const pendingFormDataRef = useRef(null);
 
   const openCamera = (setter, frameType = 'square') => {
     cameraSetterRef.current = setter;
@@ -419,21 +415,11 @@ export default function RegisterWizardScreen({ navigation }) {
     setBeneficiaries(prev => prev.filter((_, i) => i !== idx));
 
   // ─── Submit ──────────────────────────────────────────────────────────────
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
     setError('');
-    // Build FormData and store it, then open CAPTCHA
     const formData = _buildFormData();
     if (!formData) return;
-    pendingFormDataRef.current = formData;
-    recaptchaRef.current?.open();
-  };
-
-  const handleRegisterWithToken = async (captchaToken) => {
-    const formData = pendingFormDataRef.current;
-    pendingFormDataRef.current = null;
-    if (!formData) return;
-    formData.append('captcha_token', captchaToken);
     setLoading(true);
     try {
       const result = await authService.registerFull(formData);
@@ -560,13 +546,13 @@ export default function RegisterWizardScreen({ navigation }) {
     <View>
       <SectionTitle title="Name" />
       <Field label="First Name" required>
-        <Input placeholder="Juan" value={firstname} onChangeText={setFirstname} autoCapitalize="words" />
+        <Input placeholder="Juan" value={firstname} onChangeText={setFirstname} autoCapitalize="words" maxLength={50} />
       </Field>
       <Field label="Middle Name">
-        <Input placeholder="Santos (optional)" value={middleName} onChangeText={setMiddleName} autoCapitalize="words" />
+        <Input placeholder="Santos (optional)" value={middleName} onChangeText={setMiddleName} autoCapitalize="words" maxLength={50} />
       </Field>
       <Field label="Last Name" required>
-        <Input placeholder="Dela Cruz" value={lastname} onChangeText={setLastname} autoCapitalize="words" />
+        <Input placeholder="Dela Cruz" value={lastname} onChangeText={setLastname} autoCapitalize="words" maxLength={50} />
       </Field>
 
       <SectionTitle title="Personal Information" />
@@ -578,7 +564,7 @@ export default function RegisterWizardScreen({ navigation }) {
       </Field>
       {civilStatus === 'married' && (
         <Field label="Spouse Name" required>
-          <Input placeholder="Full name of spouse" value={spouseName} onChangeText={setSpouseName} autoCapitalize="words" />
+          <Input placeholder="Full name of spouse" value={spouseName} onChangeText={setSpouseName} autoCapitalize="words" maxLength={100} />
         </Field>
       )}
       <Field label="Gender" required>
@@ -588,27 +574,27 @@ export default function RegisterWizardScreen({ navigation }) {
         <DatePickerField value={dob} onChange={setDob} />
       </Field>
       <Field label="Citizenship" required>
-        <Input placeholder="Filipino" value={citizenship} onChangeText={setCitizenship} autoCapitalize="words" />
+        <Input placeholder="Filipino" value={citizenship} onChangeText={setCitizenship} autoCapitalize="words" maxLength={50} />
       </Field>
 
       <SectionTitle title="Contact & Credentials" />
       <Field label="Contact Number" required>
         <Input
           placeholder="09XXXXXXXXX" value={contact} onChangeText={setContact}
-          keyboardType="phone-pad"
+          keyboardType="phone-pad" maxLength={11}
         />
       </Field>
       <Field label="Email Address" required>
         <Input
           placeholder="you@buksu.edu.ph" value={email} onChangeText={setEmail}
-          keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
+          keyboardType="email-address" autoCapitalize="none" autoCorrect={false} maxLength={254}
         />
       </Field>
       <Field label="TIN Number">
-        <Input placeholder="XXX-XXX-XXX" value={tin} onChangeText={setTin} keyboardType="numeric" />
+        <Input placeholder="XXX-XXX-XXX" value={tin} onChangeText={setTin} keyboardType="numeric" maxLength={12} />
       </Field>
       <Field label="SSS Number">
-        <Input placeholder="XX-XXXXXXX-X" value={sss} onChangeText={setSss} />
+        <Input placeholder="XX-XXXXXXX-X" value={sss} onChangeText={setSss} maxLength={12} />
       </Field>
 
       <SectionTitle title="Education" />
@@ -639,19 +625,19 @@ export default function RegisterWizardScreen({ navigation }) {
     <View>
       <SectionTitle title="Present Address" />
       <Field label="House No. / Street" required>
-        <Input placeholder="e.g. 123 Rizal Street" value={presentStreet} onChangeText={setPresentStreet} />
+        <Input placeholder="e.g. 123 Rizal Street" value={presentStreet} onChangeText={setPresentStreet} maxLength={120} />
       </Field>
       <Field label="Barangay" required>
-        <Input placeholder="e.g. Barangay Sto. Tomas" value={presentBarangay} onChangeText={setPresentBarangay} />
+        <Input placeholder="e.g. Barangay Sto. Tomas" value={presentBarangay} onChangeText={setPresentBarangay} maxLength={80} />
       </Field>
       <Field label="City / Municipality" required>
-        <Input placeholder="e.g. Malaybalay City" value={presentCity} onChangeText={setPresentCity} />
+        <Input placeholder="e.g. Malaybalay City" value={presentCity} onChangeText={setPresentCity} maxLength={80} />
       </Field>
       <Field label="Province" required>
-        <Input placeholder="e.g. Bukidnon" value={presentProvince} onChangeText={setPresentProvince} />
+        <Input placeholder="e.g. Bukidnon" value={presentProvince} onChangeText={setPresentProvince} maxLength={80} />
       </Field>
       <Field label="Zip Code">
-        <Input placeholder="e.g. 8700" value={presentZip} onChangeText={setPresentZip} keyboardType="numeric" />
+        <Input placeholder="e.g. 8700" value={presentZip} onChangeText={setPresentZip} keyboardType="numeric" maxLength={4} />
       </Field>
 
       <SectionTitle title="Permanent Address" />
@@ -669,19 +655,19 @@ export default function RegisterWizardScreen({ navigation }) {
       {!sameAsPresent && (
         <View>
           <Field label="House No. / Street" required>
-            <Input placeholder="e.g. 123 Rizal Street" value={permStreet} onChangeText={setPermStreet} />
+            <Input placeholder="e.g. 123 Rizal Street" value={permStreet} onChangeText={setPermStreet} maxLength={120} />
           </Field>
           <Field label="Barangay" required>
-            <Input placeholder="e.g. Barangay Sto. Tomas" value={permBarangay} onChangeText={setPermBarangay} />
+            <Input placeholder="e.g. Barangay Sto. Tomas" value={permBarangay} onChangeText={setPermBarangay} maxLength={80} />
           </Field>
           <Field label="City / Municipality" required>
-            <Input placeholder="e.g. Malaybalay City" value={permCity} onChangeText={setPermCity} />
+            <Input placeholder="e.g. Malaybalay City" value={permCity} onChangeText={setPermCity} maxLength={80} />
           </Field>
           <Field label="Province" required>
-            <Input placeholder="e.g. Bukidnon" value={permProvince} onChangeText={setPermProvince} />
+            <Input placeholder="e.g. Bukidnon" value={permProvince} onChangeText={setPermProvince} maxLength={80} />
           </Field>
           <Field label="Zip Code">
-            <Input placeholder="e.g. 8700" value={permZip} onChangeText={setPermZip} keyboardType="numeric" />
+            <Input placeholder="e.g. 8700" value={permZip} onChangeText={setPermZip} keyboardType="numeric" maxLength={4} />
           </Field>
         </View>
       )}
@@ -692,7 +678,7 @@ export default function RegisterWizardScreen({ navigation }) {
     <View>
       <SectionTitle title="BukSU ID" />
       <Field label="BukSU ID Number" required>
-        <Input placeholder="e.g. 2024-XXXXX" value={buksuId} onChangeText={setBuksuId} />
+        <Input placeholder="e.g. 2024-XXXXX" value={buksuId} onChangeText={setBuksuId} maxLength={30} />
       </Field>
 
       <SectionTitle title="Employment Details" />
@@ -709,27 +695,27 @@ export default function RegisterWizardScreen({ navigation }) {
         />
       </Field>
       <Field label="Office / Department" required>
-        <Input placeholder="e.g. College of Technologies" value={office} onChangeText={setOffice} />
+        <Input placeholder="e.g. College of Technologies" value={office} onChangeText={setOffice} maxLength={100} />
       </Field>
       <Field label="Position" required>
-        <Input placeholder="e.g. Professor I, Clerk III" value={position} onChangeText={setPosition} autoCapitalize="words" />
+        <Input placeholder="e.g. Professor I, Clerk III" value={position} onChangeText={setPosition} autoCapitalize="words" maxLength={100} />
       </Field>
       <Field label="Years Employed" required>
         <Input
           placeholder="e.g. 5" value={yearsEmployed}
-          onChangeText={setYearsEmployed} keyboardType="numeric"
+          onChangeText={setYearsEmployed} keyboardType="numeric" maxLength={3}
         />
       </Field>
       <Field label="Monthly Income (PHP)" required>
         <Input
           placeholder="e.g. 25000" value={monthlyIncome}
-          onChangeText={setMonthlyIncome} keyboardType="numeric"
+          onChangeText={setMonthlyIncome} keyboardType="numeric" maxLength={12}
         />
       </Field>
       <Field label="Net Take-Home Pay (PHP)" required>
         <Input
           placeholder="e.g. 18000" value={netTakeHomePay}
-          onChangeText={setNetTakeHomePay} keyboardType="numeric"
+          onChangeText={setNetTakeHomePay} keyboardType="numeric" maxLength={12}
         />
       </Field>
     </View>
@@ -739,35 +725,35 @@ export default function RegisterWizardScreen({ navigation }) {
     <View>
       <SectionTitle title="Father's Information" />
       <Field label="Father's Name">
-        <Input placeholder="Full name" value={fatherName} onChangeText={setFatherName} autoCapitalize="words" />
+        <Input placeholder="Full name" value={fatherName} onChangeText={setFatherName} autoCapitalize="words" maxLength={100} />
       </Field>
       <Field label="Father's Occupation">
-        <Input placeholder="e.g. Farmer" value={fatherOccupation} onChangeText={setFatherOccupation} autoCapitalize="words" />
+        <Input placeholder="e.g. Farmer" value={fatherOccupation} onChangeText={setFatherOccupation} autoCapitalize="words" maxLength={100} />
       </Field>
       <Field label="Father's Contact Number">
-        <Input placeholder="09XXXXXXXXX" value={fatherContact} onChangeText={setFatherContact} keyboardType="phone-pad" />
+        <Input placeholder="09XXXXXXXXX" value={fatherContact} onChangeText={setFatherContact} keyboardType="phone-pad" maxLength={11} />
       </Field>
 
       <SectionTitle title="Mother's Information" />
       <Field label="Mother's Name">
-        <Input placeholder="Full name" value={motherName} onChangeText={setMotherName} autoCapitalize="words" />
+        <Input placeholder="Full name" value={motherName} onChangeText={setMotherName} autoCapitalize="words" maxLength={100} />
       </Field>
       <Field label="Mother's Occupation">
-        <Input placeholder="e.g. Housewife" value={motherOccupation} onChangeText={setMotherOccupation} autoCapitalize="words" />
+        <Input placeholder="e.g. Housewife" value={motherOccupation} onChangeText={setMotherOccupation} autoCapitalize="words" maxLength={100} />
       </Field>
       <Field label="Mother's Contact Number">
-        <Input placeholder="09XXXXXXXXX" value={motherContact} onChangeText={setMotherContact} keyboardType="phone-pad" />
+        <Input placeholder="09XXXXXXXXX" value={motherContact} onChangeText={setMotherContact} keyboardType="phone-pad" maxLength={11} />
       </Field>
 
       <SectionTitle title="Emergency Contact" />
       <Field label="Full Name" required>
-        <Input placeholder="Full name of contact person" value={emergencyName} onChangeText={setEmergencyName} autoCapitalize="words" />
+        <Input placeholder="Full name of contact person" value={emergencyName} onChangeText={setEmergencyName} autoCapitalize="words" maxLength={100} />
       </Field>
       <Field label="Contact Number" required>
-        <Input placeholder="09XXXXXXXXX" value={emergencyNumber} onChangeText={setEmergencyNumber} keyboardType="phone-pad" />
+        <Input placeholder="09XXXXXXXXX" value={emergencyNumber} onChangeText={setEmergencyNumber} keyboardType="phone-pad" maxLength={11} />
       </Field>
       <Field label="Relationship" required>
-        <Input placeholder="e.g. Spouse, Parent, Sibling" value={emergencyRelationship} onChangeText={setEmergencyRelationship} autoCapitalize="words" />
+        <Input placeholder="e.g. Spouse, Parent, Sibling" value={emergencyRelationship} onChangeText={setEmergencyRelationship} autoCapitalize="words" maxLength={50} />
       </Field>
     </View>
   );
@@ -799,16 +785,16 @@ export default function RegisterWizardScreen({ navigation }) {
         <View style={s.benefForm}>
           <SectionTitle title="New Beneficiary" />
           <Field label="Name" required>
-            <Input placeholder="Full name" value={benName} onChangeText={setBenName} autoCapitalize="words" />
+            <Input placeholder="Full name" value={benName} onChangeText={setBenName} autoCapitalize="words" maxLength={100} />
           </Field>
           <Field label="Relationship" required>
-            <Input placeholder="e.g. Spouse, Child, Sibling" value={benRelation} onChangeText={setBenRelation} autoCapitalize="words" />
+            <Input placeholder="e.g. Spouse, Child, Sibling" value={benRelation} onChangeText={setBenRelation} autoCapitalize="words" maxLength={50} />
           </Field>
           <Field label="Date of Birth">
             <DatePickerField value={benDob} onChange={setBenDob} placeholder="Select date of birth" />
           </Field>
           <Field label="Contact Number">
-            <Input placeholder="09XXXXXXXXX" value={benContact} onChangeText={setBenContact} keyboardType="phone-pad" />
+            <Input placeholder="09XXXXXXXXX" value={benContact} onChangeText={setBenContact} keyboardType="phone-pad" maxLength={11} />
           </Field>
           <View style={s.benefActions}>
             <TouchableOpacity style={s.addBtn} onPress={addBeneficiary}>
@@ -984,16 +970,6 @@ export default function RegisterWizardScreen({ navigation }) {
         onClose={() => setCameraVisible(false)}
       />
 
-      {/* reCAPTCHA modal — opens on final submit */}
-      <Recaptcha
-        ref={recaptchaRef}
-        siteKey={Constants.expoConfig?.extra?.recaptchaSiteKey || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'}
-        baseUrl="https://eloan.buksu.edu.ph"
-        onVerify={handleRegisterWithToken}
-        onExpire={() => setError('CAPTCHA expired. Please submit again.')}
-        onError={() => setError('CAPTCHA verification failed. Please try again.')}
-        size="normal"
-      />
     </SafeAreaView>
   );
 }
@@ -1008,7 +984,7 @@ const dd = StyleSheet.create({
     borderRadius: 8, paddingHorizontal: 14, paddingVertical: 13,
   },
   btnDisabled: { opacity: 0.5 },
-  btnText: { fontSize: 15, color: '#1f2937', flex: 1 },
+  btnText: { fontSize: 15, color: '#1f2937', flex: 1, fontFamily: 'Poppins_500Medium' },
   placeholder: { color: '#9ca3af' },
   arrow: { fontSize: 12, color: '#6b7280' },
   overlay: {
@@ -1026,7 +1002,7 @@ const dd = StyleSheet.create({
   },
   item: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   itemActive: { backgroundColor: '#eff6ff' },
-  itemText: { flex: 1, fontSize: 15, color: '#1f2937' },
+  itemText: { flex: 1, fontSize: 15, color: '#1f2937', fontFamily: 'Poppins_500Medium' },
   itemTextActive: { color: '#02327a', fontFamily: 'Poppins_600SemiBold' },
   check: { fontSize: 14, color: '#02327a', fontFamily: 'Poppins_700Bold' },
 });
@@ -1062,7 +1038,7 @@ const s = StyleSheet.create({
   errorBox: {
     backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, marginBottom: 16,
   },
-  errorText: { color: '#dc2626', fontSize: 14 },
+  errorText: { color: '#dc2626', fontSize: 14, fontFamily: 'Poppins_500Medium' },
 
   // Fields
   fieldWrap: { marginBottom: 14 },
@@ -1071,7 +1047,7 @@ const s = StyleSheet.create({
   input: {
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#d1d5db',
     borderRadius: 8, paddingHorizontal: 14, paddingVertical: 13,
-    fontSize: 15, color: '#1f2937',
+    fontSize: 15, color: '#1f2937', fontFamily: 'Poppins_500Medium',
   },
   sectionTitle: {
     fontSize: 14, fontFamily: 'Poppins_700Bold', color: '#02327a',
@@ -1087,10 +1063,10 @@ const s = StyleSheet.create({
   },
   checkboxActive: { backgroundColor: '#02327a', borderColor: '#02327a' },
   checkmark: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_700Bold' },
-  checkboxLabel: { fontSize: 15, color: '#1f2937' },
+  checkboxLabel: { fontSize: 15, color: '#1f2937', fontFamily: 'Poppins_500Medium' },
 
   // Step note
-  stepNote: { fontSize: 14, color: '#6b7280', marginBottom: 16, lineHeight: 20 },
+  stepNote: { fontSize: 14, color: '#6b7280', marginBottom: 16, lineHeight: 20, fontFamily: 'Poppins_500Medium' },
 
   // Beneficiaries
   benefList: { marginBottom: 12 },

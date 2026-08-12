@@ -14,23 +14,18 @@ security_log = logging.getLogger('security')
 
 
 class StaffLoginSerializer(serializers.Serializer):
-    """Serializer for staff login with role validation."""
+    """Serializer for staff login using the user's assigned role."""
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-    role = serializers.CharField()
+    role = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
         email = data.get('email')
         password = data.get('password')
-        selected_role = data.get('role')
+        selected_role = data.get('role', '')
 
         if not email or not password:
             raise serializers.ValidationError('Email and password are required.')
-
-        if not selected_role:
-            raise serializers.ValidationError({
-                'error': 'Please select your role.'
-            })
 
         # Authenticate user
         user = authenticate(username=email, password=password)
@@ -61,8 +56,7 @@ class StaffLoginSerializer(serializers.Serializer):
         authorized_roles = ['Bookkeeper', 'Treasurer', 'Credit Committee', 'Account Member Officer']
 
         if user.is_superuser:
-            # Super admin must select "Super Administrator"
-            if selected_role != 'Super Administrator':
+            if selected_role and selected_role != 'Super Administrator':
                 raise serializers.ValidationError({
                     'error': 'Invalid credentials or role mismatch.'
                 })
@@ -75,13 +69,18 @@ class StaffLoginSerializer(serializers.Serializer):
                 'error': 'You do not have permission to access this system.'
             })
 
+        if user.role.name == 'Applicant':
+            raise serializers.ValidationError({
+                'error': 'Applicant accounts must sign in through the applicant app.'
+            })
+
         if user.role.name not in authorized_roles:
             raise serializers.ValidationError({
                 'error': 'You do not have permission to access this system.'
             })
 
-        # Validate that selected role matches assigned role
-        if user.role.name != selected_role:
+        # If an older client still sends a role, keep validating it.
+        if selected_role and user.role.name != selected_role:
             raise serializers.ValidationError({
                 'error': 'Invalid credentials or role mismatch.'
             })
@@ -246,7 +245,7 @@ class ApplicantLoginSerializer(serializers.Serializer):
         # Validate that user has 'Applicant' role
         if not user.role or user.role.name != 'Applicant':
             raise serializers.ValidationError({
-                'error': 'Invalid email or password.'
+                'error': 'This account cannot log in through the applicant portal. Please use the appropriate login page.'
             })
 
         data['user'] = user

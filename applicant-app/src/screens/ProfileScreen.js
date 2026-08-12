@@ -37,42 +37,42 @@ const EMP_STATUS_OPTIONS = [
 ];
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
-const PRIMARY   = '#0f1c52';
-const GRAD      = '#17235a';
-const ACCENT    = '#4D80E4';
-const WHITE     = '#FFFFFF';
-const PAGE_BG   = '#EEF4FF';
-const CARD_BG   = '#F4F7FF';
-const MUTED     = '#94A3B8';
+const PRIMARY = '#0f1c52';
+const GRAD = '#17235a';
+const ACCENT = '#4D80E4';
+const WHITE = '#FFFFFF';
+const PAGE_BG = '#EEF4FF';
+const CARD_BG = '#F4F7FF';
+const MUTED = '#94A3B8';
 const SECONDARY = '#64748B';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, updateUser } = useAuth();
-  const [loading, setLoading]               = useState(true);
-  const [saving, setSaving]                 = useState(false);
-  const [loggingOut, setLoggingOut]         = useState(false);
-  const [profile, setProfile]               = useState(null);
-  const [isEditing, setIsEditing]           = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword]         = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
   const [contactNumber, setContactNumber] = useState('');
-  const [addressLine1, setAddressLine1]   = useState('');
-  const [city, setCity]                   = useState('');
-  const [province, setProvince]           = useState('');
-  const [employerName, setEmployerName]   = useState('');
-  const [position, setPosition]           = useState('');
+  const [addressLine1, setAddressLine1] = useState('');
+  const [city, setCity] = useState('');
+  const [province, setProvince] = useState('');
+  const [employerName, setEmployerName] = useState('');
+  const [position, setPosition] = useState('');
 
   // Employment status change request
-  const [empStatusRequest, setEmpStatusRequest]         = useState(null);
-  const [showEmpStatusModal, setShowEmpStatusModal]     = useState(false);
-  const [newEmpStatus, setNewEmpStatus]                 = useState('');
-  const [coeDoc, setCoeDoc]                             = useState(null);
-  const [submittingEmpStatus, setSubmittingEmpStatus]   = useState(false);
-  const [uploadingPhoto, setUploadingPhoto]             = useState(false);
+  const [empStatusRequest, setEmpStatusRequest] = useState(null);
+  const [showEmpStatusModal, setShowEmpStatusModal] = useState(false);
+  const [newEmpStatus, setNewEmpStatus] = useState('');
+  const [coeDoc, setCoeDoc] = useState(null);
+  const [submittingEmpStatus, setSubmittingEmpStatus] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => { loadProfile(); }, []);
 
@@ -102,9 +102,9 @@ export default function ProfileScreen({ navigation }) {
     try {
       await profileService.updateProfile({
         contact_number: contactNumber,
-        address_line1:  addressLine1,
+        address_line1: addressLine1,
         city, province,
-        employer_name:  employerName,
+        employer_name: employerName,
         position,
       });
       Alert.alert('Success', 'Profile updated successfully');
@@ -345,7 +345,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.fieldLabel}>Phone Number</Text>
             {isEditing ? (
               <TextInput style={styles.input} value={contactNumber} onChangeText={setContactNumber}
-                placeholder="Enter phone number" keyboardType="phone-pad" placeholderTextColor={MUTED} />
+                placeholder="Enter phone number" keyboardType="phone-pad" maxLength={11} placeholderTextColor={MUTED} />
             ) : (
               <Text style={styles.fieldValue}>{contactNumber || 'Not provided'}</Text>
             )}
@@ -622,9 +622,9 @@ export default function ProfileScreen({ navigation }) {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
 
-  screen:        { flex: 1, backgroundColor: PRIMARY },
+  screen: { flex: 1, backgroundColor: PRIMARY },
   loadingScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: PAGE_BG },
-  loadingText:   { marginTop: 12, fontSize: 16, color: SECONDARY },
+  loadingText: { marginTop: 12, fontSize: 16, color: SECONDARY },
 
   // ── Header ──
   header: {
@@ -642,13 +642,13 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle:   { fontSize: 24, fontFamily: 'Poppins_700Bold', color: WHITE },
+  headerTitle: { fontSize: 24, fontFamily: 'Poppins_700Bold', color: WHITE },
   editBtn: {
     paddingHorizontal: 14, paddingVertical: 7,
     backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
   },
-  editBtnText:   { color: WHITE, fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
+  editBtnText: { color: WHITE, fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
   cancelBtn: {
     paddingHorizontal: 14, paddingVertical: 7,
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -684,8 +684,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   avatarText: { fontSize: 32, fontFamily: 'Poppins_700Bold', color: WHITE },
-  userName:   { fontSize: 20, fontFamily: 'Poppins_700Bold', color: PRIMARY },
-  userEmail:  { fontSize: 13, color: MUTED, marginTop: 4 },
+  userName: { fontSize: 20, fontFamily: 'Poppins_700Bold', color: PRIMARY },
+  userEmail: { fontSize: 13, color: MUTED, marginTop: 4 },
   roleBadge: {
     marginTop: 10,
     paddingHorizontal: 14, paddingVertical: 4,
@@ -707,8 +707,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.0, paddingRight: 1.0, textTransform: 'uppercase',
     opacity: 0.55, marginBottom: 14,
   },
-  field:      { marginBottom: 14 },
-  fieldRow:   { flexDirection: 'row' },
+  field: { marginBottom: 14 },
+  fieldRow: { flexDirection: 'row' },
   fieldLabel: { fontSize: 11, color: MUTED, marginBottom: 4, fontFamily: 'Poppins_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.4, paddingRight: 0.4 },
   fieldValue: { fontSize: 15, color: PRIMARY, fontFamily: 'Poppins_500Medium' },
   input: {
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(15,28,82,0.08)',
   },
   menuItemText: { fontSize: 15, color: PRIMARY, fontFamily: 'Poppins_500Medium' },
-  menuArrow:    { fontSize: 22, color: MUTED },
+  menuArrow: { fontSize: 22, color: MUTED },
 
   // ── Buttons ──
   saveBtn: {
@@ -735,13 +735,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
   },
-  saveBtnText:   { color: WHITE, fontSize: 16, fontFamily: 'Poppins_700Bold' },
+  saveBtnText: { color: WHITE, fontSize: 16, fontFamily: 'Poppins_700Bold' },
   logoutBtn: {
     backgroundColor: '#EF4444',
     borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 4,
   },
   logoutBtnText: { color: WHITE, fontSize: 16, fontFamily: 'Poppins_700Bold' },
-  btnDisabled:   { backgroundColor: MUTED },
+  btnDisabled: { backgroundColor: MUTED },
 
   versionText: { textAlign: 'center', color: MUTED, fontSize: 12, marginTop: 24 },
 
@@ -757,15 +757,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.2, shadowRadius: 20, elevation: 12,
   },
-  modalTitle:  { fontSize: 18, fontFamily: 'Poppins_700Bold', color: PRIMARY, marginBottom: 14 },
+  modalTitle: { fontSize: 18, fontFamily: 'Poppins_700Bold', color: PRIMARY, marginBottom: 14 },
   modalInput: {
     borderWidth: 1.5, borderColor: 'rgba(15,28,82,0.15)',
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
     fontSize: 15, color: PRIMARY, backgroundColor: CARD_BG, marginBottom: 10,
   },
-  modalActions:     { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6 },
-  modalCancelBtn:   { paddingVertical: 10, paddingHorizontal: 16, marginRight: 8 },
-  modalCancelText:  { color: MUTED, fontSize: 14, fontFamily: 'Poppins_600SemiBold' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6 },
+  modalCancelBtn: { paddingVertical: 10, paddingHorizontal: 16, marginRight: 8 },
+  modalCancelText: { color: MUTED, fontSize: 14, fontFamily: 'Poppins_600SemiBold' },
   modalSubmitBtn: {
     backgroundColor: PRIMARY,
     borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20,
@@ -779,35 +779,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: 20, marginTop: 4,
   },
-  badgePending:       { backgroundColor: '#fef3c7' },
-  badgePendingText:   { color: '#92400e', fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
-  badgeApproved:      { backgroundColor: '#d1fae5' },
-  badgeApprovedText:  { color: '#065f46', fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
-  badgeRejected:      { backgroundColor: '#fee2e2' },
-  badgeRejectedText:  { color: '#991b1b', fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
-  rejectionReason:    { fontSize: 12, color: '#991b1b', marginTop: 4, fontFamily: 'Poppins_400Regular' },
-  cooldownText:       { fontSize: 12, color: MUTED, marginBottom: 8, fontFamily: 'Poppins_400Regular' },
+  badgePending: { backgroundColor: '#fef3c7' },
+  badgePendingText: { color: '#92400e', fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
+  badgeApproved: { backgroundColor: '#d1fae5' },
+  badgeApprovedText: { color: '#065f46', fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
+  badgeRejected: { backgroundColor: '#fee2e2' },
+  badgeRejectedText: { color: '#991b1b', fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
+  rejectionReason: { fontSize: 12, color: '#991b1b', marginTop: 4, fontFamily: 'Poppins_400Regular' },
+  cooldownText: { fontSize: 12, color: MUTED, marginBottom: 8, fontFamily: 'Poppins_400Regular' },
   empStatusBtn: {
     backgroundColor: ACCENT,
     borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 6,
   },
   empStatusBtnText: { color: WHITE, fontSize: 14, fontFamily: 'Poppins_600SemiBold' },
 
-  statusOptions:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 8 },
+  statusOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 8 },
   statusOption: {
     paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(15,28,82,0.2)',
     backgroundColor: CARD_BG,
   },
   statusOptionSelected: { backgroundColor: PRIMARY, borderColor: PRIMARY },
-  statusOptionText:     { fontSize: 13, color: PRIMARY, fontFamily: 'Poppins_500Medium' },
+  statusOptionText: { fontSize: 13, color: PRIMARY, fontFamily: 'Poppins_500Medium' },
   statusOptionTextSelected: { color: WHITE },
   coeUploadBtn: {
     borderWidth: 1.5, borderColor: ACCENT, borderStyle: 'dashed',
     borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 6,
   },
   coeUploadBtnText: { color: ACCENT, fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
-  coeFileName:      { fontSize: 12, color: SECONDARY, marginTop: 6, fontFamily: 'Poppins_400Regular' },
+  coeFileName: { fontSize: 12, color: SECONDARY, marginTop: 6, fontFamily: 'Poppins_400Regular' },
 
   // ── Profile Photo ──
   avatarWrapper: { position: 'relative', marginBottom: 14 },

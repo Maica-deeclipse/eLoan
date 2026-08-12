@@ -168,7 +168,7 @@ def get_comaker_requirement(loan_type):
         loan_type: LoanType instance
 
     Returns:
-        int: Number of required co-makers (0, 1, or 2)
+        int: Number of required co-makers (0 to 3)
     """
     from .models import LoanTypeCoMakerRequirement
 

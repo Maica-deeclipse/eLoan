@@ -1,8 +1,8 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../config/api.config';
 import { setCachedToken, clearCachedToken } from './apiService';
 import logger from '../utils/logger';
+import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -10,7 +10,7 @@ const REQUEST_TIMEOUT_MS = 30000;
  * Authentication service for applicant mobile app
  * Handles login, logout, password reset, and token management
  */
-class AuthService {
+export class AuthService {
   /**
    * Login applicant user
    * @param {string} email - User email
@@ -29,11 +29,11 @@ class AuthService {
         const { access, refresh } = response.data.tokens;
         // Write all three entries in parallel — 3x faster than sequential awaits
         await Promise.all([
-          SecureStore.setItemAsync('accessToken', access),
-          SecureStore.setItemAsync('refreshToken', refresh),
-          SecureStore.setItemAsync('user', JSON.stringify(response.data.user)),
+          setItemAsync('accessToken', access),
+          setItemAsync('refreshToken', refresh),
+          setItemAsync('user', JSON.stringify(response.data.user)),
         ]);
-        // Warm up in-memory token cache so first API call after login skips SecureStore read
+        // Warm up in-memory token cache so first API call after login skips storage read
         setCachedToken(access);
 
         return { success: true, user: response.data.user };
@@ -42,8 +42,29 @@ class AuthService {
       return { success: false, error: 'Invalid response from server' };
     } catch (error) {
       // Transform error for consistent error handling
-      const errorMessage = error.response?.data?.error ||
-        'Unable to connect to server. Please check your internet connection.';
+      const responseData = error.response?.data;
+      let errorMessage = 'Unable to connect to server. Please check your internet connection.';
+
+      if (responseData) {
+        if (typeof responseData.error === 'string') {
+          errorMessage = responseData.error;
+        } else if (Array.isArray(responseData.error) && responseData.error.length > 0) {
+          errorMessage = responseData.error[0];
+        } else if (typeof responseData.message === 'string') {
+          errorMessage = responseData.message;
+        } else if (typeof responseData === 'string') {
+          errorMessage = responseData;
+        } else {
+          const firstKey = Object.keys(responseData)[0];
+          const firstValue = responseData[firstKey];
+          if (typeof firstValue === 'string') {
+            errorMessage = firstValue;
+          } else if (Array.isArray(firstValue) && firstValue.length > 0) {
+            errorMessage = firstValue[0];
+          }
+        }
+      }
+
       return { success: false, error: errorMessage };
     }
   }
@@ -163,9 +184,9 @@ class AuthService {
     try {
       clearCachedToken();
       await Promise.all([
-        SecureStore.deleteItemAsync('accessToken'),
-        SecureStore.deleteItemAsync('refreshToken'),
-        SecureStore.deleteItemAsync('user'),
+        deleteItemAsync('accessToken'),
+        deleteItemAsync('refreshToken'),
+        deleteItemAsync('user'),
       ]);
     } catch (error) {
       logger.error('Logout error:', error);
@@ -258,7 +279,7 @@ class AuthService {
    */
   async refreshToken() {
     try {
-      const refreshToken = await SecureStore.getItemAsync('refreshToken');
+      const refreshToken = await getItemAsync('refreshToken');
 
       if (!refreshToken) {
         return false;
@@ -271,7 +292,7 @@ class AuthService {
       );
 
       if (response.data.access) {
-        await SecureStore.setItemAsync('accessToken', response.data.access);
+        await setItemAsync('accessToken', response.data.access);
         setCachedToken(response.data.access);
         return true;
       }
@@ -290,7 +311,7 @@ class AuthService {
    */
   async getCurrentUser() {
     try {
-      const userStr = await SecureStore.getItemAsync('user');
+      const userStr = await getItemAsync('user');
       if (userStr) {
         return JSON.parse(userStr);
       }
@@ -307,7 +328,7 @@ class AuthService {
    */
   async getAccessToken() {
     try {
-      return await SecureStore.getItemAsync('accessToken');
+      return await getItemAsync('accessToken');
     } catch (error) {
       logger.error('Error getting access token:', error);
       return null;
@@ -398,9 +419,9 @@ class AuthService {
       if (data.tokens) {
         const { access, refresh } = data.tokens;
         await Promise.all([
-          SecureStore.setItemAsync('accessToken', access),
-          SecureStore.setItemAsync('refreshToken', refresh),
-          SecureStore.setItemAsync('user', JSON.stringify(data.user)),
+          setItemAsync('accessToken', access),
+          setItemAsync('refreshToken', refresh),
+          setItemAsync('user', JSON.stringify(data.user)),
         ]);
         setCachedToken(access);
         return { success: true, user: data.user, isNew: data.is_new };
@@ -427,4 +448,5 @@ class AuthService {
   }
 }
 
-export default new AuthService();
+const authService = new AuthService();
+export default authService;

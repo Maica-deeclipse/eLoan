@@ -104,7 +104,7 @@ export default function StaffRegister() {
       await axios.post(`${API_URL}/staff/register/google/`, {
         access_token: googleData.access_token,
         role: selectedRole,
-        employee_id: googleEmployeeId.trim(),
+        employee_id: employeeId.trim(),
       });
       setStep('success');
     } catch (err) {

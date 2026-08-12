@@ -11,7 +11,6 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import Recaptcha from 'react-native-recaptcha-that-works';
 
 const logoImg = require('../../assets/logoo.png');
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,9 +29,7 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
-  const recaptchaRef = useRef(null);
-  // Holds validated email/password while CAPTCHA modal is open
-  const pendingLoginRef = useRef(null);
+  // refs removed — no CAPTCHA
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: Constants.expoConfig?.extra?.googleClientId,
@@ -62,18 +59,14 @@ export default function LoginScreen({ navigation }) {
       return;
     }
     setError('');
-    // Store credentials then open reCAPTCHA modal
-    pendingLoginRef.current = { email: email.trim().toLowerCase(), password };
-    recaptchaRef.current?.open();
+    // Directly attempt login (CAPTCHA removed)
+    _performLogin(email.trim().toLowerCase(), password);
   };
 
-  const handleCaptchaVerify = async (token) => {
-    const creds = pendingLoginRef.current;
-    if (!creds) return;
-    pendingLoginRef.current = null;
+  const _performLogin = async (emailVal, passwordVal) => {
     setLoading(true);
     try {
-      const result = await login(creds.email, creds.password, token);
+      const result = await login(emailVal, passwordVal);
       if (!result.success) {
         setError(result.error || 'Login failed. Please try again.');
       }
@@ -149,6 +142,7 @@ export default function LoginScreen({ navigation }) {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              maxLength={254}
               editable={!isLoading}
             />
             <TextInput
@@ -158,6 +152,7 @@ export default function LoginScreen({ navigation }) {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              maxLength={128}
               editable={!isLoading}
             />
             <TouchableOpacity
@@ -218,16 +213,7 @@ export default function LoginScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* reCAPTCHA modal — opens programmatically on login press */}
-      <Recaptcha
-        ref={recaptchaRef}
-        siteKey={Constants.expoConfig?.extra?.recaptchaSiteKey || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'}
-        baseUrl="https://eloan.buksu.edu.ph"
-        onVerify={handleCaptchaVerify}
-        onExpire={() => setError('CAPTCHA expired. Please try again.')}
-        onError={() => setError('CAPTCHA verification failed. Please try again.')}
-        size="normal"
-      />
+      {/* reCAPTCHA removed from login flow */}
     </SafeAreaView>
   );
 }
@@ -251,9 +237,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   logoImage: {
-    width: 130,
-    height: 130,
-    marginBottom: -30,
+    width: 140,
+    height: 140,
+    marginBottom: 0,
   },
   title: {
     fontSize: 24,
@@ -265,6 +251,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     textAlign: 'center',
+    fontFamily: 'Poppins_500Medium',
   },
   errorContainer: {
     backgroundColor: '#fee2e2',
@@ -276,6 +263,7 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontSize: 14,
     lineHeight: 20,
+    fontFamily: 'Poppins_500Medium',
   },
   form: {
     marginBottom: 4,
@@ -290,6 +278,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1f2937',
     marginBottom: 12,
+    fontFamily: 'Poppins_500Medium',
   },
   loginButton: {
     backgroundColor: '#02327a',
@@ -320,6 +309,7 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 13,
     marginHorizontal: 12,
+    fontFamily: 'Poppins_500Medium',
   },
   googleButton: {
     flexDirection: 'row',
@@ -348,6 +338,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#9ca3af',
     marginBottom: 28,
+    fontFamily: 'Poppins_500Medium',
   },
   registerContainer: {
     flexDirection: 'row',
@@ -357,6 +348,7 @@ const styles = StyleSheet.create({
   registerText: {
     color: '#6b7280',
     fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
   },
   registerLink: {
     color: '#17236a',
@@ -370,5 +362,6 @@ const styles = StyleSheet.create({
   footerText: {
     color: '#6b7280',
     fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
   },
 });

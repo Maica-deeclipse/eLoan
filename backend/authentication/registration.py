@@ -281,9 +281,6 @@ class ApplicantRegistrationView(APIView):
         from applicant.models import ApplicantBeneficiary
 
         ip = get_client_ip(request)
-        captcha_ok, captcha_err = verify_recaptcha(request.data.get('captcha_token', ''), ip)
-        if not captcha_ok:
-            return Response({'error': captcha_err}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = ApplicantRegistrationSerializer(data=request.data)
         if not serializer.is_valid():

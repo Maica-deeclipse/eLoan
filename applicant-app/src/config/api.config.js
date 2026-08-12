@@ -20,7 +20,7 @@ const getApiUrl = () => {
     // 10.0.2.2 is the standard Android emulator address for the host machine's localhost.
     // For physical device testing, set EXPO_PUBLIC_API_URL in your .env file instead.
     return isAndroid
-      ? 'http://172.20.10.14:8000/api/auth'
+      ? 'http://192.168.100.17:8000/api/auth'
       : 'http://localhost:8000/api/auth';
   }
 

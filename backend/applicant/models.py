@@ -130,7 +130,7 @@ class LoanTypeCoMakerRequirement(models.Model):
     )
     required_comakers = models.IntegerField(
         default=0,
-        help_text='Number of co-makers required (0, 1, or 2)',
+        help_text='Number of co-makers required (0 to 3)',
     )
 
     class Meta:
@@ -142,9 +142,9 @@ class LoanTypeCoMakerRequirement(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        if self.required_comakers < 0 or self.required_comakers > 2:
+        if self.required_comakers < 0 or self.required_comakers > 3:
             raise ValidationError({
-                'required_comakers': 'Required co-makers must be 0, 1, or 2.'
+                'required_comakers': 'Required co-makers must be between 0 and 3.'
             })
 
 

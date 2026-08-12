@@ -1,4 +1,4 @@
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import '../styles/RoleSelection.css';
 import logoo from '../assets/logoo.png';
 
@@ -6,7 +6,7 @@ function RoleSelection() {
   const navigate = useNavigate();
 
   const handleRoleSelect = (role) => {
-    navigate(`/login/${role}`);
+    navigate(`/staff/register/${role}`);
   };
 
   return (
@@ -17,45 +17,48 @@ function RoleSelection() {
             <img src={logoo} alt="eLoan Logo" className="logo-icon" />
           </div>
           <h1 className="role-selection-title">Select Your Role</h1>
-          <p className="role-selection-subtitle">Choose your access portal to continue</p>
+          <p className="role-selection-subtitle">Choose your role to continue registration</p>
         </div>
 
         <div className="roles-grid">
           <button
             className="role-card"
-            onClick={() => navigate('/superadmin/login')}>
-            <span className="role-card-name">Administrator</span>
-          </button>
-
-          <button
-            className="role-card"
-            onClick={() => handleRoleSelect('Bookkeeper')}>
+            onClick={() => handleRoleSelect('Bookkeeper')}
+          >
             <span className="role-card-name">Bookkeeper</span>
           </button>
 
           <button
             className="role-card"
-            onClick={() => handleRoleSelect('Treasurer')}>
+            onClick={() => handleRoleSelect('Treasurer')}
+          >
             <span className="role-card-name">Treasurer</span>
           </button>
 
           <button
             className="role-card"
-            onClick={() => handleRoleSelect('Credit Committee')}>
+            onClick={() => handleRoleSelect('Credit Committee')}
+          >
             <span className="role-card-name">Credit Committee</span>
           </button>
 
           <button
             className="role-card"
-            onClick={() => handleRoleSelect('Account Member Officer')}>
+            onClick={() => handleRoleSelect('Account Member Officer')}
+          >
             <span className="role-card-name">Account Member Officer</span>
           </button>
         </div>
 
         <div className="role-selection-footer">
-          <p className="footer-text">
-            eLoan Management System • Staff Access Only
-          </p>
+          <p className="footer-text">eLoan Management System - Staff Access Only</p>
+          <button
+            type="button"
+            className="role-selection-login-link"
+            onClick={() => navigate('/login')}
+          >
+            Back to Login
+          </button>
         </div>
       </div>
     </div>

@@ -108,18 +108,18 @@ export default function PersonalDetailsScreen({ navigation }) {
             ? localDraft.personalDetails || {}
             : {};
 
-        setContactNumber(local.contactNumber    ?? data.contact_number    ?? '');
-        setAddressLine1(local.addressLine1      ?? data.address_line1     ?? '');
-        setCity(local.city                       ?? data.city              ?? '');
-        setProvince(local.province               ?? data.province          ?? '');
-        setZipCode(local.zipCode                 ?? data.zip_code          ?? '');
-        setEmployerName(local.employerName       ?? data.employer_name     ?? '');
-        setPosition(local.position               ?? data.position          ?? '');
-        setMonthlyIncome(local.monthlyIncome     ?? (data.monthly_income ? String(data.monthly_income) : '') ?? '');
+        setContactNumber(local.contactNumber ?? data.contact_number ?? '');
+        setAddressLine1(local.addressLine1 ?? data.address_line1 ?? '');
+        setCity(local.city ?? data.city ?? '');
+        setProvince(local.province ?? data.province ?? '');
+        setZipCode(local.zipCode ?? data.zip_code ?? '');
+        setEmployerName(local.employerName ?? data.employer_name ?? '');
+        setPosition(local.position ?? data.position ?? '');
+        setMonthlyIncome(local.monthlyIncome ?? (data.monthly_income ? String(data.monthly_income) : '') ?? '');
         setEmploymentStatus(local.employmentStatus ?? data.employment_status ?? '');
-        setCivilStatus(local.civilStatus         ?? data.civil_status      ?? '');
-        setTin(local.tin                         ?? data.tin               ?? '');
-        setDateOfBirth(local.dateOfBirth         ?? data.date_of_birth     ?? '');
+        setCivilStatus(local.civilStatus ?? data.civil_status ?? '');
+        setTin(local.tin ?? data.tin ?? '');
+        setDateOfBirth(local.dateOfBirth ?? data.date_of_birth ?? '');
       }
     } catch (error) {
       logger.error('Load autofill error:', error);
@@ -158,18 +158,18 @@ export default function PersonalDetailsScreen({ navigation }) {
     setSaving(true);
     try {
       await profileService.updateProfile({
-        contact_number:    contactNumber,
-        address_line1:     addressLine1,
+        contact_number: contactNumber,
+        address_line1: addressLine1,
         city,
         province,
-        zip_code:          zipCode,
-        employer_name:     employerName,
+        zip_code: zipCode,
+        employer_name: employerName,
         position,
-        monthly_income:    monthlyIncome || null,
+        monthly_income: monthlyIncome || null,
         employment_status: employmentStatus || null,
-        civil_status:      civilStatus || null,
-        tin:               tin || null,
-        date_of_birth:     dateOfBirth || null,
+        civil_status: civilStatus || null,
+        tin: tin || null,
+        date_of_birth: dateOfBirth || null,
       });
 
       const details = {
@@ -241,6 +241,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 onChangeText={setContactNumber}
                 placeholder="09XX XXX XXXX"
                 keyboardType="phone-pad"
+                maxLength={11}
               />
             </View>
           </View>
@@ -285,6 +286,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 onChangeText={setZipCode}
                 placeholder="ZIP"
                 keyboardType="numeric"
+                maxLength={4}
               />
             </View>
           </View>
@@ -319,6 +321,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 onChangeText={setTin}
                 placeholder="XXX-XXX-XXX"
                 keyboardType="numbers-and-punctuation"
+                maxLength={12}
               />
             </View>
           </View>
@@ -361,6 +364,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 onChangeText={setMonthlyIncome}
                 placeholder="₱0.00"
                 keyboardType="numeric"
+                maxLength={12}
               />
             </View>
           </View>
@@ -389,18 +393,18 @@ export default function PersonalDetailsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: '#EEF4FF' },
-  keyboardView:     { flex: 1 },
+  container: { flex: 1, backgroundColor: '#EEF4FF' },
+  keyboardView: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#EEF4FF' },
-  loadingText:      { marginTop: 12, fontSize: 16, color: '#6b7280' },
-  progressContainer:{ padding: 16, paddingBottom: 0 },
-  progressBar:      { height: 4, backgroundColor: 'rgba(15,28,82,0.1)', borderRadius: 2 },
-  progressFill:     { height: '100%', backgroundColor: '#0f1c52', borderRadius: 2 },
-  progressText:     { fontSize: 12, color: '#9ca3af', marginTop: 8, textAlign: 'right' },
-  scrollContent:    { padding: 16, paddingTop: 8, paddingBottom: 100 },
-  instructions:     { marginBottom: 16 },
+  loadingText: { marginTop: 12, fontSize: 16, color: '#6b7280' },
+  progressContainer: { padding: 16, paddingBottom: 0 },
+  progressBar: { height: 4, backgroundColor: 'rgba(15,28,82,0.1)', borderRadius: 2 },
+  progressFill: { height: '100%', backgroundColor: '#0f1c52', borderRadius: 2 },
+  progressText: { fontSize: 12, color: '#9ca3af', marginTop: 8, textAlign: 'right' },
+  scrollContent: { padding: 16, paddingTop: 8, paddingBottom: 100 },
+  instructions: { marginBottom: 16 },
   instructionTitle: { fontSize: 20, fontFamily: 'Poppins_700Bold', color: '#0f1c52' },
-  instructionText:  { fontSize: 14, color: '#6b7280', marginTop: 4 },
+  instructionText: { fontSize: 14, color: '#6b7280', marginTop: 4 },
   section: {
     backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
@@ -410,9 +414,9 @@ const styles = StyleSheet.create({
     fontSize: 14, fontFamily: 'Poppins_600SemiBold', color: '#6b7280',
     marginBottom: 16, textTransform: 'uppercase',
   },
-  field:  { marginBottom: 16 },
-  row:    { flexDirection: 'row' },
-  label:  { fontSize: 13, color: '#0f1c52', marginBottom: 6, fontFamily: 'Poppins_500Medium' },
+  field: { marginBottom: 16 },
+  row: { flexDirection: 'row' },
+  label: { fontSize: 13, color: '#0f1c52', marginBottom: 6, fontFamily: 'Poppins_500Medium' },
   input: {
     borderWidth: 1, borderColor: 'rgba(15,28,82,0.15)', borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 12,
@@ -423,9 +427,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: 'rgba(15,28,82,0.1)',
     position: 'absolute', bottom: 0, left: 0, right: 0,
   },
-  backButton:             { flex: 1, backgroundColor: '#EEF4FF', borderRadius: 12, padding: 16, alignItems: 'center', marginRight: 8 },
-  backButtonText:         { color: '#0f1c52', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
-  continueButton:         { flex: 2, backgroundColor: '#0f1c52', borderRadius: 12, padding: 16, alignItems: 'center' },
+  backButton: { flex: 1, backgroundColor: '#EEF4FF', borderRadius: 12, padding: 16, alignItems: 'center', marginRight: 8 },
+  backButtonText: { color: '#0f1c52', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
+  continueButton: { flex: 2, backgroundColor: '#0f1c52', borderRadius: 12, padding: 16, alignItems: 'center' },
   continueButtonDisabled: { backgroundColor: '#9ca3af' },
-  continueButtonText:     { color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
+  continueButtonText: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
 });

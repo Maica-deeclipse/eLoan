@@ -12,15 +12,15 @@ function Login() {
   const { role: urlRole } = useParams();
 
   const displayRole = urlRole === 'admin' ? 'Super Administrator' : urlRole;
-  const pageTitle = displayRole ? `${displayRole} Login` : 'Staff Login';
+  const pageTitle = displayRole ? `${displayRole} Login` : 'Login';
   const pageSubtitle = displayRole ? `Sign in to ${displayRole} Portal` : 'Sign in to your account';
 
   const getRoleName = () => {
     const roleMap = {
-      'admin': 'Super Administrator',
+      admin: 'Super Administrator',
       'Super Administrator': 'Super Administrator',
-      'Bookkeeper': 'Bookkeeper',
-      'Treasurer': 'Treasurer',
+      Bookkeeper: 'Bookkeeper',
+      Treasurer: 'Treasurer',
       'Credit Committee': 'Credit Committee',
       'Account Member Officer': 'Account Member Officer',
     };
@@ -35,12 +35,23 @@ function Login() {
 
   const redirectByRole = (role) => {
     switch (role) {
-      case 'Bookkeeper': navigate('/bookkeeper/dashboard'); break;
-      case 'Treasurer': navigate('/treasurer/dashboard'); break;
-      case 'Credit Committee': navigate('/credit-committee/dashboard'); break;
-      case 'Account Member Officer': navigate('/amo/dashboard'); break;
-      case 'Super Administrator': navigate('/superadmin/dashboard'); break;
-      default: navigate('/dashboard');
+      case 'Bookkeeper':
+        navigate('/bookkeeper/dashboard');
+        break;
+      case 'Treasurer':
+        navigate('/treasurer/dashboard');
+        break;
+      case 'Credit Committee':
+        navigate('/credit-committee/dashboard');
+        break;
+      case 'Account Member Officer':
+        navigate('/amo/dashboard');
+        break;
+      case 'Super Administrator':
+        navigate('/superadmin/dashboard');
+        break;
+      default:
+        navigate('/dashboard');
     }
   };
 
@@ -54,9 +65,11 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!formData.role) { setError('Please select your role.'); return; }
     const captchaToken = captchaRef.current?.getValue() || '';
-    if (RECAPTCHA_SITE_KEY && !captchaToken) { setError('Please complete the CAPTCHA verification.'); return; }
+    if (RECAPTCHA_SITE_KEY && !captchaToken) {
+      setError('Please complete the CAPTCHA verification.');
+      return;
+    }
     setLoading(true);
     try {
       const response = await authService.login(formData.email, formData.password, formData.role, captchaToken);
@@ -85,7 +98,10 @@ function Login() {
 
   const googleLogin = useGoogleLogin({
     onSuccess: handleGoogleSuccess,
-    onError: () => { setGoogleLoading(false); setError('Google sign-in was cancelled or failed.'); },
+    onError: () => {
+      setGoogleLoading(false);
+      setError('Google sign-in was cancelled or failed.');
+    },
     prompt: 'select_account',
   });
 
@@ -106,18 +122,29 @@ function Login() {
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
-              type="email" id="email" name="email" autoComplete="email"
-              value={formData.email} onChange={handleChange}
-              placeholder="you@company.com" required disabled={loading || googleLoading}
+              type="email"
+              id="email"
+              name="email"
+              autoComplete="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="you@company.com"
+              required
+              disabled={loading || googleLoading}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <PasswordInput
-              id="password" name="password" autoComplete="current-password"
-              value={formData.password} onChange={handleChange}
-              placeholder="••••••••" required disabled={loading || googleLoading}
+              id="password"
+              name="password"
+              autoComplete="current-password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Password"
+              required
+              disabled={loading || googleLoading}
             />
           </div>
 
@@ -144,20 +171,22 @@ function Login() {
           <button
             type="button"
             className="google-button"
-            onClick={() => { setError(''); setGoogleLoading(true); googleLogin(); }}
+            onClick={() => {
+              setError('');
+              setGoogleLoading(true);
+              googleLogin();
+            }}
             disabled={loading || googleLoading}
           >
             <span className="google-icon">G</span>
             {googleLoading ? 'Signing in...' : 'Sign in with Google'}
           </button>
 
-          <Link to="/" className="back-to-login">← Back to Role Selection</Link>
-
           {urlRole !== 'admin' && urlRole !== 'Super Administrator' && (
             <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
               Don't have an account?{' '}
               <Link
-                to={urlRole ? `/staff/register/${urlRole}` : '/staff/register'}
+                to="/staff/register"
                 style={{ color: '#17236a', fontWeight: 600, textDecoration: 'none' }}
               >
                 Register here
@@ -167,7 +196,7 @@ function Login() {
         </form>
 
         <div className="login-footer">
-          <p className="footer-text">eLoan Management System • Staff Access Only</p>
+          <p className="footer-text">eLoan Management System - Staff Access Only</p>
         </div>
       </div>
     </div>

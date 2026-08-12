@@ -25,18 +25,18 @@ import logger from '../../utils/logger';
 const { width: W } = Dimensions.get('window');
 
 // ── Design Tokens (same as Dashboard) ─────────────────────────────────────────
-const PRIMARY   = '#0f1c52';
-const GRAD      = '#17235a';
-const ACCENT    = '#4D80E4';
-const WHITE     = '#FFFFFF';
-const PAGE_BG   = '#EEF4FF';
-const CARD_BG   = '#F4F7FF';
-const SUCCESS   = '#10B981';
-const WARN      = '#F59E0B';
-const MUTED     = '#94A3B8';
+const PRIMARY = '#0f1c52';
+const GRAD = '#17235a';
+const ACCENT = '#4D80E4';
+const WHITE = '#FFFFFF';
+const PAGE_BG = '#EEF4FF';
+const CARD_BG = '#F4F7FF';
+const SUCCESS = '#10B981';
+const WARN = '#F59E0B';
+const MUTED = '#94A3B8';
 const SECONDARY = '#64748B';
 
-const CARD_W      = W - 56;   // side margins 28 each
+const CARD_W = W - 56;   // side margins 28 each
 const CARD_MARGIN = 10;
 
 // ── Business Logic (unchanged) ─────────────────────────────────────────────────
@@ -93,7 +93,7 @@ const inferResumeStep = ({ hasLoanDetails, coMakerRequirement, coMakerCount, has
 
 
 const buildResumeState = (loanType, applicationDetail, localDraft, currentPersonalDetails) => {
-  const amountFromServer       = toPositiveNumber(applicationDetail.amount_requested);
+  const amountFromServer = toPositiveNumber(applicationDetail.amount_requested);
   const totalPayableFromServer = toPositiveNumber(applicationDetail.total_payable);
 
   const serverLoanDetails = {
@@ -107,20 +107,20 @@ const buildResumeState = (loanType, applicationDetail, localDraft, currentPerson
       ? (totalPayableFromServer - amountFromServer).toFixed(2) : null,
   };
 
-  const mergedLoanDetails  = { ...serverLoanDetails, ...(localDraft?.loanDetails || {}) };
-  const coMakers           = mapCoMakers(applicationDetail.comakers || []);
-  const documents          = mapDocumentsByType(applicationDetail.documents || []);
+  const mergedLoanDetails = { ...serverLoanDetails, ...(localDraft?.loanDetails || {}) };
+  const coMakers = mapCoMakers(applicationDetail.comakers || []);
+  const documents = mapDocumentsByType(applicationDetail.documents || []);
   const coMakerRequirement = loanType.required_comakers || 0;
-  const hasLoanDetails     = Boolean(
+  const hasLoanDetails = Boolean(
     toPositiveNumber(mergedLoanDetails.amount) > 0 &&
     parseInt(mergedLoanDetails.termMonths, 10) > 0 &&
     (mergedLoanDetails.purpose || '').trim()
   );
-  const hasDocuments    = (applicationDetail.documents || []).length > 0;
+  const hasDocuments = (applicationDetail.documents || []).length > 0;
   const hasVerification = Boolean(
     applicationDetail.face_verification?.verified && applicationDetail.liveness_check?.verified
   );
-  const localStep   = Number(localDraft?.currentStep) || 0;
+  const localStep = Number(localDraft?.currentStep) || 0;
   const currentStep = inferResumeStep({ hasLoanDetails, coMakerRequirement, coMakerCount: coMakers.length, hasDocuments, hasVerification, localStep });
 
   const stepValidation = {
@@ -200,7 +200,7 @@ const LoanTypeCard = ({ loanType, selected, onSelect, index, total }) => (
     {loanType.required_comakers > 0 && (
       <View style={styles.comakerBadge}>
         <Text style={styles.comakerText}>
-          👥 {loanType.required_comakers} Co-maker{loanType.required_comakers > 1 ? 's' : ''} required
+          👥 {loanType.required_comakers} Co-maker{loanType.required_comakers > 1 ? 's' : ''} required · Max 3 total
         </Text>
       </View>
     )}
@@ -246,16 +246,16 @@ const LoanTypeCard = ({ loanType, selected, onSelect, index, total }) => (
 // ── Main Screen ────────────────────────────────────────────────────────────────
 export default function SelectLoanTypeScreen({ navigation, route }) {
   const { state, setLoanType, dispatch } = useApplication();
-  const [loanTypes, setLoanTypes]       = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [creating, setCreating]         = useState(false);
-  const [selectedId, setSelectedId]     = useState(null);
+  const [loanTypes, setLoanTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
   const [resumeHandled, setResumeHandled] = useState(false);
-  const [activePage, setActivePage]     = useState(0);
+  const [activePage, setActivePage] = useState(0);
 
-  const resumeLoanTypeId    = route?.params?.resumeLoanTypeId;
+  const resumeLoanTypeId = route?.params?.resumeLoanTypeId;
   const resumeApplicationId = route?.params?.resumeApplicationId;
-  const autoStart           = route?.params?.autoStart ?? false;
+  const autoStart = route?.params?.autoStart ?? false;
 
   useEffect(() => { loadLoanTypes(); }, []);
 
@@ -303,9 +303,9 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
       }
 
       if (existingDraft) {
-        const detail      = await applicationService.getApplication(existingDraft.id);
+        const detail = await applicationService.getApplication(existingDraft.id);
         const storedDraft = await getLoanTypeDraft(loanTypeId);
-        const localDraft  = storedDraft?.applicationId === existingDraft.id ? storedDraft : null;
+        const localDraft = storedDraft?.applicationId === existingDraft.id ? storedDraft : null;
 
         const { payload, currentStep } = buildResumeState(
           selectedLoanType, detail, localDraft, state.personalDetails
@@ -397,63 +397,63 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
       {/* ── Body (light blue bg below header) ── */}
       <View style={styles.body}>
 
-      {/* ── Swipeable Cards ── */}
-      <View style={styles.pagerArea}>
-        {loanTypes.length > 0 ? (
-          <>
-            <ScrollView
-              horizontal
-              pagingEnabled={false}
-              decelerationRate="fast"
-              snapToInterval={CARD_W + CARD_MARGIN * 2}
-              snapToAlignment="center"
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pagerContent}
-              onMomentumScrollEnd={handlePageScroll}
-            >
-              {loanTypes.map((item, index) => (
-                <View key={item.id.toString()} style={styles.cardWrapper}>
-                  <LoanTypeCard
-                    loanType={item}
-                    selected={selectedId === item.id}
-                    onSelect={() => handleSelect(item)}
-                    index={index}
-                    total={loanTypes.length}
-                  />
-                </View>
-              ))}
-            </ScrollView>
-            <PaginationDots count={loanTypes.length} active={activePage} />
-          </>
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>📋</Text>
-            <Text style={styles.emptyTitle}>No loan types available</Text>
-            <Text style={styles.emptySub}>Please check back later.</Text>
-          </View>
-        )}
-      </View>
-
-      {/* ── Footer Continue Button ── */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.continueBtn,
-            (!selectedId || creating) && styles.continueBtnDisabled,
-          ]}
-          onPress={() => handleContinue()}
-          disabled={!selectedId || creating}
-          activeOpacity={0.85}
-        >
-          {creating ? (
-            <ActivityIndicator color={WHITE} />
+        {/* ── Swipeable Cards ── */}
+        <View style={styles.pagerArea}>
+          {loanTypes.length > 0 ? (
+            <>
+              <ScrollView
+                horizontal
+                pagingEnabled={false}
+                decelerationRate="fast"
+                snapToInterval={CARD_W + CARD_MARGIN * 2}
+                snapToAlignment="center"
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.pagerContent}
+                onMomentumScrollEnd={handlePageScroll}
+              >
+                {loanTypes.map((item, index) => (
+                  <View key={item.id.toString()} style={styles.cardWrapper}>
+                    <LoanTypeCard
+                      loanType={item}
+                      selected={selectedId === item.id}
+                      onSelect={() => handleSelect(item)}
+                      index={index}
+                      total={loanTypes.length}
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+              <PaginationDots count={loanTypes.length} active={activePage} />
+            </>
           ) : (
-            <Text style={styles.continueBtnText}>
-              {selectedId ? 'Continue →' : 'Select a Loan Type'}
-            </Text>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>📋</Text>
+              <Text style={styles.emptyTitle}>No loan types available</Text>
+              <Text style={styles.emptySub}>Please check back later.</Text>
+            </View>
           )}
-        </TouchableOpacity>
-      </View>
+        </View>
+
+        {/* ── Footer Continue Button ── */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[
+              styles.continueBtn,
+              (!selectedId || creating) && styles.continueBtnDisabled,
+            ]}
+            onPress={() => handleContinue()}
+            disabled={!selectedId || creating}
+            activeOpacity={0.85}
+          >
+            {creating ? (
+              <ActivityIndicator color={WHITE} />
+            ) : (
+              <Text style={styles.continueBtnText}>
+                {selectedId ? 'Continue →' : 'Select a Loan Type'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
 
       </View>{/* end body */}
     </SafeAreaView>
@@ -463,10 +463,10 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
 
-  screen:        { flex: 1, backgroundColor: PRIMARY },
-  body:          { flex: 1, backgroundColor: PAGE_BG },
+  screen: { flex: 1, backgroundColor: PRIMARY },
+  body: { flex: 1, backgroundColor: PAGE_BG },
   loadingScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: PAGE_BG },
-  loadingText:   { marginTop: 12, fontSize: 15, color: SECONDARY },
+  loadingText: { marginTop: 12, fontSize: 15, color: SECONDARY },
 
   // ── Header ──
   header: {
@@ -658,14 +658,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 8,
   },
-  dot:       { width: 7, height: 7, borderRadius: 3.5, backgroundColor: 'rgba(15,28,82,0.18)', marginHorizontal: 4 },
+  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: 'rgba(15,28,82,0.18)', marginHorizontal: 4 },
   dotActive: { width: 22, height: 7, borderRadius: 3.5, backgroundColor: PRIMARY },
 
   // ── Empty State ──
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyEmoji: { fontSize: 48, marginBottom: 14 },
   emptyTitle: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: PRIMARY, marginBottom: 6 },
-  emptySub:   { fontSize: 13, color: MUTED, textAlign: 'center' },
+  emptySub: { fontSize: 13, color: MUTED, textAlign: 'center' },
 
   // ── Footer ──
   footer: {

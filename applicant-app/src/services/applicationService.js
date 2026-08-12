@@ -4,7 +4,7 @@
  */
 
 import * as FileSystem from 'expo-file-system';
-import * as SecureStore from 'expo-secure-store';
+import { getItemAsync } from '../utils/storage';
 import * as Sharing from 'expo-sharing';
 import apiService from './apiService';
 import logger from '../utils/logger';
@@ -30,7 +30,7 @@ function setCache(key, data, ttlMs) {
 }
 
 const FIVE_MIN = 5 * 60 * 1000;
-const TEN_MIN  = 10 * 60 * 1000;
+const TEN_MIN = 10 * 60 * 1000;
 
 class ApplicationService {
   /**
@@ -175,7 +175,7 @@ class ApplicationService {
    * Download or preview an applicant document via authenticated endpoint.
    */
   async getDocumentPreview(documentId, filePath = '') {
-    const token = await SecureStore.getItemAsync('accessToken');
+    const token = await getItemAsync('accessToken');
     const baseUrl = apiService.defaults.baseURL;
     const url = `${baseUrl}/applicant/documents/${documentId}/`;
     const ext = (filePath.split('.').pop() || 'bin').toLowerCase();
@@ -382,7 +382,7 @@ class ApplicationService {
    * Uses expo-file-system to download with auth header, then expo-sharing to open.
    */
   async downloadApplicationPDF(applicationId) {
-    const token = await SecureStore.getItemAsync('accessToken');
+    const token = await getItemAsync('accessToken');
     const baseUrl = apiService.defaults.baseURL;
     const url = `${baseUrl}/applicant/applications/${applicationId}/download-pdf/`;
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');

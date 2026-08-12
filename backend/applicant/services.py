@@ -49,7 +49,7 @@ class ApplicantDashboardService:
                 ApplicationStatuses.VERIFIED,
                 ApplicationStatuses.PENDING_CREDIT
             ]
-        ).count()
+        ).exclude(current_status__status_name=ApplicationStatuses.DRAFT).count()
         approved = applications.filter(
             current_status__status_name__in=[
                 ApplicationStatuses.APPROVED,
@@ -196,7 +196,6 @@ class LoanApplicationService:
 
         # Check for pending applications
         pending_statuses = [
-            ApplicationStatuses.DRAFT,
             ApplicationStatuses.SUBMITTED,
             ApplicationStatuses.VERIFIED,
             ApplicationStatuses.PENDING_CREDIT

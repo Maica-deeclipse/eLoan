@@ -92,7 +92,7 @@ You'll need this for all three apps to communicate.
 # Windows
 ipconfig
 # Look for "IPv4 Address" under your active Wi-Fi or Ethernet adapter
-# Example: 192.168.1.10
+# Example: 192.168.100.17
 ```
 
 ---

@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { getItemAsync, setItemAsync } from './storage';
 
 const STORAGE_KEY = 'application_wizard_drafts_v1';
 
@@ -24,12 +24,12 @@ const isDraftExpired = (draft) => {
 };
 
 const persistDraftMap = async (draftMap) => {
-  await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(draftMap));
+  await setItemAsync(STORAGE_KEY, JSON.stringify(draftMap));
 };
 
 export const getLoanTypeDraft = async (loanTypeId) => {
   try {
-    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+    const raw = await getItemAsync(STORAGE_KEY);
     const drafts = parseStoredValue(raw);
     const key = String(loanTypeId);
     const draft = drafts[key] || null;
@@ -50,7 +50,7 @@ export const getLoanTypeDraft = async (loanTypeId) => {
 };
 
 export const saveLoanTypeDraft = async (loanTypeId, patch) => {
-  const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+  const raw = await getItemAsync(STORAGE_KEY);
   const drafts = parseStoredValue(raw);
   const key = String(loanTypeId);
   const existing = drafts[key] || {};
@@ -68,7 +68,7 @@ export const saveLoanTypeDraft = async (loanTypeId, patch) => {
 
 export const clearLoanTypeDraft = async (loanTypeId) => {
   try {
-    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+    const raw = await getItemAsync(STORAGE_KEY);
     const drafts = parseStoredValue(raw);
     delete drafts[String(loanTypeId)];
     await persistDraftMap(drafts);
