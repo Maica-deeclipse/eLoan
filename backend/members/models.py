@@ -113,10 +113,10 @@ class Member(models.Model):
         Auto-calculate membership type based on by-laws:
 
         Rules:
-        1. part_time / job_order → ALWAYS associate (regardless of deposit)
+        1. part_time / job_order → ALWAYS associate (regardless of deposit/capital)
         2. permanent / temporary / casual:
-           - fixed_deposit >= 20,000 → regular
-           - fixed_deposit < 20,000 OR no deposit yet → associate
+           - fixed_deposit >= 20,000 OR total_shared_capital >= 20,000 → regular
+           - neither >= 20,000 → associate
         3. No verified employment status yet → associate by default
         """
         emp_status = self.verified_employment_status
@@ -129,9 +129,11 @@ class Member(models.Model):
         if emp_status in ASSOCIATE_ONLY_STATUSES:
             return 'associate'
 
-        # Regular-eligible employment statuses → check fixed deposit
+        # Regular-eligible employment statuses → check deposit and capital
         if emp_status in REGULAR_ELIGIBLE_STATUSES:
-            if self.fixed_deposit is not None and self.fixed_deposit >= Decimal('20000.00'):
+            has_enough_capital = self.total_shared_capital >= Decimal('20000.00')
+            has_enough_deposit = self.fixed_deposit is not None and self.fixed_deposit >= Decimal('20000.00')
+            if has_enough_capital or has_enough_deposit:
                 return 'regular'
 
         return 'associate'

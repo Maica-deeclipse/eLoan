@@ -19,54 +19,47 @@ export default function ApplicantRegister() {
     password: '',
     confirm_password: '',
   });
-  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [serverError, setServerError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    setError('');
+    // Clear field-level error when user starts typing
+    if (fieldErrors[e.target.name]) {
+      setFieldErrors((prev) => ({ ...prev, [e.target.name]: '' }));
+    }
+    setServerError('');
   };
 
   const validateForm = () => {
-    if (!form.id.trim()) {
-      setError('ID is required.');
-      return false;
-    }
-    if (!form.firstname.trim()) {
-      setError('First name is required.');
-      return false;
-    }
-    if (!form.lastname.trim()) {
-      setError('Last name is required.');
-      return false;
-    }
+    const errs = {};
+    if (!form.id.trim()) errs.id = 'ID is required.';
+    if (!form.firstname.trim()) errs.firstname = 'First name is required.';
+    if (!form.lastname.trim()) errs.lastname = 'Last name is required.';
     if (!form.email.trim()) {
-      setError('Email is required.');
-      return false;
-    }
-    if (!form.email.endsWith('@buksu.edu.ph')) {
-      setError('Please use your BukSU institutional email (@buksu.edu.ph).');
-      return false;
+      errs.email = 'Email is required.';
+    } else if (!form.email.endsWith('@buksu.edu.ph')) {
+      errs.email = 'Please use your BukSU institutional email (@buksu.edu.ph).';
     }
     if (!form.password) {
-      setError('Password is required.');
-      return false;
+      errs.password = 'Password is required.';
+    } else if (form.password.length < 8) {
+      errs.password = 'Password must be at least 8 characters.';
     }
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return false;
+    if (!form.confirm_password) {
+      errs.confirm_password = 'Please confirm your password.';
+    } else if (form.password !== form.confirm_password) {
+      errs.confirm_password = 'Passwords do not match.';
     }
-    if (form.password !== form.confirm_password) {
-      setError('Passwords do not match.');
-      return false;
-    }
-    return true;
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setServerError('');
 
     if (!validateForm()) {
       return;
@@ -90,19 +83,20 @@ export default function ApplicantRegister() {
         password: '',
         confirm_password: '',
       });
+      setFieldErrors({});
     } catch (err) {
       const data = err.response?.data;
       if (data?.email) {
-        setError(Array.isArray(data.email) ? data.email[0] : data.email);
+        setFieldErrors((prev) => ({ ...prev, email: Array.isArray(data.email) ? data.email[0] : data.email }));
       } else if (data?.employee_id) {
-        setError(Array.isArray(data.employee_id) ? data.employee_id[0] : data.employee_id);
+        setFieldErrors((prev) => ({ ...prev, id: Array.isArray(data.employee_id) ? data.employee_id[0] : data.employee_id }));
       } else if (data?.error) {
-        setError(data.error);
+        setServerError(data.error);
       } else if (data?.non_field_errors) {
         const errors = Array.isArray(data.non_field_errors) ? data.non_field_errors : Object.values(data).flat();
-        setError(errors[0] || 'Registration failed. Please try again.');
+        setServerError(errors[0] || 'Registration failed. Please try again.');
       } else {
-        setError('Registration failed. Please try again.');
+        setServerError('Registration failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -181,7 +175,7 @@ export default function ApplicantRegister() {
           <p className="login-subtitle">Create your account to apply for loans</p>
         </div>
 
-        {error && (
+        {serverError && (
           <div
             style={{
               background: '#fee2e2',
@@ -192,7 +186,7 @@ export default function ApplicantRegister() {
               fontSize: '0.9rem',
             }}
           >
-            {error}
+            {serverError}
           </div>
         )}
 
@@ -257,7 +251,7 @@ export default function ApplicantRegister() {
           <form onSubmit={handleSubmit} className="login-form">
             <div style={{ marginBottom: '1rem' }}>
               <label htmlFor="id" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500', color: '#374151' }}>
-                ID
+                ID <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="text"
@@ -269,17 +263,20 @@ export default function ApplicantRegister() {
                 style={{
                   width: '100%',
                   padding: '0.75rem 1rem',
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${fieldErrors.id ? '#dc2626' : '#d1d5db'}`,
                   borderRadius: '6px',
                   fontSize: '1rem',
                   boxSizing: 'border-box',
+                  background: fieldErrors.id ? '#fff5f5' : undefined,
+                  boxShadow: fieldErrors.id ? '0 0 0 3px rgba(220,38,38,0.12)' : undefined,
                 }}
               />
+              {fieldErrors.id && <span className="field-error-msg">{fieldErrors.id}</span>}
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
               <label htmlFor="firstname" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500', color: '#374151' }}>
-                First Name
+                First Name <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="text"
@@ -291,17 +288,20 @@ export default function ApplicantRegister() {
                 style={{
                   width: '100%',
                   padding: '0.75rem 1rem',
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${fieldErrors.firstname ? '#dc2626' : '#d1d5db'}`,
                   borderRadius: '6px',
                   fontSize: '1rem',
                   boxSizing: 'border-box',
+                  background: fieldErrors.firstname ? '#fff5f5' : undefined,
+                  boxShadow: fieldErrors.firstname ? '0 0 0 3px rgba(220,38,38,0.12)' : undefined,
                 }}
               />
+              {fieldErrors.firstname && <span className="field-error-msg">{fieldErrors.firstname}</span>}
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
               <label htmlFor="lastname" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500', color: '#374151' }}>
-                Last Name
+                Last Name <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="text"
@@ -313,17 +313,20 @@ export default function ApplicantRegister() {
                 style={{
                   width: '100%',
                   padding: '0.75rem 1rem',
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${fieldErrors.lastname ? '#dc2626' : '#d1d5db'}`,
                   borderRadius: '6px',
                   fontSize: '1rem',
                   boxSizing: 'border-box',
+                  background: fieldErrors.lastname ? '#fff5f5' : undefined,
+                  boxShadow: fieldErrors.lastname ? '0 0 0 3px rgba(220,38,38,0.12)' : undefined,
                 }}
               />
+              {fieldErrors.lastname && <span className="field-error-msg">{fieldErrors.lastname}</span>}
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
               <label htmlFor="email" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500', color: '#374151' }}>
-                Institutional Email
+                Institutional Email <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="email"
@@ -335,17 +338,20 @@ export default function ApplicantRegister() {
                 style={{
                   width: '100%',
                   padding: '0.75rem 1rem',
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${fieldErrors.email ? '#dc2626' : '#d1d5db'}`,
                   borderRadius: '6px',
                   fontSize: '1rem',
                   boxSizing: 'border-box',
+                  background: fieldErrors.email ? '#fff5f5' : undefined,
+                  boxShadow: fieldErrors.email ? '0 0 0 3px rgba(220,38,38,0.12)' : undefined,
                 }}
               />
+              {fieldErrors.email && <span className="field-error-msg">{fieldErrors.email}</span>}
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
               <label htmlFor="password" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500', color: '#374151' }}>
-                Password
+                Password <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="password"
@@ -353,21 +359,24 @@ export default function ApplicantRegister() {
                 name="password"
                 value={form.password}
                 onChange={handleChange}
-                placeholder="Enter your password"
+                placeholder="At least 8 characters"
                 style={{
                   width: '100%',
                   padding: '0.75rem 1rem',
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${fieldErrors.password ? '#dc2626' : '#d1d5db'}`,
                   borderRadius: '6px',
                   fontSize: '1rem',
                   boxSizing: 'border-box',
+                  background: fieldErrors.password ? '#fff5f5' : undefined,
+                  boxShadow: fieldErrors.password ? '0 0 0 3px rgba(220,38,38,0.12)' : undefined,
                 }}
               />
+              {fieldErrors.password && <span className="field-error-msg">{fieldErrors.password}</span>}
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label htmlFor="confirm_password" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500', color: '#374151' }}>
-                Confirm Password
+                Confirm Password <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="password"
@@ -379,12 +388,15 @@ export default function ApplicantRegister() {
                 style={{
                   width: '100%',
                   padding: '0.75rem 1rem',
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${fieldErrors.confirm_password ? '#dc2626' : '#d1d5db'}`,
                   borderRadius: '6px',
                   fontSize: '1rem',
                   boxSizing: 'border-box',
+                  background: fieldErrors.confirm_password ? '#fff5f5' : undefined,
+                  boxShadow: fieldErrors.confirm_password ? '0 0 0 3px rgba(220,38,38,0.12)' : undefined,
                 }}
               />
+              {fieldErrors.confirm_password && <span className="field-error-msg">{fieldErrors.confirm_password}</span>}
             </div>
 
             <button

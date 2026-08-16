@@ -45,19 +45,27 @@ export default function MemberApplications() {
     }
   };
 
+  const [rejectError, setRejectError] = useState('');
+
   const handleReject = async () => {
+    setRejectError('');
+    if (problemDocs.length === 0 && !rejectReason.trim()) {
+      setRejectError('Please select at least one document issue or enter a reason for rejection.');
+      return;
+    }
     try {
       const fullReason = problemDocs.length > 0
-        ? `Documents flagged: ${problemDocs.join(', ')}${rejectReason ? '\n' + rejectReason : ''}`
-        : rejectReason;
+        ? `Documents flagged: ${problemDocs.join(', ')}${rejectReason.trim() ? '\n' + rejectReason.trim() : ''}`
+        : rejectReason.trim();
       const res = await amoService.rejectApplication(selected.id, fullReason);
       setActionMsg(res.message);
       setModal(null);
       setRejectReason('');
       setProblemDocs([]);
+      setRejectError('');
       load(filter);
     } catch (e) {
-      setActionMsg('Failed to reject. Please try again.');
+      setRejectError('Failed to reject. Please try again.');
     }
   };
 
@@ -160,6 +168,11 @@ export default function MemberApplications() {
           <p style={{ color: '#4b5563', fontSize: '0.875rem', marginBottom: '1rem' }}>
             Rejecting: <strong>{selected.name || `${selected.firstname} ${selected.lastname}`}</strong>
           </p>
+          {rejectError && (
+            <div style={{ background: '#fee2e2', color: '#991b1b', padding: '0.625rem 0.875rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.8125rem', fontWeight: 500 }}>
+              {rejectError}
+            </div>
+          )}
           <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151' }}>Documents with Issues</label>
           <div style={{ border: '1px solid #d1d5db', borderRadius: '8px', padding: '0.5rem', marginTop: '0.5rem', marginBottom: '1rem', background: '#fafafa' }}>
             {AMO_DOCUMENTS.map(doc => (

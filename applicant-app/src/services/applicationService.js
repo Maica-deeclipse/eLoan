@@ -328,11 +328,13 @@ class ApplicationService {
   /**
    * Search users for co-maker
    */
-  async searchUsers(query, offset = 0, limit = 20) {
-    const response = await apiService.get('/applicant/search-users/', {
-      params: { q: query, offset, limit },
-    });
-    // Return full pagination envelope: { users, total, has_more, offset, limit }
+  async searchUsers(query, offset = 0, limit = 20, loanAmount = null) {
+    const params = { q: query, offset, limit };
+    if (loanAmount !== null && loanAmount !== undefined) {
+      params.loan_amount = loanAmount;
+    }
+    const response = await apiService.get('/applicant/search-users/', { params });
+    // Return full pagination envelope: { users, total, has_more, offset, limit, required_rank_label }
     return response.data;
   }
 

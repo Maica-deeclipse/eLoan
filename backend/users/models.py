@@ -308,7 +308,7 @@ class Applicant(User):
         """
         Auto-calculate membership type based on by-laws:
         1. part_time / job_order → ALWAYS associate
-        2. permanent / temporary / casual + fixed_deposit >= 20,000 → regular
+        2. permanent / temporary / casual + (total_shared_capital >= 20,000 OR fixed_deposit >= 20,000) → regular
         3. No verified employment status → associate by default
         """
         emp_status = self.verified_employment_status
@@ -317,7 +317,9 @@ class Applicant(User):
         if emp_status in ASSOCIATE_ONLY_STATUSES:
             return 'associate'
         if emp_status in REGULAR_ELIGIBLE_STATUSES:
-            if self.fixed_deposit is not None and self.fixed_deposit >= Decimal('20000.00'):
+            has_enough_capital = self.total_shared_capital >= Decimal('20000.00')
+            has_enough_deposit = self.fixed_deposit is not None and self.fixed_deposit >= Decimal('20000.00')
+            if has_enough_capital or has_enough_deposit:
                 return 'regular'
         return 'associate'
 

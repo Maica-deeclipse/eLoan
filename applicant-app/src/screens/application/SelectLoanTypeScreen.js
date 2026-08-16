@@ -295,9 +295,12 @@ export default function SelectLoanTypeScreen({ navigation, route }) {
         existingDraft = { id: resumeId };
       } else {
         const allApplications = await applicationService.getApplications();
+        // Only resume Draft applications — Submitted apps are locked in review.
+        // This allows users to start a fresh application for the same loan type
+        // after a previous one is already submitted/under review.
         existingDraft = allApplications.find(
           (app) =>
-            ['Draft', 'Submitted'].includes(app.status) &&
+            app.status === 'Draft' &&
             (app.loan_type_id === loanTypeId || app.loan_type === selectedLoanType.loan_name)
         );
       }

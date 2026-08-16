@@ -1539,12 +1539,13 @@ class CombinedVerificationView(ApplicantBaseView):
 # Co-Maker API
 # =============================================================================
 class SearchUsersView(ApplicantBaseView):
-    """GET /api/applicant/search-users/?q=<search_term>&limit=20&offset=0"""
+    """GET /api/applicant/search-users/?q=<search_term>&limit=20&offset=0&loan_amount=<amount>"""
 
     def get(self, request):
         query = request.query_params.get('q', '')
         limit = request.query_params.get('limit', 20)
         offset = request.query_params.get('offset', 0)
+        loan_amount = request.query_params.get('loan_amount', None)
 
         try:
             limit = int(limit)
@@ -1553,7 +1554,14 @@ class SearchUsersView(ApplicantBaseView):
             limit = 20
             offset = 0
 
-        result = CoMakerService.search_registered_users(query, request.user.id, limit=limit, offset=offset)
+        try:
+            loan_amount = float(loan_amount) if loan_amount else None
+        except (ValueError, TypeError):
+            loan_amount = None
+
+        result = CoMakerService.search_registered_users(
+            query, request.user.id, limit=limit, offset=offset, loan_amount=loan_amount
+        )
 
         return Response({
             'users': [
@@ -1563,6 +1571,10 @@ class SearchUsersView(ApplicantBaseView):
                     'firstname': u.firstname,
                     'lastname': u.lastname,
                     'full_name': f"{u.firstname} {u.lastname}",
+                    'membership_type': getattr(u, 'membership_type', ''),
+                    'verified_employment_status': getattr(u, 'verified_employment_status', '') or '',
+                    'position': getattr(u, 'position', '') or '',
+                    'rank_label': result['required_rank_label'],
                 }
                 for u in result['users']
             ],
@@ -1570,6 +1582,8 @@ class SearchUsersView(ApplicantBaseView):
             'has_more': result['has_more'],
             'offset': offset,
             'limit': limit,
+            'required_rank_label': result['required_rank_label'],
+            'allowed_statuses': result['allowed_statuses'],
         })
 
 
@@ -1595,6 +1609,9 @@ class CoMakerListView(ApplicantBaseView):
                     'user_email': cm.user.email,
                     'status': cm.status,
                     'responded_at': cm.responded_at,
+                    'rank_position': getattr(cm, '_rank_position', None),
+                    'is_repeat': getattr(cm, '_is_repeat', False),
+                    'verified_employment_status': getattr(cm, '_emp_status', ''),
                     'info': {
                         'full_name': cm.detailed_info.full_name if hasattr(cm, 'detailed_info') else '',
                         'relationship': cm.detailed_info.relationship_to_applicant if hasattr(cm, 'detailed_info') else '',
@@ -1641,6 +1658,10 @@ class CoMakerListView(ApplicantBaseView):
             'id': comaker.id,
             'user_id': comaker.user.id,
             'user_name': f"{comaker.user.firstname} {comaker.user.lastname}",
+            'is_repeat': getattr(comaker, '_is_repeat', False),
+            'auto_id_pulled': getattr(comaker, '_auto_id_pulled', False),
+            'rank_label': getattr(comaker, '_rank_label', ''),
+            'verified_employment_status': getattr(comaker, '_comaker_emp_status', ''),
             'message': 'Co-maker added successfully',
         }, status=status.HTTP_201_CREATED)
 
@@ -1798,7 +1819,11 @@ class ProfileView(ApplicantBaseView):
             'membership_status': member.membership_status if member else None,
             'subscribed_shares': member.subscribed_shares if member else None,
             'paid_shares': member.paid_shares if member else None,
-            'member_since': member.member_since.isoformat() if member else None,
+            'member_since': member.member_since.isoformat() if (member and member.member_since) else None,
+            'total_savings': str(member.total_savings) if member else '0.00',
+            'total_shared_capital': str(member.total_shared_capital) if member else '0.00',
+            'fixed_deposit': str(member.fixed_deposit) if (member and getattr(member, 'fixed_deposit', None) is not None) else None,
+            'verified_employment_status': getattr(member, 'verified_employment_status', None) if member else None,
         }
 
         return Response({

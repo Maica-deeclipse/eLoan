@@ -43,6 +43,7 @@ export default function PersonalDetailsScreen({ navigation }) {
   const { state, setPersonalDetails, dispatch } = useApplication();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [contactNumber, setContactNumber] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
@@ -129,27 +130,21 @@ export default function PersonalDetailsScreen({ navigation }) {
   };
 
   const validateForm = () => {
-    if (!contactNumber.trim()) {
-      Alert.alert('Validation Error', 'Contact number is required');
-      return false;
-    }
-    if (!addressLine1.trim()) {
-      Alert.alert('Validation Error', 'Address is required');
-      return false;
-    }
-    if (!employerName.trim()) {
-      Alert.alert('Validation Error', 'Office / Department is required');
-      return false;
-    }
+    const errs = {};
+    if (!contactNumber.trim()) errs.contactNumber = 'Contact number is required';
+    if (!addressLine1.trim()) errs.addressLine1 = 'Address is required';
+    if (!employerName.trim()) errs.employerName = 'Office / Department is required';
     if (!monthlyIncome || isNaN(parseFloat(monthlyIncome)) || parseFloat(monthlyIncome) <= 0) {
-      Alert.alert('Validation Error', 'Monthly income is required');
-      return false;
+      errs.monthlyIncome = 'Valid monthly income is required';
     }
-    if (!employmentStatus) {
-      Alert.alert('Validation Error', 'Employment status is required');
-      return false;
+    if (!employmentStatus) errs.employmentStatus = 'Employment status is required';
+    setFieldErrors(errs);
+
+    const isValid = Object.keys(errs).length === 0;
+    if (!isValid) {
+      Alert.alert('Incomplete Fields', 'Please fill out all required fields marked with * before continuing.');
     }
-    return true;
+    return isValid;
   };
 
   const handleContinue = async () => {
@@ -236,13 +231,14 @@ export default function PersonalDetailsScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>Contact Number *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, fieldErrors.contactNumber && styles.inputError]}
                 value={contactNumber}
-                onChangeText={setContactNumber}
+                onChangeText={(v) => { setContactNumber(v); if (fieldErrors.contactNumber) setFieldErrors((p) => ({ ...p, contactNumber: '' })); }}
                 placeholder="09XX XXX XXXX"
-                keyboardType="phone-pad"
+                keyboardType="numeric"
                 maxLength={11}
               />
+              {fieldErrors.contactNumber ? <Text style={styles.fieldErrorText}>{fieldErrors.contactNumber}</Text> : null}
             </View>
           </View>
 
@@ -252,11 +248,12 @@ export default function PersonalDetailsScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>Complete Address *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, fieldErrors.addressLine1 && styles.inputError]}
                 value={addressLine1}
-                onChangeText={setAddressLine1}
+                onChangeText={(v) => { setAddressLine1(v); if (fieldErrors.addressLine1) setFieldErrors((p) => ({ ...p, addressLine1: '' })); }}
                 placeholder="House/Unit No., Street, Barangay"
               />
+              {fieldErrors.addressLine1 ? <Text style={styles.fieldErrorText}>{fieldErrors.addressLine1}</Text> : null}
             </View>
             <View style={styles.row}>
               <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
@@ -320,7 +317,7 @@ export default function PersonalDetailsScreen({ navigation }) {
                 value={tin}
                 onChangeText={setTin}
                 placeholder="XXX-XXX-XXX"
-                keyboardType="numbers-and-punctuation"
+                keyboardType="numeric"
                 maxLength={12}
               />
             </View>
@@ -335,17 +332,20 @@ export default function PersonalDetailsScreen({ navigation }) {
                 placeholder="Select employment status"
                 value={employmentStatus || null}
                 options={EMPLOYMENT_STATUS_OPTIONS}
-                onChange={(val) => setEmploymentStatus(val)}
+                onChange={(val) => { setEmploymentStatus(val); if (fieldErrors.employmentStatus) setFieldErrors((p) => ({ ...p, employmentStatus: '' })); }}
+                hasError={!!fieldErrors.employmentStatus}
+                errorMessage={fieldErrors.employmentStatus}
               />
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>Office / Department *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, fieldErrors.employerName && styles.inputError]}
                 value={employerName}
-                onChangeText={setEmployerName}
+                onChangeText={(v) => { setEmployerName(v); if (fieldErrors.employerName) setFieldErrors((p) => ({ ...p, employerName: '' })); }}
                 placeholder="Office/Department Name"
               />
+              {fieldErrors.employerName ? <Text style={styles.fieldErrorText}>{fieldErrors.employerName}</Text> : null}
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>Position</Text>
@@ -359,13 +359,14 @@ export default function PersonalDetailsScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>Monthly Income *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, fieldErrors.monthlyIncome && styles.inputError]}
                 value={monthlyIncome}
-                onChangeText={setMonthlyIncome}
+                onChangeText={(v) => { setMonthlyIncome(v); if (fieldErrors.monthlyIncome) setFieldErrors((p) => ({ ...p, monthlyIncome: '' })); }}
                 placeholder="₱0.00"
                 keyboardType="numeric"
                 maxLength={12}
               />
+              {fieldErrors.monthlyIncome ? <Text style={styles.fieldErrorText}>{fieldErrors.monthlyIncome}</Text> : null}
             </View>
           </View>
         </ScrollView>
@@ -421,6 +422,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(15,28,82,0.15)', borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 12,
     fontSize: 15, color: '#0f1c52', backgroundColor: '#fff',
+  },
+  inputError: {
+    borderColor: '#dc2626',
+    backgroundColor: '#fff5f5',
+  },
+  fieldErrorText: {
+    fontSize: 12, color: '#dc2626', marginTop: 4, fontWeight: '500',
   },
   footer: {
     flexDirection: 'row', padding: 16, paddingTop: 12,

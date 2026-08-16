@@ -18,15 +18,27 @@ export class AuthService {
    * @returns {Promise<Object>} { success: boolean, user?: Object, error?: string }
    */
   async login(email, password, captchaToken = '') {
+    const loginUrl = `${API_URL}/applicant/login/`;
+    console.log('[AUTH] ▶ login() called');
+    console.log('[AUTH]   email    :', email);
+    console.log('[AUTH]   url      :', loginUrl);
+    console.log('[AUTH]   timeout  :', REQUEST_TIMEOUT_MS, 'ms');
+
     try {
+      console.log('[AUTH] ➡ Sending POST request...');
       const response = await axios.post(
-        `${API_URL}/applicant/login/`,
+        loginUrl,
         { email, password, captcha_token: captchaToken },
         { timeout: REQUEST_TIMEOUT_MS }
       );
 
+      console.log('[AUTH] ✅ Response received');
+      console.log('[AUTH]   status  :', response.status);
+      console.log('[AUTH]   data    :', JSON.stringify(response.data));
+
       if (response.data.tokens) {
         const { access, refresh } = response.data.tokens;
+        console.log('[AUTH] 💾 Saving tokens to secure storage...');
         // Write all three entries in parallel — 3x faster than sequential awaits
         await Promise.all([
           setItemAsync('accessToken', access),
@@ -35,21 +47,41 @@ export class AuthService {
         ]);
         // Warm up in-memory token cache so first API call after login skips storage read
         setCachedToken(access);
-
+        console.log('[AUTH] ✅ Login success! User:', response.data.user?.email);
         return { success: true, user: response.data.user };
       }
 
+      console.warn('[AUTH] ⚠ Response had no tokens:', JSON.stringify(response.data));
       return { success: false, error: 'Invalid response from server' };
     } catch (error) {
+      console.error('[AUTH] ❌ Login request failed');
+      console.error('[AUTH]   error.message   :', error.message);
+      console.error('[AUTH]   error.code      :', error.code);
+      console.error('[AUTH]   HTTP status     :', error.response?.status);
+      console.error('[AUTH]   response data   :', JSON.stringify(error.response?.data));
+
       // Transform error for consistent error handling
       const responseData = error.response?.data;
       let errorMessage = 'Unable to connect to server. Please check your internet connection.';
 
       if (responseData) {
+        // DRF serializer validation errors come back as { non_field_errors: [...] }
+        // or as { error: '...' } or { fieldName: [...] }
         if (typeof responseData.error === 'string') {
           errorMessage = responseData.error;
         } else if (Array.isArray(responseData.error) && responseData.error.length > 0) {
           errorMessage = responseData.error[0];
+        } else if (responseData.non_field_errors) {
+          // DRF non-field validation errors
+          const nfe = responseData.non_field_errors;
+          if (typeof nfe === 'string') errorMessage = nfe;
+          else if (Array.isArray(nfe) && nfe.length > 0) {
+            const first = nfe[0];
+            // DRF often nests the real message one level deeper: [{error: '...'}]
+            errorMessage = (typeof first === 'object' && first?.error)
+              ? first.error
+              : String(first);
+          }
         } else if (typeof responseData.message === 'string') {
           errorMessage = responseData.message;
         } else if (typeof responseData === 'string') {
@@ -60,11 +92,17 @@ export class AuthService {
           if (typeof firstValue === 'string') {
             errorMessage = firstValue;
           } else if (Array.isArray(firstValue) && firstValue.length > 0) {
-            errorMessage = firstValue[0];
+            const fi = firstValue[0];
+            errorMessage = (typeof fi === 'object' && fi?.error) ? fi.error : String(fi);
           }
         }
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Connection timed out. Make sure the server is running and you are on the same network.';
+      } else if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        errorMessage = `Network error — cannot reach ${loginUrl}. Check your Wi-Fi and that the backend is running.`;
       }
 
+      console.error('[AUTH]   final error msg:', errorMessage);
       return { success: false, error: errorMessage };
     }
   }

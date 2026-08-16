@@ -59,15 +59,20 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password, captchaToken = '') => {
+    console.log('[AUTH_CTX] login() called for:', email);
     try {
       const result = await authService.login(email, password, captchaToken);
+      console.log('[AUTH_CTX] authService.login result:', JSON.stringify(result));
       if (result.success) {
         setUser(result.user);
         setIsAuthenticated(true);
+        console.log('[AUTH_CTX] ✅ State updated — user is now authenticated');
         return { success: true };
       }
+      console.warn('[AUTH_CTX] ⚠ Login returned failure:', result.error);
       return { success: false, error: result.error };
     } catch (error) {
+      console.error('[AUTH_CTX] ❌ Unexpected exception in login():', error.message);
       return { success: false, error: 'Login failed. Please try again.' };
     }
   };

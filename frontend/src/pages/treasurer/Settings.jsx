@@ -26,6 +26,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const fileInputRef = useRef(null);
+  const [profileErrors, setProfileErrors] = useState({});
+  const [passwordErrors, setPasswordErrors] = useState({});
 
   useEffect(() => {
     fetchData();
@@ -65,6 +67,11 @@ export default function Settings() {
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
+    const errs = {};
+    if (!profileForm.firstname.trim()) errs.firstname = 'First name is required.';
+    if (!profileForm.lastname.trim()) errs.lastname = 'Last name is required.';
+    setProfileErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     try {
       setSaving(true);
       const result = await treasurerService.updateProfile(profileForm);
@@ -137,11 +144,20 @@ export default function Settings() {
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-
-    if (passwordForm.new_password !== passwordForm.confirm_password) {
-      showMessage('error', 'New passwords do not match');
-      return;
+    const errs = {};
+    if (!passwordForm.old_password) errs.old_password = 'Current password is required.';
+    if (!passwordForm.new_password) {
+      errs.new_password = 'New password is required.';
+    } else if (passwordForm.new_password.length < 8) {
+      errs.new_password = 'Password must be at least 8 characters.';
     }
+    if (!passwordForm.confirm_password) {
+      errs.confirm_password = 'Please confirm new password.';
+    } else if (passwordForm.new_password !== passwordForm.confirm_password) {
+      errs.confirm_password = 'New passwords do not match.';
+    }
+    setPasswordErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
     try {
       setSaving(true);
@@ -151,6 +167,7 @@ export default function Settings() {
         passwordForm.confirm_password
       );
       setPasswordForm({ old_password: '', new_password: '', confirm_password: '' });
+      setPasswordErrors({});
       showMessage('success', 'Password changed successfully!');
     } catch (err) {
       showMessage('error', err.response?.data?.error || 'Failed to change password');
@@ -328,30 +345,32 @@ export default function Settings() {
             {/* Profile Form */}
             <form onSubmit={handleProfileSubmit}>
               <div style={{ marginBottom: '1rem' }}>
-                <label htmlFor="tr-firstname" style={labelStyle}>First Name</label>
+                <label htmlFor="tr-firstname" style={labelStyle}>First Name <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
                   id="tr-firstname"
                   type="text"
                   name="firstname"
                   autoComplete="given-name"
                   value={profileForm.firstname}
-                  onChange={handleProfileChange}
-                  style={inputStyle}
+                  onChange={(e) => { handleProfileChange(e); if (profileErrors.firstname) setProfileErrors(p => ({ ...p, firstname: '' })); }}
+                  style={{ ...inputStyle, ...(profileErrors.firstname ? errorInputStyle : {}) }}
                   required
                 />
+                {profileErrors.firstname && <span style={fieldErrorStyle}>{profileErrors.firstname}</span>}
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label htmlFor="tr-lastname" style={labelStyle}>Last Name</label>
+                <label htmlFor="tr-lastname" style={labelStyle}>Last Name <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
                   id="tr-lastname"
                   type="text"
                   name="lastname"
                   autoComplete="family-name"
                   value={profileForm.lastname}
-                  onChange={handleProfileChange}
-                  style={inputStyle}
+                  onChange={(e) => { handleProfileChange(e); if (profileErrors.lastname) setProfileErrors(p => ({ ...p, lastname: '' })); }}
+                  style={{ ...inputStyle, ...(profileErrors.lastname ? errorInputStyle : {}) }}
                   required
                 />
+                {profileErrors.lastname && <span style={fieldErrorStyle}>{profileErrors.lastname}</span>}
               </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label htmlFor="tr-email" style={labelStyle}>Email</label>
@@ -402,45 +421,46 @@ export default function Settings() {
           <div style={{ padding: '1.5rem' }}>
             <form onSubmit={handlePasswordSubmit}>
               <div style={{ marginBottom: '1rem' }}>
-                <label htmlFor="tr-old-password" style={labelStyle}>Current Password</label>
+                <label htmlFor="tr-old-password" style={labelStyle}>Current Password <span style={{ color: '#dc2626' }}>*</span></label>
                 <PasswordInput
                   id="tr-old-password"
                   name="old_password"
                   autoComplete="current-password"
                   value={passwordForm.old_password}
-                  onChange={handlePasswordChange}
-                  style={inputStyle}
+                  onChange={(e) => { handlePasswordChange(e); if (passwordErrors.old_password) setPasswordErrors(p => ({ ...p, old_password: '' })); }}
+                  style={{ ...inputStyle, ...(passwordErrors.old_password ? errorInputStyle : {}) }}
                   required
                 />
+                {passwordErrors.old_password && <span style={fieldErrorStyle}>{passwordErrors.old_password}</span>}
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label htmlFor="tr-new-password" style={labelStyle}>New Password</label>
+                <label htmlFor="tr-new-password" style={labelStyle}>New Password <span style={{ color: '#dc2626' }}>*</span></label>
                 <PasswordInput
                   id="tr-new-password"
                   name="new_password"
                   autoComplete="new-password"
                   value={passwordForm.new_password}
-                  onChange={handlePasswordChange}
-                  style={inputStyle}
+                  onChange={(e) => { handlePasswordChange(e); if (passwordErrors.new_password) setPasswordErrors(p => ({ ...p, new_password: '' })); }}
+                  style={{ ...inputStyle, ...(passwordErrors.new_password ? errorInputStyle : {}) }}
                   minLength={8}
                   required
                 />
-                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                  Minimum 8 characters
-                </p>
+                {passwordErrors.new_password && <span style={fieldErrorStyle}>{passwordErrors.new_password}</span>}
+                {!passwordErrors.new_password && <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>Minimum 8 characters</p>}
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label htmlFor="tr-confirm-password" style={labelStyle}>Confirm New Password</label>
+                <label htmlFor="tr-confirm-password" style={labelStyle}>Confirm New Password <span style={{ color: '#dc2626' }}>*</span></label>
                 <PasswordInput
                   id="tr-confirm-password"
                   name="confirm_password"
                   autoComplete="new-password"
                   value={passwordForm.confirm_password}
-                  onChange={handlePasswordChange}
-                  style={inputStyle}
+                  onChange={(e) => { handlePasswordChange(e); if (passwordErrors.confirm_password) setPasswordErrors(p => ({ ...p, confirm_password: '' })); }}
+                  style={{ ...inputStyle, ...(passwordErrors.confirm_password ? errorInputStyle : {}) }}
                   minLength={8}
                   required
                 />
+                {passwordErrors.confirm_password && <span style={fieldErrorStyle}>{passwordErrors.confirm_password}</span>}
               </div>
               <button
                 type="submit"
@@ -650,12 +670,16 @@ const labelStyle = {
   marginBottom: '0.375rem',
 };
 
-const inputStyle = {
-  width: '100%',
-  padding: '0.625rem 0.75rem',
-  border: '1px solid #d1d5db',
-  borderRadius: '0.375rem',
-  fontSize: '0.875rem',
-  outline: 'none',
-  boxSizing: 'border-box',
+const errorInputStyle = {
+  borderColor: '#dc2626',
+  background: '#fff5f5',
+  boxShadow: '0 0 0 3px rgba(220,38,38,0.12)',
+};
+
+const fieldErrorStyle = {
+  display: 'block',
+  fontSize: '0.75rem',
+  color: '#dc2626',
+  marginTop: '0.25rem',
+  fontWeight: 500,
 };

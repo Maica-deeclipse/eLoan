@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 /**
  * API URL Configuration
@@ -14,7 +15,7 @@ const getApiUrl = () => {
   // 2. Platform-specific defaults for local development
   // Android emulator uses 10.0.2.2 to access host machine's localhost
   // iOS simulator can use localhost directly
-  const isAndroid = Constants.platform?.android;
+  const isAndroid = Platform.OS === 'android';
 
   if (__DEV__) {
     // 10.0.2.2 is the standard Android emulator address for the host machine's localhost.
@@ -30,10 +31,16 @@ const getApiUrl = () => {
 
 export const API_URL = getApiUrl();
 
+// Log the resolved API URL so it's visible in Metro/Expo logs on every app start
+console.log('[API_CONFIG] ✅ API_URL resolved to:', API_URL);
+console.log('[API_CONFIG]    Platform:', Platform.OS);
+console.log('[API_CONFIG]    __DEV__:', __DEV__);
+console.log('[API_CONFIG]    env apiUrl override:', Constants.expoConfig?.extra?.apiUrl ?? '(none — using fallback)');
+
 // Export debugging information
 export const getDebugInfo = () => ({
   apiUrl: API_URL,
-  platform: Constants.platform,
+  platform: Platform.OS,
   isDev: __DEV__,
   extra: Constants.expoConfig?.extra,
 });

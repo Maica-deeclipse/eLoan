@@ -30,6 +30,7 @@ const CoMakerScreen = ({ navigation }) => {
   const [selectedCoMakers, setSelectedCoMakers] = useState(state.coMakers || []);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [addingCoMaker, setAddingCoMaker] = useState(null);
+  const [requiredRankLabel, setRequiredRankLabel] = useState('');
 
   const MAX_CO_MAKERS = 3;
   const getEffectiveRequiredCoMakers = (loanType, amount) => {
@@ -56,6 +57,7 @@ const CoMakerScreen = ({ navigation }) => {
   }, []);
 
   const PAGE_SIZE = 20;
+  const loanAmount = Number(state.loanDetails?.amount || 0);
 
   const searchCoMakers = async (loadMore = false) => {
     if (searchQuery.trim().length < 2) {
@@ -73,7 +75,7 @@ const CoMakerScreen = ({ navigation }) => {
     }
 
     try {
-      const data = await applicationService.searchUsers(searchQuery, offset, PAGE_SIZE);
+      const data = await applicationService.searchUsers(searchQuery, offset, PAGE_SIZE, loanAmount);
       const filtered = data.users.filter(
         (user) => !selectedCoMakers.find((cm) => cm.user_id === user.id)
       );
@@ -81,6 +83,9 @@ const CoMakerScreen = ({ navigation }) => {
       setSearchTotal(data.total);
       setSearchHasMore(data.has_more);
       setSearchOffset(offset + PAGE_SIZE);
+      if (data.required_rank_label && !loadMore) {
+        setRequiredRankLabel(data.required_rank_label);
+      }
     } catch (error) {
       logger.error('Search error:', error);
       Alert.alert('Error', 'Failed to search for co-makers');
@@ -113,6 +118,10 @@ const CoMakerScreen = ({ navigation }) => {
         email: user.email,
         contact_number: user.contact_number,
         status: result.status || 'pending',
+        is_repeat: result.is_repeat || false,
+        auto_id_pulled: result.auto_id_pulled || false,
+        rank_label: result.rank_label || '',
+        verified_employment_status: result.verified_employment_status || user.verified_employment_status || '',
       };
 
       const updatedCoMakers = [...selectedCoMakers, newCoMaker];
@@ -122,7 +131,10 @@ const CoMakerScreen = ({ navigation }) => {
       // Remove from search results
       setSearchResults(searchResults.filter((r) => r.id !== user.id));
 
-      Alert.alert('Success', `${user.full_name} has been added as a co-maker`);
+      const successMsg = result.auto_id_pulled
+        ? `${user.full_name} added. Their previously submitted ID has been auto-pulled.`
+        : `${user.full_name} has been added as a co-maker.`;
+      Alert.alert('Co-Maker Added', successMsg);
     } catch (error) {
       logger.error('Add co-maker error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Failed to add co-maker');
@@ -192,11 +204,23 @@ const CoMakerScreen = ({ navigation }) => {
   const renderSearchResult = ({ item }) => (
     <View style={styles.searchResultItem}>
       <View style={styles.searchResultInfo}>
-        <Text style={styles.searchResultName}>{item.full_name}</Text>
+        <View style={styles.searchResultNameRow}>
+          <Text style={styles.searchResultName}>{item.full_name}</Text>
+          {item.is_repeat && (
+            <View style={styles.repeatBadgeSmall}>
+              <Text style={styles.repeatBadgeSmallText}>Repeat</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.searchResultEmail}>{item.email}</Text>
-        {item.contact_number && (
-          <Text style={styles.searchResultContact}>{item.contact_number}</Text>
-        )}
+        {item.verified_employment_status ? (
+          <Text style={styles.searchResultRank}>
+            ✓ {item.verified_employment_status.charAt(0).toUpperCase() + item.verified_employment_status.slice(1)} Employment
+          </Text>
+        ) : null}
+        {item.position ? (
+          <Text style={styles.searchResultPosition}>{item.position}</Text>
+        ) : null}
       </View>
       <TouchableOpacity
         style={styles.addButton}
@@ -219,11 +243,23 @@ const CoMakerScreen = ({ navigation }) => {
           <Text style={styles.coMakerNumberText}>{index + 1}</Text>
         </View>
         <View style={styles.coMakerInfo}>
-          <Text style={styles.coMakerRank}>Co-Maker Rank {index + 1}</Text>
+          <View style={styles.coMakerTitleRow}>
+            <Text style={styles.coMakerRank}>Co-Maker Rank {index + 1}</Text>
+            {coMaker.is_repeat && (
+              <View style={styles.repeatBadge}>
+                <Text style={styles.repeatBadgeText}>🔄 Repeat</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.coMakerName}>{coMaker.full_name}</Text>
           <Text style={styles.coMakerEmail}>{coMaker.email}</Text>
-          {coMaker.contact_number && (
-            <Text style={styles.coMakerContact}>{coMaker.contact_number}</Text>
+          {coMaker.verified_employment_status ? (
+            <Text style={styles.coMakerEmpStatus}>
+              ✓ {coMaker.verified_employment_status.charAt(0).toUpperCase() + coMaker.verified_employment_status.slice(1)} Employment
+            </Text>
+          ) : null}
+          {coMaker.auto_id_pulled && (
+            <Text style={styles.autoPullNote}>📎 ID auto-pulled from previous application</Text>
           )}
         </View>
         <TouchableOpacity
@@ -274,8 +310,25 @@ const CoMakerScreen = ({ navigation }) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Co-Makers</Text>
         <Text style={styles.subtitle}>
-          This loan requires at least {requiredCoMakers} co-maker(s). Higher loan amounts may require a higher co-maker rank, and the total co-maker limit is {coMakerLimit}.
+          This loan requires at least {requiredCoMakers} co-maker(s). The total co-maker limit is {coMakerLimit}.
         </Text>
+
+        {/* Rank Requirement Banner */}
+        <View style={styles.rankBanner}>
+          <Ionicons name="shield-checkmark" size={22} color="#0f5132" />
+          <View style={styles.rankBannerContent}>
+            <Text style={styles.rankBannerTitle}>Co-Maker Rank Requirement</Text>
+            <Text style={styles.rankBannerText}>
+              {loanAmount >= 50000
+                ? `Loan ₱${loanAmount.toLocaleString()} requires Permanent Employment (Rank 3) co-makers.`
+                : loanAmount >= 25000
+                  ? `Loan ₱${loanAmount.toLocaleString()} requires Permanent or Temporary Employment (Rank 2) co-makers.`
+                  : `Loan ₱${loanAmount.toLocaleString()} requires Regular Member co-makers.`
+              }
+            </Text>
+            <Text style={styles.rankBannerNote}>Only Regular Members with the required employment rank are shown in search results.</Text>
+          </View>
+        </View>
 
         {/* Selected Co-Makers */}
         <View style={styles.section}>
@@ -315,10 +368,10 @@ const CoMakerScreen = ({ navigation }) => {
           <View style={styles.infoContent}>
             <Text style={styles.infoTitle}>About Co-Makers</Text>
             <Text style={styles.infoText}>
-              {'\u2022'} Co-makers serve as guarantors for your loan{'\n'}
-              {'\u2022'} They must be registered cooperative members{'\n'}
-              {'\u2022'} They will receive a notification to provide consent{'\n'}
-              {'\u2022'} Your application will proceed once they consent
+              {'\u2022'} Co-makers must be Regular Members of the cooperative{'\n'}
+              {'\u2022'} Higher loan amounts require co-makers with higher employment rank{'\n'}
+              {'\u2022'} Repeat co-makers only need a payslip (their ID is auto-pulled){'\n'}
+              {'\u2022'} Co-makers will receive a notification to provide consent
             </Text>
           </View>
         </View>
@@ -829,6 +882,96 @@ const styles = StyleSheet.create({
     color: '#0d6efd',
     fontFamily: 'Poppins_600SemiBold',
   },
+  // Rank banner
+  rankBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#d1e7dd',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  rankBannerContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  rankBannerTitle: {
+    fontSize: 13,
+    fontFamily: 'Poppins_700Bold',
+    color: '#0f5132',
+    marginBottom: 4,
+  },
+  rankBannerText: {
+    fontSize: 13,
+    color: '#0f5132',
+    lineHeight: 18,
+  },
+  rankBannerNote: {
+    fontSize: 11,
+    color: '#145a32',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  // Repeat badge on selected co-maker card
+  coMakerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  repeatBadge: {
+    backgroundColor: '#fff3cd',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  repeatBadgeText: {
+    fontSize: 11,
+    color: '#856404',
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  // Repeat badge on search result
+  searchResultNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  repeatBadgeSmall: {
+    backgroundColor: '#cfe2ff',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    marginLeft: 6,
+  },
+  repeatBadgeSmallText: {
+    fontSize: 10,
+    color: '#084298',
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  // Employment status / rank info
+  coMakerEmpStatus: {
+    fontSize: 12,
+    color: '#198754',
+    marginTop: 2,
+    fontFamily: 'Poppins_500Medium',
+  },
+  autoPullNote: {
+    fontSize: 12,
+    color: '#6f42c1',
+    marginTop: 3,
+    fontStyle: 'italic',
+  },
+  searchResultRank: {
+    fontSize: 12,
+    color: '#198754',
+    marginTop: 2,
+  },
+  searchResultPosition: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontStyle: 'italic',
+  },
 });
+
 
 export default CoMakerScreen;

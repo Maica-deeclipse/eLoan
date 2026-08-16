@@ -63,15 +63,27 @@ const DocumentUploadScreen = ({ navigation }) => {
           acceptedTypes: d.acceptedTypes || d.accepted_types || ['image', 'pdf'],
         }));
 
-        const repeatCoMakerKeys = new Set(['comaker_payslip', 'comaker_id', 'valid_id', 'valid_id_copy']);
-        const filtered = state.coMakers?.length > 0
-          ? normalized.filter((doc) => {
-            const key = (doc.key || '').toLowerCase();
-            return repeatCoMakerKeys.has(key) || key === 'other_documents';
-          })
-          : normalized;
+        // Determine if any added co-maker is a repeat co-maker (previously served as co-maker)
+        const hasRepeatCoMaker = (state.coMakers || []).some((cm) => cm.is_repeat === true);
 
-        setRequiredDocs(filtered.length > 0 ? filtered : normalized);
+        let filtered;
+        if (hasRepeatCoMaker) {
+          // Repeat co-makers only need a payslip + the previously submitted valid ID.
+          // The ID is auto-pulled by the backend; comaker_id will already appear in
+          // the uploaded documents. Filter the checklist down to just those two items.
+          const repeatRequiredKeys = new Set([
+            'proof_of_income', 'comaker_payslip', 'payslip_1_month',
+            'comaker_id', 'buksu_id', 'valid_id',
+          ]);
+          const repeatFiltered = normalized.filter((doc) =>
+            repeatRequiredKeys.has((doc.key || '').toLowerCase()) || (doc.key || '') === 'other_documents'
+          );
+          filtered = repeatFiltered.length > 0 ? repeatFiltered : normalized;
+        } else {
+          filtered = normalized;
+        }
+
+        setRequiredDocs(filtered);
       }
     } catch (error) {
       logger.error('Load required documents error:', error);
@@ -133,7 +145,8 @@ const DocumentUploadScreen = ({ navigation }) => {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        quality: 0.5,
+        aspect: [3, 4],
+        quality: 0.8,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -155,7 +168,8 @@ const DocumentUploadScreen = ({ navigation }) => {
     try {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
-        quality: 0.5,
+        aspect: [3, 4],
+        quality: 0.8,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -417,6 +431,13 @@ const DocumentUploadScreen = ({ navigation }) => {
     );
   };
 
+  // Compute for banner display
+  const hasRepeatCoMaker = (state.coMakers || []).some((cm) => cm.is_repeat === true);
+  const repeatCoMakerNames = (state.coMakers || [])
+    .filter((cm) => cm.is_repeat)
+    .map((cm) => cm.full_name)
+    .join(', ');
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Progress Indicator */}
@@ -431,8 +452,21 @@ const DocumentUploadScreen = ({ navigation }) => {
         <Text style={styles.title}>Upload Documents</Text>
         <Text style={styles.subtitle}>
           Please upload clear copies of the required documents. Accepted formats: JPG, PNG, PDF · Max 10 MB per file.
-          {state.coMakers?.length > 0 ? '\nRepeat co-makers only need a payslip and a previously submitted valid ID.' : ''}
         </Text>
+
+        {/* Repeat Co-Maker Banner */}
+        {hasRepeatCoMaker && (
+          <View style={styles.repeatCoMakerBanner}>
+            <Ionicons name="checkmark-circle" size={22} color="#0f5132" />
+            <View style={styles.repeatBannerContent}>
+              <Text style={styles.repeatBannerTitle}>Repeat Co-Maker Detected</Text>
+              <Text style={styles.repeatBannerText}>
+                {repeatCoMakerNames} has previously served as a co-maker.
+                Only a payslip and a valid ID are required. Their previously submitted ID has been auto-pulled.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Upload Progress */}
         <View style={styles.uploadProgress}>
@@ -822,6 +856,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     marginRight: 8,
+  },
+  // Repeat co-maker banner
+  repeatCoMakerBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#d1e7dd',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  repeatBannerContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  repeatBannerTitle: {
+    fontSize: 13,
+    fontFamily: 'Poppins_700Bold',
+    color: '#0f5132',
+    marginBottom: 4,
+  },
+  repeatBannerText: {
+    fontSize: 13,
+    color: '#0f5132',
+    lineHeight: 18,
   },
 });
 

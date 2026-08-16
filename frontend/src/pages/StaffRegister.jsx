@@ -15,7 +15,8 @@ export default function StaffRegister() {
   // step: 'form' | 'google-details' | 'success'
   const [step, setStep] = useState('form');
   const [googleData, setGoogleData] = useState(null);
-  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
   const captchaRef = useRef(null);
 
@@ -28,21 +29,38 @@ export default function StaffRegister() {
   const [employeeId, setEmployeeId] = useState('');
   const [selectedRole, setSelectedRole] = useState(presetRole);
 
+  // Helper: clear a single field error on change
+  const clearFieldError = (name) => {
+    if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: '' }));
+    setServerError('');
+  };
+
   // ── Manual registration ───────────────────────────────────────────────────
   const handleManualSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setServerError('');
 
-    if (!selectedRole) return setError('Please select a role.');
-    if (!firstname.trim()) return setError('First name is required.');
-    if (!lastname.trim()) return setError('Last name is required.');
-    if (!email.trim()) return setError('Email is required.');
-    if (!password) return setError('Password is required.');
-    if (password.length < 8) return setError('Password must be at least 8 characters.');
-    if (password !== confirmPassword) return setError('Passwords do not match.');
-    if (!employeeId.trim()) return setError('Employee ID is required.');
+    const errs = {};
+    if (!selectedRole) errs.role = 'Please select a role.';
+    if (!firstname.trim()) errs.firstname = 'First name is required.';
+    if (!lastname.trim()) errs.lastname = 'Last name is required.';
+    if (!email.trim()) errs.email = 'Email is required.';
+    if (!password) {
+      errs.password = 'Password is required.';
+    } else if (password.length < 8) {
+      errs.password = 'Password must be at least 8 characters.';
+    }
+    if (!confirmPassword) {
+      errs.confirmPassword = 'Please confirm your password.';
+    } else if (password !== confirmPassword) {
+      errs.confirmPassword = 'Passwords do not match.';
+    }
+    if (!employeeId.trim()) errs.employeeId = 'Employee ID is required.';
     const captchaToken = captchaRef.current?.getValue() || '';
-    if (RECAPTCHA_SITE_KEY && !captchaToken) return setError('Please complete the CAPTCHA verification.');
+    if (RECAPTCHA_SITE_KEY && !captchaToken) errs.captcha = 'Please complete the CAPTCHA verification.';
+
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
     setLoading(true);
     try {
@@ -55,14 +73,24 @@ export default function StaffRegister() {
         employee_id: employeeId.trim(),
         captcha_token: captchaToken,
       });
+      setFieldErrors({});
       setStep('success');
     } catch (err) {
       captchaRef.current?.reset();
       const data = err.response?.data;
-      const firstError = data && typeof data === 'object'
-        ? Object.values(data).flat()[0]
-        : null;
-      setError(firstError || data?.error || 'Registration failed. Please try again.');
+      // Map server field errors to inline errors where possible
+      if (data && typeof data === 'object') {
+        if (data.email) {
+          setFieldErrors((prev) => ({ ...prev, email: Array.isArray(data.email) ? data.email[0] : data.email }));
+        } else if (data.employee_id) {
+          setFieldErrors((prev) => ({ ...prev, employeeId: Array.isArray(data.employee_id) ? data.employee_id[0] : data.employee_id }));
+        } else {
+          const firstError = Object.values(data).flat()[0];
+          setServerError(firstError || data?.error || 'Registration failed. Please try again.');
+        }
+      } else {
+        setServerError('Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -72,7 +100,7 @@ export default function StaffRegister() {
   const googleAuth = useGoogleLogin({
     prompt: 'select_account',
     onSuccess: async (tokenResponse) => {
-      setError('');
+      setServerError('');
       try {
         const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
@@ -86,18 +114,21 @@ export default function StaffRegister() {
         });
         setStep('google-details');
       } catch {
-        setError('Could not retrieve your Google account info. Please try again.');
+        setServerError('Could not retrieve your Google account info. Please try again.');
       }
     },
-    onError: () => setError('Google sign-in was cancelled or failed.'),
+    onError: () => setServerError('Google sign-in was cancelled or failed.'),
   });
 
   const handleGoogleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setServerError('');
 
-    if (!selectedRole) return setError('Please select a role.');
-    if (!employeeId.trim()) return setError('Employee ID is required.');
+    const errs = {};
+    if (!selectedRole) errs.role = 'Please select a role.';
+    if (!employeeId.trim()) errs.employeeId = 'Employee ID is required.';
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
     setLoading(true);
     try {
@@ -106,10 +137,11 @@ export default function StaffRegister() {
         role: selectedRole,
         employee_id: employeeId.trim(),
       });
+      setFieldErrors({});
       setStep('success');
     } catch (err) {
       const data = err.response?.data;
-      setError(data?.error || 'Registration failed. Please try again.');
+      setServerError(data?.error || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -149,110 +181,125 @@ export default function StaffRegister() {
         {/* ── Manual form ─────────────────────────────────────────────────── */}
         {step === 'form' && (
           <form onSubmit={handleManualSubmit} className="login-form">
-            {error && <div className="error-message">{error}</div>}
+            {serverError && <div className="error-message">{serverError}</div>}
+            {fieldErrors.captcha && <div className="error-message">{fieldErrors.captcha}</div>}
 
             {/* Role — dropdown when no URL role, locked display when pre-set */}
             {!presetRole && (
               <div className="form-group">
-                <label htmlFor="role">Role</label>
+                <label htmlFor="role">Role <span style={{ color: '#dc2626' }}>*</span></label>
                 <select
                   id="role"
                   name="role"
                   value={selectedRole}
-                  onChange={(e) => { setSelectedRole(e.target.value); setError(''); }}
+                  onChange={(e) => { setSelectedRole(e.target.value); clearFieldError('role'); }}
                   disabled={loading}
                   style={{
-                    width: '100%', padding: '0.75rem 1rem', border: '1.5px solid #e0e0e0',
+                    width: '100%', padding: '0.75rem 1rem',
+                    border: `1.5px solid ${fieldErrors.role ? '#dc2626' : '#e0e0e0'}`,
                     borderRadius: '8px', fontSize: '0.95rem', color: selectedRole ? '#1f2937' : '#9ca3af',
-                    background: '#fff', appearance: 'none', cursor: 'pointer',
+                    background: fieldErrors.role ? '#fff5f5' : '#fff', appearance: 'none', cursor: 'pointer',
                   }}
                 >
                   <option value="" disabled>Select a role</option>
                   {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
+                {fieldErrors.role && <span className="field-error-msg">{fieldErrors.role}</span>}
               </div>
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label htmlFor="firstname">First Name</label>
+                <label htmlFor="firstname">First Name <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
                   id="firstname"
                   name="firstname"
                   autoComplete="given-name"
                   value={firstname}
-                  onChange={(e) => { setFirstname(e.target.value); setError(''); }}
+                  onChange={(e) => { setFirstname(e.target.value); clearFieldError('firstname'); }}
                   disabled={loading}
                   placeholder="Juan"
+                  className={fieldErrors.firstname ? 'input-error' : ''}
                 />
+                {fieldErrors.firstname && <span className="field-error-msg">{fieldErrors.firstname}</span>}
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label htmlFor="lastname">Last Name</label>
+                <label htmlFor="lastname">Last Name <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
                   id="lastname"
                   name="lastname"
                   autoComplete="family-name"
                   value={lastname}
-                  onChange={(e) => { setLastname(e.target.value); setError(''); }}
+                  onChange={(e) => { setLastname(e.target.value); clearFieldError('lastname'); }}
                   disabled={loading}
                   placeholder="Dela Cruz"
+                  className={fieldErrors.lastname ? 'input-error' : ''}
                 />
+                {fieldErrors.lastname && <span className="field-error-msg">{fieldErrors.lastname}</span>}
               </div>
             </div>
 
             <div className="form-group">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">Email <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="email"
                 name="email"
                 type="email"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                onChange={(e) => { setEmail(e.target.value); clearFieldError('email'); }}
                 disabled={loading}
                 placeholder="you@buksu.edu.ph"
+                className={fieldErrors.email ? 'input-error' : ''}
               />
+              {fieldErrors.email && <span className="field-error-msg">{fieldErrors.email}</span>}
             </div>
 
             <div className="form-group">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">Password <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="password"
                 name="password"
                 type="password"
                 autoComplete="new-password"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                onChange={(e) => { setPassword(e.target.value); clearFieldError('password'); }}
                 disabled={loading}
                 placeholder="Minimum 8 characters"
+                className={fieldErrors.password ? 'input-error' : ''}
               />
+              {fieldErrors.password && <span className="field-error-msg">{fieldErrors.password}</span>}
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
+              <label htmlFor="confirmPassword">Confirm Password <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="confirmPassword"
                 name="confirmPassword"
                 type="password"
                 autoComplete="new-password"
                 value={confirmPassword}
-                onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
+                onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError('confirmPassword'); }}
                 disabled={loading}
                 placeholder="Re-enter password"
+                className={fieldErrors.confirmPassword ? 'input-error' : ''}
               />
+              {fieldErrors.confirmPassword && <span className="field-error-msg">{fieldErrors.confirmPassword}</span>}
             </div>
 
             <div className="form-group">
-              <label htmlFor="employeeId">Employee ID</label>
+              <label htmlFor="employeeId">Employee ID <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="employeeId"
                 name="employeeId"
                 autoComplete="off"
                 value={employeeId}
-                onChange={(e) => { setEmployeeId(e.target.value); setError(''); }}
+                onChange={(e) => { setEmployeeId(e.target.value); clearFieldError('employeeId'); }}
                 disabled={loading}
                 placeholder="EMP-001"
+                className={fieldErrors.employeeId ? 'input-error' : ''}
               />
+              {fieldErrors.employeeId && <span className="field-error-msg">{fieldErrors.employeeId}</span>}
             </div>
 
             {RECAPTCHA_SITE_KEY && (
@@ -291,25 +338,27 @@ export default function StaffRegister() {
         {/* ── Google details (after OAuth) ─────────────────────────────────── */}
         {step === 'google-details' && googleData && (
           <form onSubmit={handleGoogleSubmit} className="login-form">
-            {error && <div className="error-message">{error}</div>}
+            {serverError && <div className="error-message">{serverError}</div>}
 
             {!presetRole && (
               <div className="form-group">
-                <label htmlFor="g-role">Role</label>
+                <label htmlFor="g-role">Role <span style={{ color: '#dc2626' }}>*</span></label>
                 <select
                   id="g-role"
                   value={selectedRole}
-                  onChange={(e) => { setSelectedRole(e.target.value); setError(''); }}
+                  onChange={(e) => { setSelectedRole(e.target.value); clearFieldError('role'); }}
                   disabled={loading}
                   style={{
-                    width: '100%', padding: '0.75rem 1rem', border: '1.5px solid #e0e0e0',
+                    width: '100%', padding: '0.75rem 1rem',
+                    border: `1.5px solid ${fieldErrors.role ? '#dc2626' : '#e0e0e0'}`,
                     borderRadius: '8px', fontSize: '0.95rem', color: selectedRole ? '#1f2937' : '#9ca3af',
-                    background: '#fff', appearance: 'none', cursor: 'pointer',
+                    background: fieldErrors.role ? '#fff5f5' : '#fff', appearance: 'none', cursor: 'pointer',
                   }}
                 >
                   <option value="" disabled>Select a role</option>
                   {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
+                {fieldErrors.role && <span className="field-error-msg">{fieldErrors.role}</span>}
               </div>
             )}
 
@@ -330,17 +379,18 @@ export default function StaffRegister() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="g-employee-id">Employee ID</label>
+              <label htmlFor="g-employee-id">Employee ID <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="employee_id"
                 name="employee_id"
                 autoComplete="off"
                 value={employeeId}
-                onChange={(e) => { setEmployeeId(e.target.value); setError(''); }}
-                required
+                onChange={(e) => { setEmployeeId(e.target.value); clearFieldError('employeeId'); }}
                 disabled={loading}
                 placeholder="EMP-001"
+                className={fieldErrors.employeeId ? 'input-error' : ''}
               />
+              {fieldErrors.employeeId && <span className="field-error-msg">{fieldErrors.employeeId}</span>}
             </div>
 
             <button type="submit" className="login-button" disabled={loading}>

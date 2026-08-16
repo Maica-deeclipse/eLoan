@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, KeyboardAvoidingView, Platform, Modal,
@@ -6,7 +6,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import authService from '../services/authService';
 import DatePickerField from '../components/DatePickerField';
 
@@ -110,101 +109,6 @@ function SectionTitle({ title }) {
   return <Text style={s.sectionTitle}>{title}</Text>;
 }
 
-// ─── Camera Frame Modal ───────────────────────────────────────────────────────
-function CameraFrameModal({ visible, onClose, onCapture, frameType = 'square' }) {
-  const cameraRef = useRef(null);
-  const [facing, setFacing] = useState('back');
-  const [permission, requestPermission] = useCameraPermissions();
-
-  const frameW = frameType === 'square' ? 260 : 300;
-  const frameH = frameType === 'square' ? 260 : 190;
-
-  const handleCapture = async () => {
-    if (!cameraRef.current) return;
-    try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
-      onCapture(photo);
-      onClose();
-    } catch {
-      Alert.alert('Error', 'Could not capture photo. Please try again.');
-    }
-  };
-
-  if (!visible) return null;
-
-  return (
-    <Modal visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onClose}>
-      <View style={cam.root}>
-        {!permission?.granted ? (
-          <View style={cam.permWrap}>
-            <Text style={cam.permTitle}>Camera Access Required</Text>
-            <Text style={cam.permMsg}>Please grant camera permission to take a photo.</Text>
-            <TouchableOpacity style={cam.permBtn} onPress={requestPermission}>
-              <Text style={cam.permBtnText}>Grant Permission</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={cam.cancelLink} onPress={onClose}>
-              <Text style={cam.cancelLinkText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <CameraView ref={cameraRef} style={cam.camera} facing={facing}>
-            {/* Darkened overlay with frame cutout */}
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              {/* Top dark bar */}
-              <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-              {/* Middle row */}
-              <View style={{ flexDirection: 'row', height: frameH }}>
-                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-                {/* Frame window */}
-                <View style={{ width: frameW }}>
-                  {/* Corner brackets */}
-                  <View style={cam.cornerTL} />
-                  <View style={cam.cornerTR} />
-                  <View style={cam.cornerBL} />
-                  <View style={cam.cornerBR} />
-                </View>
-                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-              </View>
-              {/* Bottom dark bar */}
-              <View style={{ flex: 2, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-            </View>
-
-            {/* Close button */}
-            <TouchableOpacity style={cam.closeBtn} onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={cam.closeBtnText}>✕</Text>
-            </TouchableOpacity>
-
-            {/* Instruction hint */}
-            <View style={cam.hintWrap} pointerEvents="none">
-              <Text style={cam.hintText}>
-                {frameType === 'square'
-                  ? 'Position your face within the frame'
-                  : 'Align your document within the frame'}
-              </Text>
-            </View>
-
-            {/* Bottom controls */}
-            <View style={cam.controls}>
-              <TouchableOpacity
-                style={cam.flipBtn}
-                onPress={() => setFacing(f => f === 'back' ? 'front' : 'back')}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={cam.flipIcon}>⟳</Text>
-                <Text style={cam.flipLabel}>Flip</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={cam.captureRing} onPress={handleCapture} activeOpacity={0.7}>
-                <View style={cam.captureDot} />
-              </TouchableOpacity>
-              <View style={{ width: 56 }} />
-            </View>
-          </CameraView>
-        )}
-      </View>
-    </Modal>
-  );
-}
-
 // ─── Main Wizard Screen ───────────────────────────────────────────────────────
 export default function RegisterWizardScreen({ navigation }) {
   const [step, setStep] = useState(1);
@@ -278,79 +182,72 @@ export default function RegisterWizardScreen({ navigation }) {
   const [payslip, setPayslip] = useState(null);
   const [coeDoc, setCoeDoc] = useState(null);
 
-  // ── Camera modal ──
-  const [cameraVisible, setCameraVisible] = useState(false);
-  const [cameraFrameType, setCameraFrameType] = useState('square');
-  const cameraSetterRef = useRef(null);
-
-  const openCamera = (setter, frameType = 'square') => {
-    cameraSetterRef.current = setter;
-    setCameraFrameType(frameType);
-    setCameraVisible(true);
-  };
-
-  const handleCameraCapture = (photo) => {
-    if (cameraSetterRef.current) cameraSetterRef.current(photo);
-    cameraSetterRef.current = null;
-  };
+  // ─── Camera modal removed in favor of native system cropper (takePhoto) ──
 
   // ─── Validation ──────────────────────────────────────────────────────────
   const validate = () => {
     setError('');
+
+    const showError = (msg) => {
+      setError(msg);
+      Alert.alert('Required Field', msg);
+      return false;
+    };
+
     if (step === 1) {
-      if (!firstname.trim()) return setError('First name is required.') || false;
-      if (!lastname.trim()) return setError('Last name is required.') || false;
-      if (!civilStatus) return setError('Civil status is required.') || false;
+      if (!firstname.trim()) return showError('First name is required.');
+      if (!lastname.trim()) return showError('Last name is required.');
+      if (!civilStatus) return showError('Civil status is required.');
       if (civilStatus === 'married' && !spouseName.trim())
-        return setError('Spouse name is required for married applicants.') || false;
-      if (!gender) return setError('Gender is required.') || false;
-      if (!dob.trim()) return setError('Date of birth is required.') || false;
-      if (!citizenship.trim()) return setError('Citizenship is required.') || false;
-      if (!contact.trim()) return setError('Contact number is required.') || false;
-      if (!email.trim()) return setError('Email is required.') || false;
+        return showError('Spouse name is required for married applicants.');
+      if (!gender) return showError('Gender is required.');
+      if (!dob.trim()) return showError('Date of birth is required.');
+      if (!citizenship.trim()) return showError('Citizenship is required.');
+      if (!contact.trim()) return showError('Contact number is required.');
+      if (!email.trim()) return showError('Email is required.');
       const emailLower = email.toLowerCase();
       // In dev mode any email domain is accepted to ease testing.
       // In production, @buksu.edu.ph and @student.buksu.edu.ph (+ aliases) are both valid.
       if (!__DEV__ && !emailLower.endsWith('buksu.edu.ph'))
-        return setError('Only @buksu.edu.ph or @student.buksu.edu.ph email addresses are allowed.') || false;
-      if (!password) return setError('Password is required.') || false;
-      if (password.length < 8) return setError('Password must be at least 8 characters.') || false;
-      if (password !== confirmPassword) return setError('Passwords do not match.') || false;
+        return showError('Only @buksu.edu.ph or @student.buksu.edu.ph email addresses are allowed.');
+      if (!password) return showError('Password is required.');
+      if (password.length < 8) return showError('Password must be at least 8 characters.');
+      if (password !== confirmPassword) return showError('Passwords do not match.');
     }
     if (step === 2) {
-      if (!presentStreet.trim()) return setError('House No./Street is required.') || false;
-      if (!presentBarangay.trim()) return setError('Barangay is required.') || false;
-      if (!presentCity.trim()) return setError('City/Municipality is required.') || false;
-      if (!presentProvince.trim()) return setError('Province is required.') || false;
+      if (!presentStreet.trim()) return showError('House No./Street is required.');
+      if (!presentBarangay.trim()) return showError('Barangay is required.');
+      if (!presentCity.trim()) return showError('City/Municipality is required.');
+      if (!presentProvince.trim()) return showError('Province is required.');
       if (!sameAsPresent) {
-        if (!permStreet.trim()) return setError('Permanent: House No./Street is required.') || false;
-        if (!permBarangay.trim()) return setError('Permanent: Barangay is required.') || false;
-        if (!permCity.trim()) return setError('Permanent: City/Municipality is required.') || false;
-        if (!permProvince.trim()) return setError('Permanent: Province is required.') || false;
+        if (!permStreet.trim()) return showError('Permanent: House No./Street is required.');
+        if (!permBarangay.trim()) return showError('Permanent: Barangay is required.');
+        if (!permCity.trim()) return showError('Permanent: City/Municipality is required.');
+        if (!permProvince.trim()) return showError('Permanent: Province is required.');
       }
     }
     if (step === 3) {
-      if (!buksuId.trim()) return setError('BukSU ID number is required.') || false;
-      if (!empCategory) return setError('Employment category is required.') || false;
-      if (!empStatus) return setError('Employment status is required.') || false;
-      if (!office.trim()) return setError('Office/Department is required.') || false;
-      if (!position.trim()) return setError('Position is required.') || false;
-      if (!yearsEmployed.trim()) return setError('Years employed is required.') || false;
-      if (isNaN(Number(yearsEmployed)) || Number(yearsEmployed) < 0) return setError('Years employed must be a valid number.') || false;
-      if (!monthlyIncome.trim()) return setError('Monthly income is required.') || false;
-      if (isNaN(Number(monthlyIncome)) || Number(monthlyIncome) <= 0) return setError('Monthly income must be a valid positive number.') || false;
-      if (!netTakeHomePay.trim()) return setError('Net take-home pay is required.') || false;
-      if (isNaN(Number(netTakeHomePay)) || Number(netTakeHomePay) <= 0) return setError('Net take-home pay must be a valid positive number.') || false;
+      if (!buksuId.trim()) return showError('BukSU ID number is required.');
+      if (!empCategory) return showError('Employment category is required.');
+      if (!empStatus) return showError('Employment status is required.');
+      if (!office.trim()) return showError('Office/Department is required.');
+      if (!position.trim()) return showError('Position is required.');
+      if (!yearsEmployed.trim()) return showError('Years employed is required.');
+      if (isNaN(Number(yearsEmployed)) || Number(yearsEmployed) < 0) return showError('Years employed must be a valid number.');
+      if (!monthlyIncome.trim()) return showError('Monthly income is required.');
+      if (isNaN(Number(monthlyIncome)) || Number(monthlyIncome) <= 0) return showError('Monthly income must be a valid positive number.');
+      if (!netTakeHomePay.trim()) return showError('Net take-home pay is required.');
+      if (isNaN(Number(netTakeHomePay)) || Number(netTakeHomePay) <= 0) return showError('Net take-home pay must be a valid positive number.');
     }
     if (step === 4) {
-      if (!emergencyName.trim()) return setError('Emergency contact name is required.') || false;
-      if (!emergencyNumber.trim()) return setError('Emergency contact number is required.') || false;
-      if (!emergencyRelationship.trim()) return setError('Emergency contact relationship is required.') || false;
+      if (!emergencyName.trim()) return showError('Emergency contact name is required.');
+      if (!emergencyNumber.trim()) return showError('Emergency contact number is required.');
+      if (!emergencyRelationship.trim()) return showError('Emergency contact relationship is required.');
     }
     if (step === 6) {
-      if (!idPhoto) return setError('2x2 ID photo is required.') || false;
-      if (!payslip) return setError('Payslip is required.') || false;
-      if (!coeDoc) return setError('Certificate of Employment is required.') || false;
+      if (!idPhoto) return showError('2x2 ID photo is required.');
+      if (!payslip) return showError('Payslip is required.');
+      if (!coeDoc) return showError('Certificate of Employment is required.');
     }
     return true;
   };
@@ -375,8 +272,8 @@ export default function RegisterWizardScreen({ navigation }) {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: square,
-      aspect: square ? [1, 1] : undefined,
+      allowsEditing: true,
+      aspect: square ? [1, 1] : [3, 4],
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.length) setter(result.assets[0]);
@@ -390,7 +287,7 @@ export default function RegisterWizardScreen({ navigation }) {
     }
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      aspect: square ? [1, 1] : [4, 3],
+      aspect: square ? [1, 1] : [3, 4],
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.length) setter(result.assets[0]);
@@ -581,7 +478,7 @@ export default function RegisterWizardScreen({ navigation }) {
       <Field label="Contact Number" required>
         <Input
           placeholder="09XXXXXXXXX" value={contact} onChangeText={setContact}
-          keyboardType="phone-pad" maxLength={11}
+          keyboardType="numeric" maxLength={11}
         />
       </Field>
       <Field label="Email Address" required>
@@ -594,7 +491,7 @@ export default function RegisterWizardScreen({ navigation }) {
         <Input placeholder="XXX-XXX-XXX" value={tin} onChangeText={setTin} keyboardType="numeric" maxLength={12} />
       </Field>
       <Field label="SSS Number">
-        <Input placeholder="XX-XXXXXXX-X" value={sss} onChangeText={setSss} maxLength={12} />
+        <Input placeholder="XX-XXXXXXX-X" value={sss} onChangeText={setSss} keyboardType="numeric" maxLength={12} />
       </Field>
 
       <SectionTitle title="Education" />
@@ -731,7 +628,7 @@ export default function RegisterWizardScreen({ navigation }) {
         <Input placeholder="e.g. Farmer" value={fatherOccupation} onChangeText={setFatherOccupation} autoCapitalize="words" maxLength={100} />
       </Field>
       <Field label="Father's Contact Number">
-        <Input placeholder="09XXXXXXXXX" value={fatherContact} onChangeText={setFatherContact} keyboardType="phone-pad" maxLength={11} />
+        <Input placeholder="09XXXXXXXXX" value={fatherContact} onChangeText={setFatherContact} keyboardType="numeric" maxLength={11} />
       </Field>
 
       <SectionTitle title="Mother's Information" />
@@ -742,7 +639,7 @@ export default function RegisterWizardScreen({ navigation }) {
         <Input placeholder="e.g. Housewife" value={motherOccupation} onChangeText={setMotherOccupation} autoCapitalize="words" maxLength={100} />
       </Field>
       <Field label="Mother's Contact Number">
-        <Input placeholder="09XXXXXXXXX" value={motherContact} onChangeText={setMotherContact} keyboardType="phone-pad" maxLength={11} />
+        <Input placeholder="09XXXXXXXXX" value={motherContact} onChangeText={setMotherContact} keyboardType="numeric" maxLength={11} />
       </Field>
 
       <SectionTitle title="Emergency Contact" />
@@ -750,7 +647,7 @@ export default function RegisterWizardScreen({ navigation }) {
         <Input placeholder="Full name of contact person" value={emergencyName} onChangeText={setEmergencyName} autoCapitalize="words" maxLength={100} />
       </Field>
       <Field label="Contact Number" required>
-        <Input placeholder="09XXXXXXXXX" value={emergencyNumber} onChangeText={setEmergencyNumber} keyboardType="phone-pad" maxLength={11} />
+        <Input placeholder="09XXXXXXXXX" value={emergencyNumber} onChangeText={setEmergencyNumber} keyboardType="numeric" maxLength={11} />
       </Field>
       <Field label="Relationship" required>
         <Input placeholder="e.g. Spouse, Parent, Sibling" value={emergencyRelationship} onChangeText={setEmergencyRelationship} autoCapitalize="words" maxLength={50} />
@@ -794,7 +691,7 @@ export default function RegisterWizardScreen({ navigation }) {
             <DatePickerField value={benDob} onChange={setBenDob} placeholder="Select date of birth" />
           </Field>
           <Field label="Contact Number">
-            <Input placeholder="09XXXXXXXXX" value={benContact} onChangeText={setBenContact} keyboardType="phone-pad" maxLength={11} />
+            <Input placeholder="09XXXXXXXXX" value={benContact} onChangeText={setBenContact} keyboardType="numeric" maxLength={11} />
           </Field>
           <View style={s.benefActions}>
             <TouchableOpacity style={s.addBtn} onPress={addBeneficiary}>
@@ -830,10 +727,10 @@ export default function RegisterWizardScreen({ navigation }) {
         </View>
       ) : (
         <View style={s.docBtns}>
-          <TouchableOpacity style={s.docBtn} onPress={() => openCamera(setIdPhoto, 'rect')}>
+          <TouchableOpacity style={s.docBtn} onPress={() => takePhoto(setIdPhoto, false)}>
             <Text style={s.docBtnIcon}>📷</Text>
             <Text style={s.docBtnText}>Take Photo</Text>
-            <Text style={s.docBtnSub}>ID card frame guide</Text>
+            <Text style={s.docBtnSub}>Use camera</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.docBtn} onPress={() => pickImage(setIdPhoto, true)}>
             <Text style={s.docBtnIcon}>🖼️</Text>
@@ -854,10 +751,10 @@ export default function RegisterWizardScreen({ navigation }) {
         </View>
       ) : (
         <View style={s.docBtns}>
-          <TouchableOpacity style={s.docBtn} onPress={() => openCamera(setPayslip, 'rect')}>
+          <TouchableOpacity style={s.docBtn} onPress={() => takePhoto(setPayslip, false)}>
             <Text style={s.docBtnIcon}>📷</Text>
             <Text style={s.docBtnText}>Take Photo</Text>
-            <Text style={s.docBtnSub}>with frame guide</Text>
+            <Text style={s.docBtnSub}>Use camera</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.docBtn} onPress={() => pickImage(setPayslip, false)}>
             <Text style={s.docBtnIcon}>🖼️</Text>
@@ -878,10 +775,10 @@ export default function RegisterWizardScreen({ navigation }) {
         </View>
       ) : (
         <View style={s.docBtns}>
-          <TouchableOpacity style={s.docBtn} onPress={() => openCamera(setCoeDoc, 'rect')}>
+          <TouchableOpacity style={s.docBtn} onPress={() => takePhoto(setCoeDoc, false)}>
             <Text style={s.docBtnIcon}>📷</Text>
             <Text style={s.docBtnText}>Take Photo</Text>
-            <Text style={s.docBtnSub}>with frame guide</Text>
+            <Text style={s.docBtnSub}>Use camera</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.docBtn} onPress={() => pickImage(setCoeDoc, false)}>
             <Text style={s.docBtnIcon}>🖼️</Text>
@@ -961,14 +858,6 @@ export default function RegisterWizardScreen({ navigation }) {
           </TouchableOpacity>
         )}
       </View>
-
-      {/* Camera frame modal */}
-      <CameraFrameModal
-        visible={cameraVisible}
-        frameType={cameraFrameType}
-        onCapture={handleCameraCapture}
-        onClose={() => setCameraVisible(false)}
-      />
 
     </SafeAreaView>
   );
@@ -1150,89 +1039,4 @@ const s = StyleSheet.create({
   backToLoginText: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' },
 });
 
-// ─── Camera Frame Modal Styles ────────────────────────────────────────────────
-const CORNER_LEN = 22;
-const CORNER_THICK = 3;
-const CORNER_COLOR = '#fff';
 
-const cam = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000' },
-  camera: { flex: 1 },
-
-  // Permission screen
-  permWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: '#111' },
-  permTitle: { fontSize: 20, fontFamily: 'Poppins_700Bold', color: '#fff', marginBottom: 10, textAlign: 'center' },
-  permMsg: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginBottom: 28, lineHeight: 20 },
-  permBtn: {
-    backgroundColor: '#02327a', borderRadius: 8,
-    paddingVertical: 14, paddingHorizontal: 32, marginBottom: 14,
-  },
-  permBtnText: { color: '#fff', fontFamily: 'Poppins_700Bold', fontSize: 15 },
-  cancelLink: { paddingVertical: 10 },
-  cancelLinkText: { color: '#9ca3af', fontSize: 14 },
-
-  // Close button (top-left)
-  closeBtn: {
-    position: 'absolute', top: 52, left: 20,
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  closeBtnText: { color: '#fff', fontSize: 18, fontFamily: 'Poppins_700Bold' },
-
-  // Hint text (above the frame)
-  hintWrap: {
-    position: 'absolute', top: '28%', left: 0, right: 0,
-    alignItems: 'center',
-  },
-  hintText: {
-    color: '#fff', fontSize: 13, fontFamily: 'Poppins_600SemiBold',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    overflow: 'hidden',
-  },
-
-  // Corner bracket markers
-  cornerTL: {
-    position: 'absolute', top: 0, left: 0,
-    width: CORNER_LEN, height: CORNER_LEN,
-    borderTopWidth: CORNER_THICK, borderLeftWidth: CORNER_THICK,
-    borderColor: CORNER_COLOR, borderTopLeftRadius: 3,
-  },
-  cornerTR: {
-    position: 'absolute', top: 0, right: 0,
-    width: CORNER_LEN, height: CORNER_LEN,
-    borderTopWidth: CORNER_THICK, borderRightWidth: CORNER_THICK,
-    borderColor: CORNER_COLOR, borderTopRightRadius: 3,
-  },
-  cornerBL: {
-    position: 'absolute', bottom: 0, left: 0,
-    width: CORNER_LEN, height: CORNER_LEN,
-    borderBottomWidth: CORNER_THICK, borderLeftWidth: CORNER_THICK,
-    borderColor: CORNER_COLOR, borderBottomLeftRadius: 3,
-  },
-  cornerBR: {
-    position: 'absolute', bottom: 0, right: 0,
-    width: CORNER_LEN, height: CORNER_LEN,
-    borderBottomWidth: CORNER_THICK, borderRightWidth: CORNER_THICK,
-    borderColor: CORNER_COLOR, borderBottomRightRadius: 3,
-  },
-
-  // Bottom controls
-  controls: {
-    position: 'absolute', bottom: 48, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 40,
-  },
-  flipBtn: { width: 56, alignItems: 'center' },
-  flipIcon: { fontSize: 26, color: '#fff' },
-  flipLabel: { fontSize: 11, color: '#e5e7eb', marginTop: 3 },
-  captureRing: {
-    width: 72, height: 72, borderRadius: 36,
-    borderWidth: 4, borderColor: '#fff',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  captureDot: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#fff',
-  },
-});

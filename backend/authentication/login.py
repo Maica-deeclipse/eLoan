@@ -11,6 +11,7 @@ from applicant.throttles import LoginRateThrottle
 from applicant.utils import get_client_ip, verify_recaptcha
 
 security_log = logging.getLogger('security')
+auth_log = logging.getLogger(__name__)
 
 
 class StaffLoginSerializer(serializers.Serializer):
@@ -263,15 +264,26 @@ class ApplicantLoginView(APIView):
 
     def post(self, request):
         ip = get_client_ip(request)
+        email = request.data.get('email', 'unknown')
+
+        auth_log.info(f"[APPLICANT_LOGIN] ▶ Attempt | email={email} ip={ip}")
+        print(f"[APPLICANT_LOGIN] ▶ Attempt | email={email} ip={ip}")
+        print(f"[APPLICANT_LOGIN]   payload keys: {list(request.data.keys())}")
+
         captcha_ok, captcha_err = verify_recaptcha(request.data.get('captcha_token', ''), ip)
         if not captcha_ok:
+            print(f"[APPLICANT_LOGIN] ❌ CAPTCHA failed: {captcha_err}")
             return Response({'error': captcha_err}, status=status.HTTP_400_BAD_REQUEST)
+
+        print(f"[APPLICANT_LOGIN]   CAPTCHA: OK (bypass={captcha_ok})")
 
         serializer = ApplicantLoginSerializer(data=request.data)
 
         if serializer.is_valid():
             user = serializer.validated_data['user']
             security_log.info(f"LOGIN_SUCCESS email={user.email} role=Applicant ip={ip}")
+            auth_log.info(f"[APPLICANT_LOGIN] ✅ SUCCESS | email={user.email} status={user.status} account_status={user.account_status}")
+            print(f"[APPLICANT_LOGIN] ✅ SUCCESS | email={user.email} status={user.status} account_status={user.account_status}")
 
             refresh = RefreshToken.for_user(user)
 
@@ -291,6 +303,21 @@ class ApplicantLoginView(APIView):
                 }
             }, status=status.HTTP_200_OK)
 
-        email = request.data.get('email', 'unknown')
+        auth_log.warning(f"[APPLICANT_LOGIN] ❌ FAILED | email={email} ip={ip} errors={serializer.errors}")
+        print(f"[APPLICANT_LOGIN] ❌ FAILED | email={email}")
+        print(f"[APPLICANT_LOGIN]   serializer errors: {serializer.errors}")
+
+        # Try to give a hint about the likely cause for quick debugging
+        raw_user = None
+        try:
+            from users.models import User as U
+            raw_user = U.objects.filter(email=email).first()
+            if raw_user:
+                print(f"[APPLICANT_LOGIN]   DB user found: is_active={raw_user.is_active} status={raw_user.status} account_status={raw_user.account_status} role={getattr(raw_user.role, 'name', None)}")
+            else:
+                print(f"[APPLICANT_LOGIN]   No user found with email={email}")
+        except Exception as e:
+            print(f"[APPLICANT_LOGIN]   Could not inspect user: {e}")
+
         security_log.warning(f"LOGIN_FAILED email={email} role=Applicant ip={ip}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

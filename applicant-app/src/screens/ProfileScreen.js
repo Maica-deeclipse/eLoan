@@ -58,6 +58,7 @@ export default function ProfileScreen({ navigation }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [membership, setMembership] = useState(null);
 
   const [contactNumber, setContactNumber] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
@@ -83,6 +84,7 @@ export default function ProfileScreen({ navigation }) {
         profileService.getLatestEmploymentStatusRequest(),
       ]);
       setProfile(profileData.profile);
+      setMembership(profileData.membership);
       setContactNumber(profileData.profile.contact_number || '');
       setAddressLine1(profileData.profile.address_line1 || '');
       setCity(profileData.profile.city || '');
@@ -198,7 +200,8 @@ export default function ProfileScreen({ navigation }) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.85,
-      allowsEditing: false,
+      allowsEditing: true,
+      aspect: [3, 4],
     });
     if (!result.canceled && result.assets?.length > 0) {
       setCoeDoc(result.assets[0]);
@@ -338,6 +341,65 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.photoHint}>JPG or PNG · Max 5 MB</Text>
         </View>
 
+        {/* ── Membership & Finances ── */}
+        {membership && (
+          <View style={styles.section}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Membership & Finances</Text>
+              <View style={[styles.statusBadge, membership.membership_type === 'regular' ? styles.badgeApproved : styles.badgePending, { marginTop: 0 }]}>
+                <Text style={membership.membership_type === 'regular' ? styles.badgeApprovedText : styles.badgePendingText}>
+                  {membership.membership_type === 'regular' ? 'Regular Member' : 'Associate Member'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.fieldRow}>
+              <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.fieldLabel}>Total Savings</Text>
+                <Text style={styles.fieldValue}>₱{parseFloat(membership.total_savings || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</Text>
+              </View>
+              <View style={[styles.field, { flex: 1 }]}>
+                <Text style={styles.fieldLabel}>Shared Capital</Text>
+                <Text style={styles.fieldValue}>₱{parseFloat(membership.total_shared_capital || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</Text>
+              </View>
+            </View>
+            <View style={[styles.field, { marginBottom: 4 }]}>
+              <Text style={styles.fieldLabel}>Fixed Deposit</Text>
+              <Text style={styles.fieldValue}>
+                {membership.fixed_deposit ? `₱${parseFloat(membership.fixed_deposit).toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'Not set'}
+              </Text>
+            </View>
+
+            {/* Progress to Regular Membership (if Associate) */}
+            {membership.membership_type === 'associate' && (
+              <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(15,28,82,0.08)' }}>
+                <Text style={[styles.fieldLabel, { marginBottom: 6 }]}>Progress to Regular Membership</Text>
+                
+                {(() => {
+                  const currentCapital = parseFloat(membership.total_shared_capital || 0);
+                  const currentDeposit = parseFloat(membership.fixed_deposit || 0);
+                  const hasRequiredFunds = currentCapital >= 20000 || currentDeposit >= 20000;
+                  const progressPct = Math.min(100, (currentCapital / 20000) * 100);
+                  
+                  return (
+                    <>
+                      <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
+                      </View>
+                      <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 6, fontFamily: 'Poppins_400Regular' }}>
+                        {hasRequiredFunds 
+                          ? 'You have reached the required ₱20,000 threshold! However, you must also have a verified eligible Employment Status (e.g., Permanent) to become a Regular Member.'
+                          : 'Reach ₱20,000 in shared capital to unlock Regular Member benefits and higher loan limits.'
+                        }
+                      </Text>
+                    </>
+                  );
+                })()}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* ── Contact Information ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
@@ -345,7 +407,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.fieldLabel}>Phone Number</Text>
             {isEditing ? (
               <TextInput style={styles.input} value={contactNumber} onChangeText={setContactNumber}
-                placeholder="Enter phone number" keyboardType="phone-pad" maxLength={11} placeholderTextColor={MUTED} />
+                placeholder="Enter phone number" keyboardType="numeric" maxLength={11} placeholderTextColor={MUTED} />
             ) : (
               <Text style={styles.fieldValue}>{contactNumber || 'Not provided'}</Text>
             )}
@@ -787,6 +849,10 @@ const styles = StyleSheet.create({
   badgeRejectedText: { color: '#991b1b', fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
   rejectionReason: { fontSize: 12, color: '#991b1b', marginTop: 4, fontFamily: 'Poppins_400Regular' },
   cooldownText: { fontSize: 12, color: MUTED, marginBottom: 8, fontFamily: 'Poppins_400Regular' },
+  
+  progressTrack: { height: 6, backgroundColor: '#e5e7eb', borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: 6, backgroundColor: ACCENT, borderRadius: 3 },
+  
   empStatusBtn: {
     backgroundColor: ACCENT,
     borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 6,

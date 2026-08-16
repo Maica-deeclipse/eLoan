@@ -58,9 +58,11 @@ X_FRAME_OPTIONS = 'DENY'                  # Reinforces XFrameOptionsMiddleware
 
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='localhost,127.0.0.1',
+    default='*',
     cast=lambda v: [h.strip() for h in v.split(',') if h.strip()],
 )
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -368,6 +370,8 @@ CORS_ALLOWED_ORIGINS = config(
     cast=lambda v: [o.strip() for o in v.split(',') if o.strip()],
 )
 CORS_ALLOW_CREDENTIALS = True
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 # Django Unfold Admin Configuration
 UNFOLD = {

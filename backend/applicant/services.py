@@ -285,11 +285,10 @@ class LoanApplicationService:
     @staticmethod
     def get_editable_application_for_loan_type(user, loan_type_id):
         """
-        Return the most recent editable application for the given loan type.
+        Return the most recent editable (Draft only) application for the given loan type.
 
-        Editable statuses:
-        - Draft
-        - Submitted
+        Only Draft applications are resumed — Submitted applications are locked in review
+        and should not be resumed, allowing the user to start a fresh application.
         """
         return LoanApplication.objects.select_related(
             'loan_type',
@@ -297,10 +296,7 @@ class LoanApplicationService:
         ).filter(
             user=user,
             loan_type_id=loan_type_id,
-            current_status__status_name__in=[
-                ApplicationStatuses.DRAFT,
-                ApplicationStatuses.SUBMITTED,
-            ],
+            current_status__status_name=ApplicationStatuses.DRAFT,
         ).order_by('-application_date').first()
 
     @staticmethod
@@ -892,25 +888,66 @@ class ProfileService:
         }
 
 
+# ---------------------------------------------------------------------------
+# Co-maker rank requirements by loan amount.
+# Maps (min_amount, required_verified_employment_status) in ascending order.
+# For a given loan amount, find the first tier where amount >= min_amount
+# (checking from highest bracket down) to get the required status.
+#
+# Tiers:
+#   < 25,000  → any regular member is eligible ('permanent' | 'temporary' | 'casual')
+#   >= 25,000 → must have permanent or temporary status
+#   >= 50,000 → must have permanent status (highest rank)
+# ---------------------------------------------------------------------------
+COMAKER_RANK_TIERS = [
+    # (min_amount, allowed_statuses, label)
+    (50000, ['permanent'],                    'Permanent Employment (Rank 3)'),
+    (25000, ['permanent', 'temporary'],        'Permanent/Temporary Employment (Rank 2)'),
+    (0,     ['permanent', 'temporary', 'casual'], 'Regular Member (Rank 1)'),
+]
+
+
+def get_comaker_rank_requirement(loan_amount):
+    """
+    Return the (allowed_statuses, label) for the given loan amount.
+    Co-makers must have a verified_employment_status in allowed_statuses.
+    """
+    amount = float(loan_amount or 0)
+    for min_amt, statuses, label in COMAKER_RANK_TIERS:
+        if amount >= min_amt:
+            return statuses, label
+    return COMAKER_RANK_TIERS[-1][1], COMAKER_RANK_TIERS[-1][2]
+
+
 class CoMakerService:
     """Service for co-maker management."""
 
     @staticmethod
-    def search_registered_users(search_term, exclude_user_id, limit=20, offset=0):
+    def search_registered_users(search_term, exclude_user_id, limit=20, offset=0, loan_amount=None):
         """
-        Search for registered users to add as co-makers.
-        Only returns active applicants.
+        Search for registered Regular members eligible to be co-makers.
 
-        Returns a dict: { users, total, has_more }
+        Eligibility rules:
+        - Must be an active, approved Applicant
+        - Must have membership_type = 'regular'
+        - Must have verified_employment_status meeting the loan amount rank requirement
+
+        Returns a dict: { users, total, has_more, required_rank_label }
         """
         limit = min(int(limit), 50)   # cap at 50 per page
         offset = max(int(offset), 0)
 
-        qs = User.objects.filter(
+        # Determine rank requirement for this loan amount
+        allowed_statuses, rank_label = get_comaker_rank_requirement(loan_amount)
+
+        # Only regular members with verified employment meeting the rank requirement
+        qs = Applicant.objects.filter(
             role__name='Applicant',
             is_active=True,
             status='active',
-            account_status='approved'
+            account_status='approved',
+            membership_type='regular',
+            verified_employment_status__in=allowed_statuses,
         ).exclude(pk=exclude_user_id)
 
         if search_term:
@@ -921,12 +958,59 @@ class CoMakerService:
             )
 
         total = qs.count()
-        page = qs[offset: offset + limit]
+        page = list(qs[offset: offset + limit])
         return {
-            'users': list(page),
+            'users': page,
             'total': total,
             'has_more': (offset + limit) < total,
+            'required_rank_label': rank_label,
+            'allowed_statuses': allowed_statuses,
         }
+
+    @staticmethod
+    def _is_repeat_comaker(comaker_user):
+        """
+        Check if the user has previously been an accepted co-maker on any application.
+        Returns (is_repeat: bool, prior_comaker_id: int or None)
+        """
+        prior = LoanCoMaker.objects.filter(
+            user=comaker_user,
+            status=LoanCoMaker.STATUS_ACCEPTED,
+        ).select_related('application').order_by('-agreed_at').first()
+        if prior:
+            return True, prior.id
+        return False, None
+
+    @staticmethod
+    def _get_comaker_id_document(comaker_user):
+        """
+        Locate the most recent co-maker ID / BukSU ID document from prior accepted
+        co-maker records for this user.  Returns (file_path: str or None, doc_label: str).
+        """
+        # Look through prior accepted co-maker records for an uploaded ID document
+        prior_comakers = LoanCoMaker.objects.filter(
+            user=comaker_user,
+            status=LoanCoMaker.STATUS_ACCEPTED,
+        ).select_related('application').order_by('-agreed_at')
+
+        for cm in prior_comakers:
+            # Check for comaker_id or buksu_id documents in that application
+            doc = LoanDocument.objects.filter(
+                loan_application=cm.application,
+                document_type__in=['comaker_id', 'buksu_id'],
+            ).order_by('-uploaded_at').first()
+            if doc and doc.file_path:
+                return doc.file_path, doc.document_type
+
+        # Fallback: check the co-maker's own applications for a buksu_id
+        own_doc = LoanDocument.objects.filter(
+            loan_application__user=comaker_user,
+            document_type__in=['buksu_id', 'comaker_id'],
+        ).order_by('-uploaded_at').first()
+        if own_doc and own_doc.file_path:
+            return own_doc.file_path, own_doc.document_type
+
+        return None, None
 
     @staticmethod
     def add_comaker(application, comaker_user_id, comaker_info_data, user):
@@ -944,23 +1028,55 @@ class CoMakerService:
         if current >= required:
             return None, f"This loan type only requires {required} co-maker(s)."
 
-        # Get co-maker user
+        # Get co-maker user (must be an Applicant with regular membership)
         try:
-            comaker_user = User.objects.get(pk=comaker_user_id)
-        except User.DoesNotExist:
+            comaker_user = Applicant.objects.get(pk=comaker_user_id)
+        except Applicant.DoesNotExist:
             return None, "Co-maker user not found."
 
         # Prevent self as co-maker
-        if comaker_user == user:
+        if comaker_user.id == user.id:
             return None, "You cannot be your own co-maker."
 
-        # Verify co-maker eligibility: must be an active, approved member
+        # Verify basic eligibility
         if not (comaker_user.is_active and comaker_user.status == 'active' and comaker_user.account_status == 'approved'):
             return None, "This member is not eligible to be a co-maker."
+
+        # Only regular members can be co-makers
+        if comaker_user.membership_type != 'regular':
+            return None, "Only Regular Members can serve as co-makers."
+
+        # Validate rank requirement based on loan amount
+        loan_amount = application.amount_requested or 0
+        allowed_statuses, rank_label = get_comaker_rank_requirement(loan_amount)
+        comaker_emp_status = comaker_user.verified_employment_status or ''
+        if comaker_emp_status not in allowed_statuses:
+            return None, (
+                f"For a loan of ₱{float(loan_amount):,.2f}, the co-maker must have "
+                f"{rank_label}. This member's verified employment status "
+                f"({comaker_emp_status or 'unverified'}) does not meet the requirement."
+            )
 
         # Check if already added
         if application.comakers.filter(user=comaker_user).exists():
             return None, "This user is already a co-maker for this application."
+
+        # Detect repeat co-maker and auto-pull their ID document
+        is_repeat, prior_comaker_id = CoMakerService._is_repeat_comaker(comaker_user)
+        auto_id_path = None
+        auto_id_doc_type = None
+        if is_repeat:
+            auto_id_path, auto_id_doc_type = CoMakerService._get_comaker_id_document(comaker_user)
+            if auto_id_path:
+                # Create a linked LoanDocument for this application using the existing file
+                LoanDocument.objects.get_or_create(
+                    loan_application=application,
+                    document_type='comaker_id',
+                    defaults={
+                        'file_path': auto_id_path,
+                        'verified': False,
+                    }
+                )
 
         # Create LoanCoMaker
         loan_comaker = LoanCoMaker.objects.create(
@@ -969,19 +1085,25 @@ class CoMakerService:
         )
 
         # Create detailed CoMakerInfo
-        comaker_info = CoMakerInfo.objects.create(
+        CoMakerInfo.objects.create(
             loan_comaker=loan_comaker,
             full_name=comaker_info_data.get('full_name', f"{comaker_user.firstname} {comaker_user.lastname}"),
             relationship_to_applicant=comaker_info_data.get('relationship_to_applicant', ''),
-            contact_number=comaker_info_data.get('contact_number', ''),
+            contact_number=comaker_info_data.get('contact_number', getattr(comaker_user, 'contact_number', '') or ''),
             email=comaker_info_data.get('email', comaker_user.email),
             address=comaker_info_data.get('address', ''),
-            employer_name=comaker_info_data.get('employer_name', ''),
-            position=comaker_info_data.get('position', ''),
+            employer_name=comaker_info_data.get('employer_name', getattr(comaker_user, 'employer_name', '') or ''),
+            position=comaker_info_data.get('position', getattr(comaker_user, 'position', '') or ''),
             monthly_income=comaker_info_data.get('monthly_income'),
             id_type=comaker_info_data.get('id_type', 'other'),
             id_number=comaker_info_data.get('id_number', ''),
         )
+
+        # Attach repeat/rank metadata to the loan_comaker instance for the caller
+        loan_comaker._is_repeat = is_repeat
+        loan_comaker._auto_id_pulled = is_repeat and bool(auto_id_path)
+        loan_comaker._rank_label = rank_label
+        loan_comaker._comaker_emp_status = comaker_emp_status
 
         # Notify the co-maker that they have been added
         applicant_name = f"{user.firstname} {user.lastname}"
@@ -1057,8 +1179,19 @@ class CoMakerService:
 
     @staticmethod
     def get_application_comakers(application):
-        """Get all co-makers for an application."""
-        return application.comakers.select_related('user').prefetch_related('detailed_info')
+        """Get all co-makers for an application with rank and repeat info."""
+        comakers = list(
+            application.comakers.select_related('user').prefetch_related('detailed_info')
+        )
+        for idx, cm in enumerate(comakers, start=1):
+            cm._rank_position = idx
+            is_repeat, _ = CoMakerService._is_repeat_comaker(cm.user)
+            cm._is_repeat = is_repeat
+            try:
+                cm._emp_status = Applicant.objects.get(pk=cm.user.id).verified_employment_status or ''
+            except Applicant.DoesNotExist:
+                cm._emp_status = ''
+        return comakers
 
     @staticmethod
     def get_comaker_requests(user):
